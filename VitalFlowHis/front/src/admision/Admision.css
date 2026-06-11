@@ -1,0 +1,690 @@
+.admision-page {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.admision-header h2 {
+  margin: 0;
+}
+
+.admision-header p {
+  margin: 0.3rem 0 1rem;
+  color: var(--muted);
+}
+
+.admision-identificacion {
+  border: 1px solid #c9d9eb;
+  background: #f6faff;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+  gap: 0.6rem;
+  align-items: end;
+  margin-bottom: 0.8rem;
+}
+
+.admision-identificacion > label,
+.admision-filtros-main > label,
+.admision-filtros-avanzados > label {
+  margin-bottom: 0;
+}
+
+.admision-identificacion-actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  align-self: end;
+  padding-top: 1.55rem;
+  padding-bottom: 1px;
+}
+
+.admision-paciente-seleccionado {
+  border: 1px solid #b7d4ef;
+  border-radius: 10px;
+  background: #edf6ff;
+  padding: 0.7rem;
+  margin-bottom: 0.8rem;
+}
+
+.admision-paciente-seleccionado h3,
+.admision-paciente-seleccionado p {
+  margin: 0;
+}
+
+.admision-paciente-seleccionado p + p {
+  margin-top: 0.2rem;
+}
+
+.admision-candidatos {
+  border: 1px solid #d7e4f3;
+  border-radius: 10px;
+  background: #fbfdff;
+  padding: 0.7rem;
+  margin-bottom: 0.8rem;
+}
+
+.admision-candidatos h3 {
+  margin: 0 0 0.5rem;
+}
+
+.admision-candidatos-list {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.admision-cabecera {
+  border: 1px solid #bbd2e9;
+  border-radius: 12px;
+  background: linear-gradient(130deg, #f8fbff 0%, #edf5ff 56%, #f2f8ff 100%);
+  padding: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+
+.admision-cabecera-main {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto minmax(300px, 1.2fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.admision-cabecera-toggle {
+  min-width: 130px;
+}
+
+.admision-cabecera-identidad p {
+  margin: 0;
+}
+
+.admision-cabecera-kicker {
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #59789a;
+  font-weight: 700;
+  margin-bottom: 0.1rem;
+}
+
+.admision-cabecera-nombre {
+  font-weight: 700;
+  color: #244567;
+}
+
+.admision-cabecera-sexo {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid #95b9de;
+  background: #e3eefc;
+  color: #1f5f94;
+  font-weight: 700;
+}
+
+.admision-cabecera-core {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.admision-cabecera-core p {
+  margin: 0.06rem 0 0;
+  font-size: 0.9rem;
+  color: #1f3957;
+}
+
+.admision-cabecera-label {
+  display: inline-block;
+  font-size: 0.73rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #577699;
+  font-weight: 700;
+}
+
+.admision-cabecera-actions {
+  display: flex;
+  gap: 0.45rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.admision-cabecera-actions .btn-outline,
+.admision-cabecera-actions .admision-cabecera-toggle {
+  white-space: nowrap;
+}
+
+.admision-cabecera-detalle {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #d0e2f4;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.5rem 0.8rem;
+}
+
+.admision-detalle-card {
+  border: 1px solid #d7e6f4;
+  border-radius: 8px;
+  background: #fafdff;
+  padding: 0.45rem 0.55rem;
+}
+
+.admision-detalle-label {
+  display: inline-block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6283a6;
+  font-weight: 700;
+}
+
+.admision-detalle-card p {
+  margin: 0;
+  margin-top: 0.08rem;
+  font-size: 0.9rem;
+}
+
+.admision-financiador-head {
+  margin-top: 0.7rem;
+  border-top: 1px dashed #c7dbef;
+  padding-top: 0.7rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admision-financiador-edit-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.admision-financiador-edit-wrap .icon-edit-btn {
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 1rem;
+}
+
+.admision-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.admision-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #b8c7da;
+  background: #eef3f9;
+  color: #2f4d72;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.admision-pill-selected {
+  border-color: #0f6cab;
+  background: #e9f4ff;
+  color: #0f5485;
+}
+
+.admision-pill-warning {
+  border-color: #e2b4b4;
+  background: #fff1f1;
+  color: #8e3131;
+}
+
+.admision-pill-locked {
+  border-color: #d5bcbf;
+  background: #f8edef;
+  color: #7f3a43;
+}
+
+.admision-elegibilidad-check {
+  margin: 0;
+  font-weight: 600;
+  color: #2b4f75;
+}
+
+.admision-step-help {
+  margin: 0;
+  color: #4f6785;
+  font-size: 0.86rem;
+}
+
+.admision-arribo-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.admision-btn-admitir-ready {
+  background: #dff5e6;
+  border-color: #9fd6af;
+  color: #1f6a37;
+}
+
+.admision-btn-admitir-ready:hover {
+  background: #d1f0dc;
+  border-color: #89c99c;
+}
+
+.admision-acciones-turno {
+  margin: 0.45rem 0 0.8rem;
+  border: 1px solid #cfe0f2;
+  border-radius: 10px;
+  background: #f6faff;
+  padding: 0.55rem 0.6rem;
+}
+
+.admision-fecha-nav {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.admision-lista.is-readonly-date {
+  opacity: 0.65;
+}
+
+.admision-elegibilidad-warning {
+  margin: 0;
+  color: #8f5a00;
+  background: #fff8df;
+  border: 1px solid #e5d7a3;
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.84rem;
+}
+
+.admision-financiador-modal {
+  width: min(860px, calc(100vw - 2rem));
+}
+
+.admision-financiadores-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+}
+
+.admision-financiador-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border: 1px solid #d5deea;
+  border-radius: 10px;
+  background: #f9fbff;
+  padding: 0.5rem;
+}
+
+.admision-financiador-radio {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin: 0;
+}
+
+.admision-financiador-radio small {
+  display: block;
+  color: #4e6178;
+  margin-top: 0.15rem;
+}
+
+.admision-financiador-item-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admision-elegibilidad-inline {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.admision-financiador-form {
+  border-top: 1px solid #dbe4ef;
+  padding-top: 0.75rem;
+}
+
+.admision-financiador-form h4 {
+  margin: 0 0 0.45rem;
+}
+
+.admision-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.6rem;
+}
+
+.admision-input-error {
+  color: #8a232d;
+  font-size: 0.8rem;
+  margin: 0.2rem 0 0;
+}
+
+.admision-filtros {
+  border: 1px solid #c9d9eb;
+  background: #f8fbff;
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 0.8rem;
+}
+
+.admision-filtros-main {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(150px, 1fr)) auto;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.admision-filtros-avanzados {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.6rem;
+  padding-top: 0.1rem;
+  border-top: 1px dashed #d7e3f2;
+}
+
+.admision-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-self: end;
+  padding-top: 1.55rem;
+}
+
+.admision-actions button {
+  white-space: nowrap;
+}
+
+.admision-error {
+  border: 1px solid #f0b4b4;
+  background: #fff6f6;
+  color: #9f2d2d;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+}
+
+.admision-info {
+  border: 1px solid #b6dfbf;
+  background: #f3fff6;
+  color: #22643b;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+}
+
+.admision-lista {
+  margin-top: 0;
+}
+
+.admision-lista h3 {
+  margin: 0 0 0.55rem;
+}
+
+.admision-table-wrap {
+  overflow-x: auto;
+}
+
+.admision-table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admision-table-wrap th,
+.admision-table-wrap td {
+  border: 1px solid #d8e3f1;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.86rem;
+  text-align: left;
+}
+
+.admision-table-wrap th {
+  background: #edf4fd;
+  color: #264a72;
+}
+
+.admision-row-select-btn {
+  min-width: 92px;
+  background: #fff;
+  color: #325a84;
+  border-color: #8ea7c5;
+}
+
+.admision-row-select-btn.is-selected-programado {
+  background: #dff5e6;
+  border-color: #9fd6af;
+  color: #1f6a37;
+}
+
+.admision-row-select-btn.is-selected {
+  background: #eaf2ff;
+  border-color: #a8c0e2;
+  color: #2f4d72;
+}
+
+.admision-table-wrap tbody tr.is-selected {
+  box-shadow: inset 0 0 0 2px #b9cde4;
+}
+
+.admision-table-wrap tbody tr.estado-programado.is-selected {
+  background: #eefaf1;
+  box-shadow: inset 0 0 0 2px #9fd6af;
+}
+
+.admision-table-wrap tbody tr.estado-en-sala-de-espera {
+  background: #eef6ff;
+}
+
+.admision-table-wrap tbody tr.estado-en-atencion {
+  background: #fff7ec;
+}
+
+.admision-table-wrap tbody tr.estado-en-observacion {
+  background: #f6f2ff;
+}
+
+.admision-table-wrap tbody tr.estado-atendido {
+  background: #f2fbf7;
+}
+
+.admision-table-wrap tbody tr.estado-no-atendido,
+.admision-table-wrap tbody tr.estado-ausente,
+.admision-table-wrap tbody tr.estado-no-admitido {
+  background: #fff4f4;
+}
+
+.admision-table-wrap tbody tr.estado-pendiente-de-pago {
+  background: #fff9eb;
+}
+
+.admision-estado-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.9rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid #bfd0e1;
+  background: #edf3fa;
+  color: #29496c;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.admision-estado-chip-programado {
+  border-color: #cfd8e3;
+  background: #f3f6fa;
+  color: #526275;
+}
+
+.admision-estado-chip-en-sala-de-espera,
+.admision-estado-chip-en-atencion,
+.admision-estado-chip-atendido {
+  border-color: #97c9a5;
+  background: #ecf8ef;
+  color: #1f6a37;
+}
+
+.admision-estado-chip-en-observacion {
+  border-color: #bca9e8;
+  background: #f3edff;
+  color: #5b4293;
+}
+
+.admision-estado-chip-pendiente-de-pago {
+  border-color: #e7c26a;
+  background: #fff4d6;
+  color: #8c5a00;
+}
+
+.admision-estado-chip-no-atendido,
+.admision-estado-chip-ausente,
+.admision-estado-chip-no-admitido {
+  border-color: #e2a7a7;
+  background: #fff0f0;
+  color: #9a2f2f;
+}
+
+.admision-discrepancia-modal {
+  width: min(620px, calc(100vw - 2rem));
+}
+
+.admision-programado-modal {
+  width: min(640px, calc(100vw - 2rem));
+}
+
+.admision-programado-step h4 {
+  margin: 0 0 0.45rem;
+  color: #264d75;
+}
+
+.admision-programado-step p {
+  margin: 0.3rem 0;
+}
+
+.admision-demanda-modal {
+  width: min(760px, calc(100vw - 2rem));
+}
+
+.admision-demanda-step h4 {
+  margin: 0 0 0.4rem;
+  color: #264d75;
+}
+
+.admision-demanda-step p {
+  margin: 0.3rem 0 0.9rem;
+}
+
+.admision-practicas-panel {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #d7e3f3;
+  border-radius: 0.75rem;
+  background: #f8fbff;
+}
+
+.admision-practicas-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+.admision-practicas-head h4 {
+  margin: 0;
+}
+
+.admision-practicas-head p {
+  margin: 0.2rem 0 0;
+}
+
+.admision-practicas-list {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.admision-practica-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.admision-practica-item button {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.admision-practicas-modal {
+  width: min(620px, calc(100vw - 2rem));
+}
+
+.admision-practicas-modal-list {
+  border: 1px solid #d7e3f3;
+  border-radius: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  max-height: 260px;
+  overflow: auto;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 980px) {
+  .admision-identificacion {
+    grid-template-columns: 1fr;
+  }
+
+  .admision-filtros-main {
+    grid-template-columns: 1fr;
+  }
+
+  .admision-identificacion-actions,
+  .admision-actions {
+    padding-top: 0;
+    justify-content: flex-start;
+  }
+
+  .admision-cabecera-main {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+.admision-cabecera-core {
+    grid-template-columns: 1fr;
+}
+
+.admision-cabecera-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.admision-financiador-edit-wrap {
+    grid-template-columns: 1fr;
+}
+
+.admision-financiador-item {
+    flex-direction: column;
+}
+
+.admision-financiador-item-actions {
+    width: 100%;
+    justify-content: flex-start;
+}
+
+}
