@@ -1,6 +1,11 @@
+import { useState } from "react";
 import { useAdmisionController } from "../useAdmisionController";
 type useAdmisionState = ReturnType<typeof useAdmisionController>;
-import { isPrivadoFinanciador, estadoAdmisionLabel } from "../admisionTypes";
+import { isPrivadoFinanciador, estadoAdmisionLabel, parseDocumentoTurno } from "../admisionTypes";
+import type { TurnoAdmision } from "../admisionTypes";
+import { identificarPacienteAdmision } from "../admisionApi";
+import { listarRecetasPaciente, obtenerRecetaDigital, obtenerFinanciadorActivo } from "../../escritorioClinico/escritorioClinicoApi";
+import type { RecetaDigitalResumenResponse, RecetaDigitalDetalleResponse } from "../../escritorioClinico/escritorioClinicoTypes";
 
 export function AdmisionIdentificacionPaciente({ state }: { state: useAdmisionState }) {
   const {
@@ -337,6 +342,110 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
     setTurnoSeleccionadoId, fechaEsHoy
   } = state;
 
+  const [recetaModalOpen, setRecetaModalOpen] = useState(false);
+  const [recetaModalPaciente, setRecetaModalPaciente] = useState("");
+  const [recetaModalList, setRecetaModalList] = useState<RecetaDigitalResumenResponse[]>([]);
+  const [recetaModalDetalles, setRecetaModalDetalles] = useState<Record<string, RecetaDigitalDetalleResponse>>({});
+  const [recetaModalLoading, setRecetaModalLoading] = useState(false);
+  const [recetaModalAnulando, setRecetaModalAnulando] = useState<string | null>(null);
+
+  async function handleVerRecetas(item: TurnoAdmision) {
+    setRecetaModalOpen(true);
+    setRecetaModalPaciente(item.paciente);
+    setRecetaModalList([]);
+    setRecetaModalDetalles({});
+    setRecetaModalLoading(true);
+    try {
+      const doc = parseDocumentoTurno(item.documento);
+      if (!doc) return;
+      const candidatos = await identificarPacienteAdmision(doc.tipoDocumento, doc.numeroDocumento);
+      if (candidatos.length === 0) return;
+      const recetas = await listarRecetasPaciente(candidatos[0].id);
+      setRecetaModalList(recetas);
+      const activas = recetas.filter(r => r.estado === "ACTIVA");
+      if (activas.length > 0) {
+        const detalles: Record<string, RecetaDigitalDetalleResponse> = {};
+        const results = await Promise.allSettled(activas.map(r => obtenerRecetaDigital(r.recetaId)));
+        for (const result of results) {
+          if (result.status === "fulfilled") {
+            detalles[result.value.recetaId] = result.value;
+          }
+        }
+        if (Object.keys(detalles).length > 0) setRecetaModalDetalles(detalles);
+      }
+    } catch {
+      setRecetaModalList([]);
+    } finally {
+      setRecetaModalLoading(false);
+    }
+  }
+
+  async function imprimirRecetaAdmision(receta: RecetaDigitalResumenResponse) {
+    try {
+      const detalle = await obtenerRecetaDigital(receta.recetaId);
+      var pid = detalle.pacienteId;
+      const financiador = await obtenerFinanciadorActivo(pid).catch(() => null);
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) return;
+      const items = detalle.items.map(item => `
+        <tr>
+          <td class="med-item">${item.medicamentoDisplay}</td>
+          <td>${item.dosisTexto ?? "-"}</td>
+          <td>${item.frecuenciaTexto ?? "-"}</td>
+          <td>${item.duracionDias ? item.duracionDias + " días" : "-"}</td>
+          <td>${item.indicacion ?? "-"}</td>
+        </tr>
+      `).join("\n");
+      const matriculaTexto = detalle.prescriptorMatricula ? `MP ${detalle.prescriptorMatricula}` : "";
+      const medicoLabel = detalle.prescriptorMatricula ? `Médico matrícula ${detalle.prescriptorMatricula}` : "Médico";
+      const financiadorTexto = financiador?.financiadorNombre ? `${financiador.financiadorNombre}${financiador.numeroAfiliado ? " - N° " + financiador.numeroAfiliado : ""}` : "—";
+      printWindow.document.write(`
+        <html><head><meta charset="utf-8">
+        <title>Prescripción Médica</title>
+        <style>
+          @page { margin: 2cm; }
+          body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #222; line-height: 1.5; }
+          h1 { font-size: 16pt; text-align: center; color: #1a3c5e; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.2cm; border-bottom: 3px double #1a3c5e; padding-bottom: 0.4cm; }
+          .info-grid { display: flex; flex-wrap: wrap; gap: 0.4rem 2.5rem; margin-bottom: 0.8cm; padding: 0.5cm 0.4cm; border: 1px solid #ccc; border-radius: 4px; background: #fafbfc; }
+          .info-grid p { margin: 0.15rem 0; font-size: 10.5pt; }
+          .info-grid strong { color: #1a3c5e; }
+          table { width: 100%; border-collapse: collapse; margin-top: 0.4cm; }
+          th { background: #e8edf3; padding: 0.4rem 0.5rem; border-bottom: 2px solid #8a9eb0; text-align: left; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.04em; color: #2b4b6e; }
+          td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #d5dee8; vertical-align: top; }
+          tr:last-child td { border-bottom: none; }
+          .med-item { font-weight: 600; font-size: 11pt; color: #111; }
+          .firma { margin-top: 2.5cm; text-align: center; }
+          .firma hr { width: 45%; margin: 0 auto 0.3cm; border: none; border-top: 1px solid #555; }
+          .firma p { margin: 0.15rem 0; color: #333; }
+          .firma .medico-nombre { font-weight: 700; font-size: 12pt; }
+          .firma .medico-matricula { font-size: 10pt; color: #555; }
+        </style>
+        </head><body>
+        <h1>Receta Médica</h1>
+        <div class="info-grid">
+          <p><strong>${medicoLabel}</strong></p>
+          <p><strong>Paciente:</strong> ${recetaModalPaciente || "—"}</p>
+          <p><strong>Obra Social:</strong> ${financiadorTexto}</p>
+          <p><strong>Fecha:</strong> ${new Date(detalle.creadoEn).toLocaleDateString("es-AR")}</p>
+        </div>
+        <table><thead><tr>
+          <th style="width:35%">Medicamento</th><th style="width:15%">Dosis</th><th style="width:18%">Frecuencia</th><th style="width:12%">Duración</th><th style="width:20%">Indicación</th>
+        </tr></thead><tbody>${items}</tbody></table>
+        <div class="firma">
+          <hr>
+          <p class="medico-nombre">${medicoLabel}</p>
+          <p class="medico-matricula">${matriculaTexto || "Firma y sello del médico"}</p>
+        </div>
+        </body></html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    } catch {
+      // silent
+    }
+  }
+
   const estadoRowClass = (estado: string) => {
     return `estado-${estado.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   };
@@ -386,6 +495,7 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
                 <th>Servicio</th>
                 <th>Efector</th>
                 <th>Estado</th>
+                <th>Receta</th>
               </tr>
             </thead>
             <tbody>
@@ -412,10 +522,51 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
                   <td>
                     <span className={estadoChipClass(item.estado)}>{estadoAdmisionLabel(item.estado)}</span>
                   </td>
+                  <td>
+                    <button type="button" className="btn-icon-receta" onClick={() => void handleVerRecetas(item)} disabled={!item.documento || item.documento === "-"} title="Ver recetas">
+                      💊
+                    </button>
+                  </td>
                 </tr>)}
             </tbody>
           </table>
         </div>}
+
+      {recetaModalOpen ? <div className="modal-backdrop">
+        <section className="confirm-modal hc-medicamento-modal">
+          <div className="modal-header">
+            <h3>Recetas — {recetaModalPaciente}</h3>
+            <button type="button" className="modal-close" onClick={() => setRecetaModalOpen(false)}>&times;</button>
+          </div>
+          <div className="modal-body">
+            {recetaModalLoading ? <p>Cargando recetas...</p> : recetaModalList.length === 0 ? <p>Sin recetas para este paciente.</p> : <>
+              {recetaModalList.map(receta => {
+                const detalle = recetaModalDetalles[receta.recetaId];
+                return <div key={receta.recetaId} style={{ borderBottom: "1px solid #d5dee8", padding: "0.6rem 0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <p style={{ fontWeight: 700, color: "#25466b", margin: 0 }}>
+                        {new Date(receta.creadoEn).toLocaleDateString("es-AR")}
+                        <span className={`hc-chip hc-chip-${receta.estado.toLowerCase()}`} style={{ marginLeft: "0.5rem" }}>{receta.estado}</span>
+                      </p>
+                      {detalle ? detalle.items.map(item => (
+                        <p key={item.itemId} style={{ margin: "0.2rem 0 0 0.5rem", color: "#556f8d", fontSize: "0.85rem" }}>
+                          {item.medicamentoDisplay}{item.dosisTexto ? ` — ${item.dosisTexto}` : ""}{item.frecuenciaTexto ? ` c/ ${item.frecuenciaTexto}` : ""}{item.duracionDias ? ` × ${item.duracionDias}d` : ""}
+                        </p>
+                      )) : receta.estado === "ACTIVA" ? <p style={{ margin: "0.2rem 0 0 0.5rem", color: "#999", fontSize: "0.82rem" }}>Cargando detalle...</p> : null}
+                    </div>
+                    <div style={{ display: "flex", gap: "0.35rem", flexShrink: 0 }}>
+                      <button type="button" className="btn-panoramica btn-panoramica-receta" style={{ padding: "0.25rem 0.6rem", fontSize: "0.8rem" }} onClick={() => void imprimirRecetaAdmision(receta)} disabled={receta.estado !== "ACTIVA"} title="Imprimir receta">
+                        🖨
+                      </button>
+                    </div>
+                  </div>
+                </div>;
+              })}
+            </>}
+          </div>
+        </section>
+      </div> : null}
 
     </section>
   );
