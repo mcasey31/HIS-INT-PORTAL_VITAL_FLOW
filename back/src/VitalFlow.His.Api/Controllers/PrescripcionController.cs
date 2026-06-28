@@ -21,8 +21,9 @@ public sealed class PrescripcionController(
             var usuarioId = httpContextAccessor.HttpContext?.User.FindFirst("userId")?.Value
                 ?? throw new UnauthorizedAccessException("Usuario no autenticado.");
             var username = httpContextAccessor.HttpContext?.User.Identity?.Name;
+            var matricula = httpContextAccessor.HttpContext?.User.FindFirst("matricula")?.Value;
 
-            var result = prescripcionService.Crear(request, usuarioId, username);
+            var result = prescripcionService.Crear(request, usuarioId, username, matricula);
             return Ok(result);
         }
         catch (ArgumentException ex)

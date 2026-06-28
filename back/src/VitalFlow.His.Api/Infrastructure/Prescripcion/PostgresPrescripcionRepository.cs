@@ -6,7 +6,7 @@ namespace VitalFlow.His.Api.Infrastructure.Prescripcion;
 
 public sealed class PostgresPrescripcionRepository(string connectionString)
 {
-    public CrearPrescripcionResponse Crear(CrearPrescripcionRequest request, string usuarioId)
+    public CrearPrescripcionResponse Crear(CrearPrescripcionRequest request, string usuarioId, string matricula)
     {
         var recetaId = Guid.NewGuid();
         var itemId = Guid.NewGuid();
@@ -23,7 +23,7 @@ public sealed class PostgresPrescripcionRepository(string connectionString)
                  validacion_outcome_json, activo, created_at, updated_at)
             values
                 (@id, @paciente_id, null, @turno_id, @prescriptor_usuario_id,
-                 '', '', 'ACTIVA', '',
+                 @prescriptor_matricula, '', 'ACTIVA', '',
                  '{}'::jsonb, null, null,
                  null, true, now(), now());
             """;
@@ -34,6 +34,7 @@ public sealed class PostgresPrescripcionRepository(string connectionString)
             cmd.Parameters.AddWithValue("paciente_id", Guid.Parse(request.PacienteId));
             cmd.Parameters.AddWithValue("turno_id", Guid.Parse(request.TurnoId));
             cmd.Parameters.AddWithValue("prescriptor_usuario_id", Guid.Parse(usuarioId));
+            cmd.Parameters.AddWithValue("prescriptor_matricula", matricula);
             cmd.ExecuteNonQuery();
         }
 

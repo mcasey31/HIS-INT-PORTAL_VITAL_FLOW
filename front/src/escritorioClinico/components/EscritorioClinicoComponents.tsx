@@ -232,21 +232,12 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
         <p>Selecciona un paciente desde Plantilla HC o Megafono para abrir la historia clinica.</p>
       </div> : <>
         <header className="hc-panoramica-header">
-          <div>
-            <h3>Panoramica de Historia Clinica</h3>
+           <div className="hc-panoramica-info-compact">
+            <h4>Panoramica de Historia Clinica</h4>
             <p>
-              Paciente: <strong>{selectedTurno.paciente}</strong> | Estado: <strong>{estadoLabel(selectedTurno.estado)}</strong>
-            </p>
-            <p>
-              Documento: <strong>{selectedTurno.documento}</strong>
-              {" | "}
-              Financiador: <strong>{selectedTurno.financiador}</strong>
-            </p>
-            <p>
-              Ingreso por <strong>{modoIngreso === "megafono" ? "Megafono" : "Plantilla HC"}</strong>
-              {" | "}
-              Encuentro: <strong>{estadoLabel(encuentroEstado)}</strong>
-              {encuentroEstado === "ABIERTO" && encuentroCreadoEn ? <> | <TemporizadorAtencion creadoEn={encuentroCreadoEn} /></> : null}
+              <strong>{selectedTurno.paciente}</strong> — {selectedTurno.documento} — {selectedTurno.financiador} — Estado: {estadoLabel(selectedTurno.estado)}
+              {" — "}Encuentro: {estadoLabel(encuentroEstado)}
+              {encuentroEstado === "ABIERTO" && encuentroCreadoEn ? <> — <TemporizadorAtencion creadoEn={encuentroCreadoEn} /></> : null}
             </p>
           </div>
 

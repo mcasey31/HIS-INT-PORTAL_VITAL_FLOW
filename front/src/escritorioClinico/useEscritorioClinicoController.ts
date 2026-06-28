@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { actualizarEstadoTurno, buscarTurnosAdmision, cerrarEncuentroTurno, getSelectoresAdmision, obtenerEncuentroTurno } from "../admision/admisionApi";
 import type { TurnoAdmision, SelectoresAdmision } from "../admision/admisionTypes";
-import { anularRecetaDigital, asignarProblemaPaciente, buscarMedicamentos, buscarPersonaPorDocumento, buscarPersonaPorSetMinimo, crearPrescripcion, crearEvolucionAmbulatoria, guardarSolicitudesEstudiosTurno, listarRecetasPaciente, obtenerEvolucionesAmbulatoriasPaciente, obtenerProblemasCronicosPaciente, obtenerRecetaDigital, obtenerSolicitudesEstudiosTurno } from "./escritorioClinicoApi";
-import type { AsignarProblemaRequest, BuscarMedicamentosResponse, CrearEvolucionAmbulatoriaRequest, EvolucionAmbulatoriaResponse, GuardarSolicitudesEstudiosRequest, MedicamentoResponse, PersonaCandidataBusqueda, ProblemaCronicoResponse, RecetaDigitalResumenResponse, RegistroPanoramica, SolicitudEstudioRecord } from "./escritorioClinicoTypes";
+import { anularRecetaDigital, asignarProblemaPaciente, buscarMedicamentos, buscarPersonaPorDocumento, buscarPersonaPorSetMinimo, crearPrescripcion, crearEvolucionAmbulatoria, guardarSolicitudesEstudiosTurno, listarRecetasPaciente, obtenerEvolucionesAmbulatoriasPaciente, obtenerFinanciadorActivo, obtenerProblemasCronicosPaciente, obtenerRecetaDigital, obtenerSolicitudesEstudiosTurno } from "./escritorioClinicoApi";
+import type { AsignarProblemaRequest, BuscarMedicamentosResponse, CrearEvolucionAmbulatoriaRequest, EvolucionAmbulatoriaResponse, FinanciadorActivoResponse, GuardarSolicitudesEstudiosRequest, MedicamentoResponse, PersonaCandidataBusqueda, ProblemaCronicoResponse, RecetaDigitalResumenResponse, RegistroPanoramica, SolicitudEstudioRecord } from "./escritorioClinicoTypes";
 import {
   UseEscritorioClinicoOptions, ModoIngreso, OrigenPanoramica, AccionSalidaEncuentro,
   EvolucionCreadaLocal, SolicitudesEstudiosPorFecha, ObservacionesPorPracticaFecha,
@@ -114,6 +114,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   const [prescripcionModuleAnulando, setPrescripcionModuleAnulando] = useState<string | null>(null);
   const [showMedicamentoModal, setShowMedicamentoModal] = useState(false);
   const [medicamentoSearchQuery, setMedicamentoSearchQuery] = useState("");
+  const [medicamentoSoloGenerico, setMedicamentoSoloGenerico] = useState(false);
   const [medicamentoResultados, setMedicamentoResultados] = useState<MedicamentoResponse[]>([]);
   const [medicamentoLoading, setMedicamentoLoading] = useState(false);
   const [medicamentoTotalCount, setMedicamentoTotalCount] = useState(0);
@@ -1110,6 +1111,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     setMedicamentoPagina(1);
     setMedicamentoError(null);
     setMedicamentoSeleccionado(null);
+    setShowPrescripcionModule(false);
     setShowMedicamentoModal(true);
   }
 
@@ -1148,8 +1150,11 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
         duracionDias: prescripcionDuracion ? parseInt(prescripcionDuracion, 10) : undefined,
         indicacion: prescripcionIndicacion || undefined,
       });
-      setPrescripcionExitosa(true);
-      if (showPrescripcionModule) void cargarRecetasPaciente();
+      // Close form modal and reopen prescriptions list
+      setShowPrescripcionFormModal(false);
+      setShowPrescripcionModule(true);
+      setPrescripcionModuleLoading(true);
+      void cargarRecetasPaciente();
     } catch (err) {
       setPrescripcionError("Error al guardar la prescripcion.");
     } finally {
@@ -1190,7 +1195,20 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   }
 
   function imprimirReceta(receta: RecetaDigitalResumenResponse) {
-    obtenerRecetaDigital(receta.recetaId).then(detalle => {
+    Promise.all([
+      obtenerRecetaDigital(receta.recetaId),
+      (async () => {
+        var pid = encuentroPacienteId;
+        if (!pid && selectedTurno?.documento && selectedTurno.documento !== "-") {
+          try {
+            const candidatos = await buscarPersonaPorDocumento("DNI", selectedTurno.documento.replace(/[^0-9]/g, ""));
+            if (candidatos.length > 0) pid = candidatos[0].id;
+          } catch {}
+        }
+        if (!pid) return null;
+        return obtenerFinanciadorActivo(pid).catch(() => null);
+      })()
+    ]).then(([detalle, financiador]) => {
       const printWindow = window.open("", "_blank");
       if (!printWindow) return;
       const items = detalle.items.map(item => `
@@ -1202,27 +1220,37 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
           <td style="padding: 0.3rem 0.5rem; border-bottom: 1px solid #ccc;">${item.indicacion ?? "-"}</td>
         </tr>
       `).join("\n");
+      const matriculaTexto = detalle.prescriptorMatricula ? `MP ${detalle.prescriptorMatricula}` : "";
+      const financiadorTexto = financiador?.financiadorNombre ? `${financiador.financiadorNombre}${financiador.numeroAfiliado ? " - N° " + financiador.numeroAfiliado : ""}` : (selectedTurno?.financiador ?? "—");
       printWindow.document.write(`
         <html><head><meta charset="utf-8">
         <title>Prescripción Médica</title>
         <style>
           body { font-family: 'Times New Roman', serif; font-size: 12pt; margin: 2cm; }
-          h1 { font-size: 14pt; text-align: center; margin-bottom: 1.5cm; }
+          h1 { font-size: 14pt; text-align: center; margin-bottom: 1cm; }
+          .info-grid { display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; margin-bottom: 0.8cm; }
+          .info-grid p { margin: 0; }
           table { width: 100%; border-collapse: collapse; margin-top: 0.5cm; }
           th { background: #eef; padding: 0.3rem 0.5rem; border-bottom: 2px solid #999; text-align: left; }
+          td { padding: 0.3rem 0.5rem; border-bottom: 1px solid #ccc; }
           .firma { margin-top: 2cm; text-align: center; }
           .firma hr { width: 50%; margin: 0 auto 0.3cm; }
         </style>
         </head><body>
         <h1>RECETA MÉDICA</h1>
-        <p><strong>Paciente:</strong> ${selectedTurno?.paciente ?? "—"}</p>
-        <p><strong>Documento:</strong> ${selectedTurno?.documento ?? "—"}</p>
-        <p><strong>Fecha:</strong> ${new Date().toLocaleDateString("es-AR")}</p>
+        <div class="info-grid">
+          <p><strong>Médico:</strong> ${profesionalActual} ${matriculaTexto}</p>
+          <p><strong>Paciente:</strong> ${selectedTurno?.paciente ?? "—"}</p>
+          <p><strong>Documento:</strong> ${selectedTurno?.documento ?? "—"}</p>
+          <p><strong>Obra Social:</strong> ${financiadorTexto}</p>
+          <p><strong>Fecha:</strong> ${new Date().toLocaleDateString("es-AR")}</p>
+        </div>
         <table><thead><tr>
           <th>Medicamento</th><th>Dosis</th><th>Frecuencia</th><th>Duración</th><th>Indicación</th>
         </tr></thead><tbody>${items}</tbody></table>
         <div class="firma">
-          <hr><p>Firma y sello del médico</p>
+          <hr><p>${profesionalActual}</p>
+          <p>Firma y sello del médico</p>
         </div>
         </body></html>
       `);
@@ -1241,7 +1269,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     setMedicamentoLoading(true);
     setMedicamentoError(null);
     try {
-      const result = await buscarMedicamentos(query.trim(), undefined, undefined, page, 20);
+      const result = await buscarMedicamentos(query.trim(), undefined, undefined, medicamentoSoloGenerico, page, 20);
       // If current results exist and user navigated pages, replace
       setMedicamentoResultados(result.items);
       setMedicamentoTotalCount(result.totalCount);
@@ -1286,7 +1314,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       void ejecutarBusquedaMedicamento(medicamentoSearchQuery, 1);
     }, 400);
     return () => { if (medicamentoSearchTimer.current) clearTimeout(medicamentoSearchTimer.current); };
-  }, [medicamentoSearchQuery, showMedicamentoModal]);
+  }, [medicamentoSearchQuery, showMedicamentoModal, medicamentoSoloGenerico]);
   useEffect(() => { window.localStorage.setItem(EFECTOR_ID_STORAGE_KEY, efectorId); }, [efectorId]);
 
   useEffect(() => {
@@ -1447,9 +1475,10 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     abrirSistemasClinicos, confirmarAccederSistemasClinicos,
     canIntegrarSistemasClinicos,
     showMedicamentoModal, setShowMedicamentoModal,
-    abrirBuscarMedicamento, medicamentoSearchQuery, setMedicamentoSearchQuery,
+    abrirBuscarMedicamento, medicamentoSearchQuery, setMedicamentoSearchQuery, medicamentoSearchTimer,
     medicamentoResultados, medicamentoLoading, medicamentoTotalCount,
     medicamentoPagina, setMedicamentoPagina, medicamentoError,
+    medicamentoSoloGenerico, setMedicamentoSoloGenerico,
     ejecutarBusquedaMedicamento, medicamentoSeleccionado, setMedicamentoSeleccionado,
     seleccionarMedicamento, showPrescripcionFormModal, setShowPrescripcionFormModal,
     prescripcionDosis, setPrescripcionDosis, prescripcionFrecuencia, setPrescripcionFrecuencia,

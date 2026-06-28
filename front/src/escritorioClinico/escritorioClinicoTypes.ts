@@ -401,6 +401,7 @@ export interface MedicamentoResponse {
   laboratorio: string;
   familia: string;
   forma: string;
+  esGenerico: boolean;
 }
 
 // --- Existing receta API types ---
@@ -419,6 +420,8 @@ export interface RecetaDigitalDetalleResponse {
   pacienteId: string;
   encuentroId?: string;
   turnoId?: string;
+  prescriptorUsuarioId: string;
+  prescriptorMatricula: string;
   estado: string;
   creadoEn: string;
   items: RecetaDigitalItemResponse[];
@@ -440,6 +443,12 @@ export interface AnularRecetaDigitalResponse {
   recetaId: string;
   estadoAnterior: string;
   estadoNuevo: string;
+}
+
+export interface FinanciadorActivoResponse {
+  financiadorNombre: string;
+  numeroAfiliado: string;
+  planNombre: string;
 }
 
 export interface CrearPrescripcionRequest {

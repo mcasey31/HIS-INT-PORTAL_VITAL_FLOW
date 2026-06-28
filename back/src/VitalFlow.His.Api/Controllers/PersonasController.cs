@@ -9,7 +9,10 @@ namespace VitalFlow.His.Api.Controllers;
 [ApiController]
 [Route("api/v1/personas")]
 [Authorize(Roles = "Administrador,Enrolamiento Persona,Medico")]
-public sealed class PersonasController(IPersonaService personaService) : ControllerBase
+public sealed class PersonasController(
+    IPersonaService personaService,
+    IConfiguration configuration
+) : ControllerBase
 {
     [HttpGet("tipos-documento")]
     public IActionResult GetTiposDocumento()
@@ -101,6 +104,43 @@ public sealed class PersonasController(IPersonaService personaService) : Control
         {
             return BadRequest(new { message = "Ya existe una persona con ese tipo y numero de documento." });
         }
+    }
+
+    [HttpGet("{personaId:guid}/financiador-activo")]
+    public IActionResult GetFinanciadorActivo(Guid personaId)
+    {
+        const string sql = """
+            select
+                f.nombre as financiador_nombre,
+                fp.numero_afiliado,
+                pf.nombre as plan_nombre
+            from sch_administracion.t_paciente_financiador_plan fp
+            join sch_persona.financiador f on f.id = fp.financiador_id
+            left join sch_persona.financiador_plan pf on pf.id = fp.plan_financiador_id
+            where fp.paciente_id = @persona_id
+              and fp.vigente = true
+              and (fp.fecha_hasta is null or fp.fecha_hasta >= current_date)
+            order by fp.created_at desc
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(configuration.GetConnectionString("VitalFlowHisDb"));
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("persona_id", personaId);
+
+        using var reader = cmd.ExecuteReader();
+        if (!reader.Read())
+        {
+            return Ok(new { financiadorNombre = "", numeroAfiliado = "", planNombre = "" });
+        }
+
+        return Ok(new
+        {
+            financiadorNombre = reader.GetString(0),
+            numeroAfiliado = reader.IsDBNull(1) ? "" : reader.GetString(1),
+            planNombre = reader.IsDBNull(2) ? "" : reader.GetString(2)
+        });
     }
 
     public sealed record BuscarPersonaSetMinimoBody(

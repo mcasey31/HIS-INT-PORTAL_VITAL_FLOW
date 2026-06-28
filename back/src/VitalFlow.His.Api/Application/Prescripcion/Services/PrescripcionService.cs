@@ -5,7 +5,7 @@ namespace VitalFlow.His.Api.Application.Prescripcion.Services;
 
 public sealed class PrescripcionService(PostgresPrescripcionRepository repository) : IPrescripcionService
 {
-    public CrearPrescripcionResponse Crear(CrearPrescripcionRequest request, string usuarioId, string? username)
+    public CrearPrescripcionResponse Crear(CrearPrescripcionRequest request, string usuarioId, string? username, string? matricula)
     {
         if (!Guid.TryParse(request.PacienteId, out var pacienteId) || pacienteId == Guid.Empty)
             throw new ArgumentException("pacienteId es obligatorio y debe ser GUID valido.");
@@ -16,6 +16,6 @@ public sealed class PrescripcionService(PostgresPrescripcionRepository repositor
         if (string.IsNullOrWhiteSpace(request.MedicamentoDisplay))
             throw new ArgumentException("medicamentoDisplay es obligatorio.");
 
-        return repository.Crear(request, usuarioId);
+        return repository.Crear(request, usuarioId, matricula ?? "");
     }
 }
