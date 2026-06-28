@@ -355,7 +355,7 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
   useEffect(() => {
     let active = true;
     const pendings = turnosVisibles
-      .filter(item => item.documento && item.documento !== "-" && recetasStatusRef.current[item.id] === undefined)
+      .filter(item => (item.pacienteId || (item.documento && item.documento !== "-")) && recetasStatusRef.current[item.id] === undefined)
       .slice(0, 30);
     if (pendings.length === 0) return;
     void (async () => {
@@ -363,11 +363,15 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
       for (const item of pendings) {
         if (!active) return;
         try {
-          const numDoc = item.documento.replace(/[^0-9]/g, "");
-          if (!numDoc) continue;
-          const candidatos = await buscarPersonaPorDocumento("DNI", numDoc);
-          if (candidatos.length === 0) { statusMap[item.id] = false; continue; }
-          const recetas = await listarRecetasPaciente(candidatos[0].id);
+          let pid = item.pacienteId;
+          if (!pid) {
+            const numDoc = item.documento.replace(/[^0-9]/g, "");
+            if (!numDoc) continue;
+            const candidatos = await buscarPersonaPorDocumento("DNI", numDoc);
+            if (candidatos.length === 0) { statusMap[item.id] = false; continue; }
+            pid = candidatos[0].id;
+          }
+          const recetas = await listarRecetasPaciente(pid);
           if (!active) return;
           statusMap[item.id] = recetas.some(r => r.estado === "ACTIVA");
         } catch {
@@ -389,11 +393,15 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
     setRecetaModalError(null);
     setRecetaModalLoading(true);
     try {
-      const numDoc = item.documento.replace(/[^0-9]/g, "");
-      if (!numDoc) { setRecetaModalError("Paciente sin documento."); setRecetaModalLoading(false); return; }
-      const candidatos = await buscarPersonaPorDocumento("DNI", numDoc);
-      if (candidatos.length === 0) { setRecetaModalError("No se encontró el paciente."); setRecetaModalLoading(false); return; }
-      const recetas = await listarRecetasPaciente(candidatos[0].id);
+      let pid = item.pacienteId;
+      if (!pid) {
+        const numDoc = item.documento.replace(/[^0-9]/g, "");
+        if (!numDoc) { setRecetaModalError("Paciente sin documento."); setRecetaModalLoading(false); return; }
+        const candidatos = await buscarPersonaPorDocumento("DNI", numDoc);
+        if (candidatos.length === 0) { setRecetaModalError("No se encontró el paciente."); setRecetaModalLoading(false); return; }
+        pid = candidatos[0].id;
+      }
+      const recetas = await listarRecetasPaciente(pid);
       setRecetaModalList(recetas);
       const activas = recetas.filter(r => r.estado === "ACTIVA");
       if (activas.length > 0) {
