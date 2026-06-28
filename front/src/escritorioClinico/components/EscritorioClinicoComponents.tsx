@@ -332,24 +332,29 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
               {seccion.registros.length === 0 ? <p className="hc-card-empty">No dispone datos</p> : <ul>
                 {seccion.registros.map(registro => {
                   const { fecha, hora } = formatDateTime(registro.fechaHora);
-                  const isUltimaAtencion = seccion.key === "ultima-atencion";
+                  const isClickable = seccion.key === "ultima-atencion" || seccion.key === "historia-clinica";
                   return <li key={registro.id}>
-                    {isUltimaAtencion ? <button type="button" className="hc-evolucion-link" disabled={!puedeAbrirEvoluciones} onClick={() => {
+                    {isClickable ? <button type="button" className="hc-evolucion-link" disabled={!puedeAbrirEvoluciones} onClick={() => {
                       if (!puedeAbrirEvoluciones) {
                         return;
                       }
-                      setEvolucionesFiltroProfesional("");
-                      setEvolucionesFiltroServicio("");
+                      if (seccion.key === "historia-clinica") {
+                        setEvolucionesFiltroProfesional(registro.titulo.split(" — ")[1] ?? "");
+                        setEvolucionesFiltroServicio(registro.titulo.split(" — ")[0] ?? "");
+                      } else {
+                        setEvolucionesFiltroProfesional("");
+                        setEvolucionesFiltroServicio("");
+                      }
                       setShowEvolucionesListado(true);
                     }}>
-                      {fecha} | {registro.detalle}
+                      {seccion.key === "historia-clinica" ? <><p className="hc-row-title">{registro.titulo}</p><p>{fecha} | {registro.detalle}</p></> : <>{fecha} | {registro.detalle}</>}
                     </button> : <>
                       <p className="hc-row-title">{registro.titulo}</p>
                       <p>{registro.detalle}</p>
                     </>}
 
-                    {isUltimaAtencion ? <p>
-                      Problemas asociados: {registro.problemasAsociados?.length ? registro.problemasAsociados.join(", ") : "Sin datos"}
+                    {registro.problemasAsociados?.length ? <p className="hc-row-meta">
+                      Problemas asociados: {registro.problemasAsociados.join(", ")}
                     </p> : null}
 
                     <p className="hc-row-meta">Fecha: {fecha} | Hora: {hora}</p>
