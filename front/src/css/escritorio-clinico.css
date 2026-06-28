@@ -890,77 +890,75 @@
 
 /* Specific variants */
 .btn-panoramica-evoluciones {
-  background: linear-gradient(135deg, #f0f7ff 0%, #e1efff 100%);
-  border-color: #b8d4f4;
-  color: #1d4f80;
+  background: #ffffff;
+  border-color: #d1dbe5;
+  color: #2c4d6f;
 }
 .btn-panoramica-evoluciones:hover:not(:disabled) {
-  background: linear-gradient(135deg, #e1efff 0%, #d4e7fe 100%);
-  border-color: #9fc6f0;
+  background: #f0f4f8;
+  border-color: #b0c4de;
 }
 
 .btn-panoramica-estudios {
-  background: linear-gradient(135deg, #f0f7ff 0%, #e1efff 100%);
-  border-color: #b8d4f4;
-  color: #1d4f80;
+  background: #ffffff;
+  border-color: #d1dbe5;
+  color: #2c4d6f;
 }
 .btn-panoramica-estudios:hover:not(:disabled) {
-  background: linear-gradient(135deg, #e1efff 0%, #d4e7fe 100%);
-  border-color: #9fc6f0;
+  background: #f0f4f8;
+  border-color: #b0c4de;
 }
 
 .btn-panoramica-receta {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  border-color: #7c3aed;
+  background: #0f6cab;
+  border-color: #0f6cab;
   color: #ffffff;
 }
 .btn-panoramica-receta:hover:not(:disabled) {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
-  border-color: #6d28d9;
-  box-shadow: 0 4px 12px rgba(124, 92, 246, 0.25);
+  background: #0d5d93;
+  border-color: #0d5d93;
 }
 
 .btn-panoramica-sistemas {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-color: #cbd5e1;
-  color: #475569;
+  background: #ffffff;
+  border-color: #d1dbe5;
+  color: #4a5568;
 }
 .btn-panoramica-sistemas:hover:not(:disabled) {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  border-color: #94a3b8;
+  background: #f7fafc;
+  border-color: #cbd5e0;
 }
 
 .btn-panoramica-llamar {
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-  border-color: #fde68a;
-  color: #b45309;
+  background: #fef8e7;
+  border-color: #f8e3a3;
+  color: #8c5c00;
 }
 .btn-panoramica-llamar:hover:not(:disabled) {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border-color: #f59e0b;
+  background: #fdf0cb;
+  border-color: #f4d47d;
 }
 
 .btn-panoramica-cerrar {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-  border-color: #b91c1c;
-  color: #ffffff;
+  background: #fff5f5;
+  border-color: #fbc4c4;
+  color: #c53030;
   grid-column: span 2;
 }
 .btn-panoramica-cerrar:hover:not(:disabled) {
-  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
-  border-color: #991b1b;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+  background: #fff0f0;
+  border-color: #feb2b2;
 }
 
 .btn-panoramica-volver {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-color: #cbd5e1;
-  color: #475569;
+  background: #ffffff;
+  border-color: #d1dbe5;
+  color: #4a5568;
   grid-column: span 2;
 }
 .btn-panoramica-volver:hover:not(:disabled) {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  border-color: #94a3b8;
+  background: #f7fafc;
+  border-color: #cbd5e0;
 }
 
 .btn-panoramica:disabled {

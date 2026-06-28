@@ -50,7 +50,7 @@ public sealed class PostgresPersonaRepository(string connectionString) : IPerson
                      email,
                      telefono
             from sch_persona.persona
-            where estado = 'ACTIVO'
+            where estado in ('ACTIVO', 'ACTIVA')
               and tipo_documento_codigo = @tipo_documento
               and (
                    upper(numero_documento) = @numero_documento
@@ -126,7 +126,7 @@ public sealed class PostgresPersonaRepository(string connectionString) : IPerson
                      email,
                      telefono
             from sch_persona.persona
-            where estado = 'ACTIVO'
+            where estado in ('ACTIVO', 'ACTIVA')
             order by apellido, nombre;
             """;
 
@@ -235,7 +235,7 @@ public sealed class PostgresPersonaRepository(string connectionString) : IPerson
                                 telefono = @telefono,
                 updated_at = now()
             where id = @id
-              and estado = 'ACTIVO';
+              and estado in ('ACTIVO', 'ACTIVA');
             """;
 
         var data = NormalizarSetMinimoRequest(request);

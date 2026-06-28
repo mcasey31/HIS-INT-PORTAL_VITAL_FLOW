@@ -182,6 +182,44 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
+// Seed clinical patients if missing from sch_persona.persona
+using (var scope = app.Services.CreateScope())
+{
+    var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    var connectionString = config.GetConnectionString("VitalFlowHisDb");
+    if (!string.IsNullOrWhiteSpace(connectionString))
+    {
+        try
+        {
+            using var conn = new Npgsql.NpgsqlConnection(connectionString);
+            conn.Open();
+            const string seedSql = """
+                INSERT INTO sch_persona.persona (id, apellido, nombre, tipo_documento_codigo, numero_documento, fecha_nacimiento, sexo_biologico, estado) VALUES
+                ('a0000000-0000-0000-0000-000000000001', 'Lopez', 'Maria', 'DNI', '30123456', '1985-03-15', 'F', 'ACTIVO'),
+                ('a0000000-0000-0000-0000-000000000002', 'Garcia', 'Juan', 'DNI', '30123457', '1990-07-22', 'M', 'ACTIVO'),
+                ('a0000000-0000-0000-0000-000000000003', 'Perez', 'Ana', 'DNI', '30123458', '1978-11-08', 'F', 'ACTIVO'),
+                ('a0000000-0000-0000-0000-000000000004', 'Rodriguez', 'Pedro', 'DNI', '33456789', '1982-05-30', 'M', 'ACTIVO'),
+                ('a0000000-0000-0000-0000-000000000005', 'Fernandez', 'Laura', 'DNI', '30123460', '1995-09-12', 'F', 'ACTIVO'),
+                ('a0000000-0000-0000-0000-000000000006', 'Gonzalez', 'Carlos', 'DNI', '30123461', '1970-01-25', 'M', 'ACTIVO')
+                ON CONFLICT (id) DO UPDATE SET
+                    apellido = EXCLUDED.apellido,
+                    nombre = EXCLUDED.nombre,
+                    tipo_documento_codigo = EXCLUDED.tipo_documento_codigo,
+                    numero_documento = EXCLUDED.numero_documento,
+                    fecha_nacimiento = EXCLUDED.fecha_nacimiento,
+                    sexo_biologico = EXCLUDED.sexo_biologico,
+                    estado = EXCLUDED.estado;
+                """;
+            using var cmd = new Npgsql.NpgsqlCommand(seedSql, conn);
+            cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error running database seed: {ex.Message}");
+        }
+    }
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
