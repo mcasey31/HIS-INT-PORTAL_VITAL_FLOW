@@ -313,9 +313,12 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
                         </p>
                       )) : <p className="hc-row-meta">{receta.cantidadItems} ítem(s)</p>}
                     </div>
-                    <button type="button" className="btn-panoramica btn-panoramica-receta" style={{ padding: "0.25rem 0.6rem", fontSize: "0.8rem", flexShrink: 0 }} onClick={() => imprimirReceta(receta)} title="Imprimir receta">
-                      🖨
-                    </button>
+                    <div style={{ display: "flex", gap: "0.35rem", flexShrink: 0 }}>
+                      <button type="button" className="btn-panoramica btn-panoramica-receta" style={{ padding: "0.25rem 0.6rem", fontSize: "0.8rem" }} onClick={() => imprimirReceta(receta)} title="Imprimir receta">
+                        🖨
+                      </button>
+                      <span style={{ fontSize: "1.1rem", color: "#9aaec2", cursor: "not-allowed", opacity: 0.6, lineHeight: "1.6" }} title="Enviar por correo electrónico (próximamente)">✉️</span>
+                    </div>
                   </div>
                 </li>;
               })}</ul>}
