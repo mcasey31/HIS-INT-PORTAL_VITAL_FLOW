@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Npgsql;
 using VitalFlow.His.Api.Application.Prescripcion.Contracts;
 using VitalFlow.His.Api.Application.Prescripcion.Services;
 
@@ -10,7 +11,8 @@ namespace VitalFlow.His.Api.Controllers;
 [Authorize(Roles = "Medico,Auditor")]
 public sealed class PrescripcionController(
     IPrescripcionService prescripcionService,
-    IHttpContextAccessor httpContextAccessor
+    IHttpContextAccessor httpContextAccessor,
+    ILogger<PrescripcionController> logger
 ) : ControllerBase
 {
     [HttpPost]
@@ -29,6 +31,20 @@ public sealed class PrescripcionController(
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (PostgresException ex)
+        {
+            logger.LogError(ex, "Error de base de datos al crear prescripcion");
+            return StatusCode(500, new { message = $"Error de base de datos: {ex.Message}" });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error interno al crear prescripcion");
+            return StatusCode(500, new { message = $"Error interno: {ex.Message}" });
         }
     }
 }

@@ -1156,7 +1156,8 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       setPrescripcionModuleLoading(true);
       void cargarRecetasPaciente();
     } catch (err) {
-      setPrescripcionError("Error al guardar la prescripcion.");
+      const message = err instanceof Error ? err.message : "Error al guardar la prescripcion.";
+      setPrescripcionError(message);
     } finally {
       setPrescripcionGuardando(false);
     }
