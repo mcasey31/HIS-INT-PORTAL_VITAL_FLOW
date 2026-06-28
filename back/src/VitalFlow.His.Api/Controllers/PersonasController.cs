@@ -8,7 +8,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/personas")]
-[Authorize(Roles = "Administrador,Enrolamiento Persona,Medico")]
+[Authorize(Roles = "Administrador,Enrolamiento Persona,Medico,Auditor,Administrativo,Cajero")]
 public sealed class PersonasController(
     IPersonaService personaService,
     IConfiguration configuration
