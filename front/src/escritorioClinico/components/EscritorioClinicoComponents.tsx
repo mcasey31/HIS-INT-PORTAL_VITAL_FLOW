@@ -191,10 +191,10 @@ export function EscritorioClinicoListado({ state }: { state: useEscritorioClinic
                     <button type="button" className="hc-icon-button" title="Ver datos del turno" aria-label="Ver datos del turno" onClick={() => verTurno(turno)}>
                       <span aria-hidden="true">👁</span>
                     </button>
-                    <button type="button" className="hc-icon-button" title="Abrir historia clinica" aria-label="Abrir historia clinica" onClick={() => void abrirHistoriaClinica(turno)}>
+                    <button type="button" className="hc-icon-button" title={turno.llegada ? "Abrir historia clinica" : "El paciente no ha registrado ingreso (sin arribo)"} aria-label="Abrir historia clinica" onClick={() => void abrirHistoriaClinica(turno)} disabled={!turno.llegada}>
                       <span aria-hidden="true">📋</span>
                     </button>
-                    <button type="button" className="hc-icon-button" title="Llamar por megafono" aria-label="Llamar por megafono" onClick={() => void abrirDesdeMegafono(turno)} disabled={!estadoEsLlamable(turno.estado) || working || !esDiaActual}>
+                    <button type="button" className="hc-icon-button" title={turno.llegada ? "Llamar por megafono" : "El paciente no ha registrado ingreso (sin arribo)"} aria-label="Llamar por megafono" onClick={() => void abrirDesdeMegafono(turno)} disabled={!turno.llegada || !estadoEsLlamable(turno.estado) || working || !esDiaActual}>
                       <span aria-hidden="true">📣</span>
                     </button>
                   </div>
@@ -270,10 +270,10 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
             <button type="button" className="btn-panoramica btn-panoramica-estudios" onClick={abrirSolicitudEstudios} disabled={!puedeSolicitarEstudios}>
               🔬 Estudios ({totalEstudiosSolicitadosTurno})
             </button>
-            <button type="button" className="btn-panoramica btn-panoramica-receta" onClick={abrirRecetaDigital} disabled={!selectedTurno || selectedTurno.paciente === "Por identificar"}>
+            <button type="button" className="btn-panoramica btn-panoramica-receta" onClick={abrirRecetaDigital} disabled={!selectedTurno || !selectedTurno.llegada || selectedTurno.paciente === "Por identificar"}>
               💊 Prescribir
             </button>
-            <button type="button" className="btn-panoramica btn-panoramica-sistemas" onClick={abrirSistemasClinicos} disabled={!canIntegrarSistemasClinicos(selectedTurno)}>
+            <button type="button" className="btn-panoramica btn-panoramica-sistemas" onClick={abrirSistemasClinicos} disabled={!canIntegrarSistemasClinicos(selectedTurno) || !selectedTurno?.llegada}>
               💻 Sist. Clínicos
             </button>
             <button type="button" className="btn-panoramica btn-panoramica-llamar" onClick={() => void abrirDesdeMegafono(selectedTurno)} disabled={!canLlamar || working || !esDiaActual}>

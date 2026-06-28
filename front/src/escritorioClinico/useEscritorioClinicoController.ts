@@ -252,11 +252,11 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       });
   }, [listadoEvoluciones, evolucionesFiltroProfesional, evolucionesFiltroServicio]);
 
-  const canLlamar = selectedTurno ? estadoEsLlamable(selectedTurno.estado) : false;
+  const canLlamar = selectedTurno && selectedTurno.llegada ? estadoEsLlamable(selectedTurno.estado) : false;
   const pacienteEnAtencion = selectedTurno?.estado === ESTADO_EN_ATENCION;
   const esVisualizacionHC = origenPanoramica === "historia" && !pacienteEnAtencion;
-  const puedeAbrirEvoluciones = Boolean(selectedTurno && !esVisualizacionHC);
-  const puedeSolicitarEstudios = Boolean(selectedTurno && !esVisualizacionHC);
+  const puedeAbrirEvoluciones = Boolean(selectedTurno && selectedTurno.llegada && !esVisualizacionHC);
+  const puedeSolicitarEstudios = Boolean(selectedTurno && selectedTurno.llegada && !esVisualizacionHC);
   const esDiaActual = fechaAgenda === todayIsoDate();
   const serviciosDisponibles = selectores?.servicios ?? [];
 
