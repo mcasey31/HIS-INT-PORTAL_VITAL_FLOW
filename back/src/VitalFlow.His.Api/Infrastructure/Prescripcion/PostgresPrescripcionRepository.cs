@@ -32,7 +32,7 @@ public sealed class PostgresPrescripcionRepository(string connectionString)
         {
             cmd.Parameters.AddWithValue("id", recetaId);
             cmd.Parameters.AddWithValue("paciente_id", Guid.Parse(request.PacienteId));
-            cmd.Parameters.AddWithValue("turno_id", Guid.Parse(request.TurnoId));
+            cmd.Parameters.AddWithValue("turno_id", request.TurnoId);
             cmd.Parameters.AddWithValue("prescriptor_usuario_id", Guid.Parse(usuarioId));
             cmd.Parameters.AddWithValue("prescriptor_matricula", matricula);
             cmd.ExecuteNonQuery();

@@ -9,8 +9,8 @@ public sealed class PrescripcionService(PostgresPrescripcionRepository repositor
     {
         if (!Guid.TryParse(request.PacienteId, out var pacienteId) || pacienteId == Guid.Empty)
             throw new ArgumentException("pacienteId es obligatorio y debe ser GUID valido.");
-        if (!Guid.TryParse(request.TurnoId, out var turnoId) || turnoId == Guid.Empty)
-            throw new ArgumentException("turnoId es obligatorio y debe ser GUID valido.");
+        if (string.IsNullOrWhiteSpace(request.TurnoId))
+            throw new ArgumentException("turnoId es obligatorio.");
         if (request.MedicamentoId <= 0)
             throw new ArgumentException("medicamentoId es obligatorio.");
         if (string.IsNullOrWhiteSpace(request.MedicamentoDisplay))
