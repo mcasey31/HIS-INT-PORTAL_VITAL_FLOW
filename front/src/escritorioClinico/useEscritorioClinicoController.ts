@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { actualizarEstadoTurno, buscarTurnosAdmision, cerrarEncuentroTurno, getSelectoresAdmision, obtenerEncuentroTurno } from "../admision/admisionApi";
 import type { TurnoAdmision, SelectoresAdmision } from "../admision/admisionTypes";
 import { anularRecetaDigital, asignarProblemaPaciente, buscarMedicamentos, buscarPersonaPorDocumento, buscarPersonaPorSetMinimo, crearPrescripcion, crearEvolucionAmbulatoria, guardarSolicitudesEstudiosTurno, listarRecetasPaciente, obtenerEvolucionesAmbulatoriasPaciente, obtenerFinanciadorActivo, obtenerProblemasCronicosPaciente, obtenerRecetaDigital, obtenerSolicitudesEstudiosTurno } from "./escritorioClinicoApi";
-import type { AsignarProblemaRequest, BuscarMedicamentosResponse, CrearEvolucionAmbulatoriaRequest, EvolucionAmbulatoriaResponse, FinanciadorActivoResponse, GuardarSolicitudesEstudiosRequest, MedicamentoResponse, PersonaCandidataBusqueda, ProblemaCronicoResponse, RecetaDigitalResumenResponse, RegistroPanoramica, SolicitudEstudioRecord } from "./escritorioClinicoTypes";
+import type { AsignarProblemaRequest, BuscarMedicamentosResponse, CrearEvolucionAmbulatoriaRequest, EvolucionAmbulatoriaResponse, FinanciadorActivoResponse, GuardarSolicitudesEstudiosRequest, MedicamentoResponse, PersonaCandidataBusqueda, ProblemaCronicoResponse, RecetaDigitalDetalleResponse, RecetaDigitalResumenResponse, RegistroPanoramica, SolicitudEstudioRecord } from "./escritorioClinicoTypes";
 import {
   UseEscritorioClinicoOptions, ModoIngreso, OrigenPanoramica, AccionSalidaEncuentro,
   EvolucionCreadaLocal, SolicitudesEstudiosPorFecha, ObservacionesPorPracticaFecha,
@@ -109,6 +109,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   const [showSistemasClinicosModal, setShowSistemasClinicosModal] = useState(false);
   const [showPrescripcionModule, setShowPrescripcionModule] = useState(false);
   const [prescripcionModuleRecetas, setPrescripcionModuleRecetas] = useState<RecetaDigitalResumenResponse[]>([]);
+  const [recetasDetalle, setRecetasDetalle] = useState<Record<string, RecetaDigitalDetalleResponse>>({});
   const [prescripcionModuleLoading, setPrescripcionModuleLoading] = useState(false);
   const [prescripcionModuleError, setPrescripcionModuleError] = useState<string | null>(null);
   const [prescripcionModuleAnulando, setPrescripcionModuleAnulando] = useState<string | null>(null);
@@ -1329,19 +1330,33 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   useEffect(() => {
     if (!selectedTurnoId) {
       setEncuentroEstado("SIN_ENCUENTRO"); setEncuentroPacienteId(null); setEncuentroCreadoEn(null); setEvolucionesAmbulatorias([]); setProblemasCronicos([]);
+      setPrescripcionModuleRecetas([]); setRecetasDetalle({});
       setShowEvolucionesListado(false); setShowAgregarEvolucionModal(false); return;
     }
     let active = true;
     void (async () => {
       try {
         const response = await obtenerEncuentroTurno(selectedTurnoId);
-        const [evoluciones, problemas] = await Promise.all([
+        const [evoluciones, problemas, recetas] = await Promise.all([
           obtenerEvolucionesAmbulatoriasPaciente(response.pacienteId, 20),
-          obtenerProblemasCronicosPaciente(response.pacienteId)
+          obtenerProblemasCronicosPaciente(response.pacienteId),
+          listarRecetasPaciente(response.pacienteId)
         ]);
         if (active) {
           setEncuentroEstado(response.estado); setEncuentroPacienteId(response.pacienteId); setEncuentroCreadoEn(response.creadoEn);
           setEvolucionesAmbulatorias(evoluciones);
+          setPrescripcionModuleRecetas(recetas);
+          const activas = recetas.filter(r => r.estado === "ACTIVA");
+          if (activas.length > 0) {
+            const detalles: Record<string, RecetaDigitalDetalleResponse> = {};
+            const results = await Promise.allSettled(activas.map(r => obtenerRecetaDigital(r.recetaId)));
+            for (const result of results) {
+              if (result.status === "fulfilled") {
+                detalles[result.value.recetaId] = result.value;
+              }
+            }
+            if (Object.keys(detalles).length > 0) setRecetasDetalle(detalles);
+          }
           setProblemasCronicos(problemas.map(p => ({
             id: p.problemaCronicoId,
             fechaHora: p.fechaInicio,
@@ -1494,7 +1509,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     prescripcionDuracion, setPrescripcionDuracion, prescripcionIndicacion, setPrescripcionIndicacion,
     prescripcionGuardando, prescripcionError, prescripcionExitosa, guardarPrescripcion,
     showPrescripcionModule, setShowPrescripcionModule,
-    prescripcionModuleRecetas, prescripcionModuleLoading, prescripcionModuleError,
+    prescripcionModuleRecetas, recetasDetalle, prescripcionModuleLoading, prescripcionModuleError,
     prescripcionModuleAnulando, cargarRecetasPaciente, handleAnularReceta, imprimirReceta
   } as const;
 }

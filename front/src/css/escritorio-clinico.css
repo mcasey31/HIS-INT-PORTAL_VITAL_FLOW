@@ -1095,6 +1095,10 @@
   font-size: 0.82rem;
 }
 
+.hc-card-recetas {
+  max-height: 400px;
+}
+
 .hc-card-empty {
   margin: 0.2rem 0 0;
   color: #607a98;

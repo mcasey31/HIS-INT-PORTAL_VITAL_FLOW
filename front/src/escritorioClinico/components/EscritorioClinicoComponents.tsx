@@ -218,7 +218,8 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
     setEvolucionesFiltroProfesional, setEvolucionesFiltroServicio, setShowEvolucionesListado,
     showAsignarProblemaModal, setShowAsignarProblemaModal,
     abrirSistemasClinicos, canIntegrarSistemasClinicos,
-    solicitudesEstudiosPorTurno
+    solicitudesEstudiosPorTurno,
+    prescripcionModuleRecetas, recetasDetalle, imprimirReceta
   } = state;
 
   const pacienteEnAtencion = selectedTurno?.estado === "EN_ATENCION";
@@ -295,6 +296,29 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
                 ))
               )}
             </ul>}
+          </article>
+          <article className="hc-card hc-card-recetas">
+            <h4>Recetas activas ({prescripcionModuleRecetas.filter(r => r.estado === "ACTIVA").length})</h4>
+            {prescripcionModuleRecetas.filter(r => r.estado === "ACTIVA").length === 0
+              ? <p className="hc-card-empty">Sin recetas activas</p>
+              : <ul>{prescripcionModuleRecetas.filter(r => r.estado === "ACTIVA").map(receta => {
+                const detalle = recetasDetalle[receta.recetaId];
+                return <li key={receta.recetaId}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <p className="hc-row-title">{new Date(receta.creadoEn).toLocaleDateString("es-AR")}</p>
+                      {detalle ? detalle.items.map(item => (
+                        <p key={item.itemId} className="hc-row-meta" style={{ marginLeft: "0.5rem" }}>
+                          {item.medicamentoDisplay}{item.dosisTexto ? ` — ${item.dosisTexto}` : ""}{item.frecuenciaTexto ? ` c/ ${item.frecuenciaTexto}` : ""}{item.duracionDias ? ` × ${item.duracionDias}d` : ""}
+                        </p>
+                      )) : <p className="hc-row-meta">{receta.cantidadItems} ítem(s)</p>}
+                    </div>
+                    <button type="button" className="btn-panoramica btn-panoramica-receta" style={{ padding: "0.25rem 0.6rem", fontSize: "0.8rem", flexShrink: 0 }} onClick={() => imprimirReceta(receta)} title="Imprimir receta">
+                      🖨
+                    </button>
+                  </div>
+                </li>;
+              })}</ul>}
           </article>
           {panoramica?.map(seccion => {
             const isProblemas = seccion.key === "problemas-cronicos";
