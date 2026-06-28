@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAdmisionController } from "../useAdmisionController";
 type useAdmisionState = ReturnType<typeof useAdmisionController>;
-import { isPrivadoFinanciador, estadoAdmisionLabel, parseDocumentoTurno } from "../admisionTypes";
+import { isPrivadoFinanciador, estadoAdmisionLabel } from "../admisionTypes";
 import type { TurnoAdmision } from "../admisionTypes";
-import { identificarPacienteAdmision } from "../admisionApi";
+import { buscarPersonaPorDocumento } from "../../escritorioClinico/escritorioClinicoApi";
 import { listarRecetasPaciente, obtenerRecetaDigital, obtenerFinanciadorActivo } from "../../escritorioClinico/escritorioClinicoApi";
 import type { RecetaDigitalResumenResponse, RecetaDigitalDetalleResponse } from "../../escritorioClinico/escritorioClinicoTypes";
 
@@ -347,19 +347,52 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
   const [recetaModalList, setRecetaModalList] = useState<RecetaDigitalResumenResponse[]>([]);
   const [recetaModalDetalles, setRecetaModalDetalles] = useState<Record<string, RecetaDigitalDetalleResponse>>({});
   const [recetaModalLoading, setRecetaModalLoading] = useState(false);
-  const [recetaModalAnulando, setRecetaModalAnulando] = useState<string | null>(null);
+  const [recetaModalError, setRecetaModalError] = useState<string | null>(null);
+
+  const [recetasStatus, setRecetasStatus] = useState<Record<string, boolean>>({});
+  const recetasStatusRef = useRef<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let active = true;
+    const pendings = turnosVisibles
+      .filter(item => item.documento && item.documento !== "-" && recetasStatusRef.current[item.id] === undefined)
+      .slice(0, 30);
+    if (pendings.length === 0) return;
+    void (async () => {
+      const statusMap = { ...recetasStatusRef.current };
+      for (const item of pendings) {
+        if (!active) return;
+        try {
+          const numDoc = item.documento.replace(/[^0-9]/g, "");
+          if (!numDoc) continue;
+          const candidatos = await buscarPersonaPorDocumento("DNI", numDoc);
+          if (candidatos.length === 0) { statusMap[item.id] = false; continue; }
+          const recetas = await listarRecetasPaciente(candidatos[0].id);
+          if (!active) return;
+          statusMap[item.id] = recetas.some(r => r.estado === "ACTIVA");
+        } catch {
+          statusMap[item.id] = false;
+        }
+      }
+      if (!active) return;
+      recetasStatusRef.current = statusMap;
+      setRecetasStatus({ ...statusMap });
+    })();
+    return () => { active = false; };
+  }, [turnosVisibles]);
 
   async function handleVerRecetas(item: TurnoAdmision) {
     setRecetaModalOpen(true);
     setRecetaModalPaciente(item.paciente);
     setRecetaModalList([]);
     setRecetaModalDetalles({});
+    setRecetaModalError(null);
     setRecetaModalLoading(true);
     try {
-      const doc = parseDocumentoTurno(item.documento);
-      if (!doc) return;
-      const candidatos = await identificarPacienteAdmision(doc.tipoDocumento, doc.numeroDocumento);
-      if (candidatos.length === 0) return;
+      const numDoc = item.documento.replace(/[^0-9]/g, "");
+      if (!numDoc) { setRecetaModalError("Paciente sin documento."); setRecetaModalLoading(false); return; }
+      const candidatos = await buscarPersonaPorDocumento("DNI", numDoc);
+      if (candidatos.length === 0) { setRecetaModalError("No se encontró el paciente."); setRecetaModalLoading(false); return; }
       const recetas = await listarRecetasPaciente(candidatos[0].id);
       setRecetaModalList(recetas);
       const activas = recetas.filter(r => r.estado === "ACTIVA");
@@ -373,8 +406,11 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
         }
         if (Object.keys(detalles).length > 0) setRecetaModalDetalles(detalles);
       }
+      setRecetasStatus(prev => ({ ...prev, [item.id]: activas.length > 0 }));
+      recetasStatusRef.current[item.id] = activas.length > 0;
     } catch {
       setRecetaModalList([]);
+      setRecetaModalError("Error al cargar recetas.");
     } finally {
       setRecetaModalLoading(false);
     }
@@ -499,7 +535,10 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
               </tr>
             </thead>
             <tbody>
-              {turnosVisibles.map(item => <tr key={item.id} className={`${turnoSeleccionadoId === item.id ? "is-selected" : ""} ${estadoRowClass(item.estado)}`.trim()}>
+              {turnosVisibles.map(item => {
+                const hasRecetas = recetasStatus[item.id];
+                const iconColor = hasRecetas === true ? "#4caf50" : "#b0bec5";
+                return <tr key={item.id} className={`${turnoSeleccionadoId === item.id ? "is-selected" : ""} ${estadoRowClass(item.estado)}`.trim()}>
                   <td>
                       <button
                         type="button"
@@ -523,11 +562,12 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
                     <span className={estadoChipClass(item.estado)}>{estadoAdmisionLabel(item.estado)}</span>
                   </td>
                   <td>
-                    <button type="button" className="btn-icon-receta" onClick={() => void handleVerRecetas(item)} disabled={!item.documento || item.documento === "-"} title="Ver recetas">
+                    <button type="button" className="btn-icon-receta" onClick={() => void handleVerRecetas(item)} disabled={!item.documento || item.documento === "-"} title={hasRecetas ? "Tiene recetas activas" : "Sin recetas activas"} style={{ color: iconColor }}>
                       💊
                     </button>
                   </td>
-                </tr>)}
+                </tr>;
+              })}
             </tbody>
           </table>
         </div>}
@@ -539,7 +579,7 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
             <button type="button" className="modal-close" onClick={() => setRecetaModalOpen(false)}>&times;</button>
           </div>
           <div className="modal-body">
-            {recetaModalLoading ? <p>Cargando recetas...</p> : recetaModalList.length === 0 ? <p>Sin recetas para este paciente.</p> : <>
+            {recetaModalLoading ? <p>Cargando recetas...</p> : recetaModalError ? <p style={{ color: "#c62828" }}>{recetaModalError}</p> : recetaModalList.length === 0 ? <p>Sin recetas para este paciente.</p> : <>
               {recetaModalList.map(receta => {
                 const detalle = recetaModalDetalles[receta.recetaId];
                 return <div key={receta.recetaId} style={{ borderBottom: "1px solid #d5dee8", padding: "0.6rem 0" }}>
