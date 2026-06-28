@@ -1144,7 +1144,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
         pacienteId: pid,
         turnoId: selectedTurno.id,
         medicamentoId: medicamentoSeleccionado.id,
-        medicamentoDisplay: `${medicamentoSeleccionado.producto} - ${medicamentoSeleccionado.presentacion}`,
+        medicamentoDisplay: `${medicamentoSeleccionado.producto} ${medicamentoSeleccionado.presentacion} — ${medicamentoSeleccionado.principioActivo} — ${medicamentoSeleccionado.laboratorio}`,
         dosisTexto: prescripcionDosis || undefined,
         frecuenciaTexto: prescripcionFrecuencia || undefined,
         duracionDias: prescripcionDuracion ? parseInt(prescripcionDuracion, 10) : undefined,
@@ -1214,11 +1214,11 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       if (!printWindow) return;
       const items = detalle.items.map(item => `
         <tr>
-          <td style="padding: 0.3rem 0.5rem; border-bottom: 1px solid #ccc;">${item.medicamentoDisplay}</td>
-          <td style="padding: 0.3rem 0.5rem; border-bottom: 1px solid #ccc;">${item.dosisTexto ?? "-"}</td>
-          <td style="padding: 0.3rem 0.5rem; border-bottom: 1px solid #ccc;">${item.frecuenciaTexto ?? "-"}</td>
-          <td style="padding: 0.3rem 0.5rem; border-bottom: 1px solid #ccc;">${item.duracionDias ? item.duracionDias + " días" : "-"}</td>
-          <td style="padding: 0.3rem 0.5rem; border-bottom: 1px solid #ccc;">${item.indicacion ?? "-"}</td>
+          <td class="med-item">${item.medicamentoDisplay}</td>
+          <td>${item.dosisTexto ?? "-"}</td>
+          <td>${item.frecuenciaTexto ?? "-"}</td>
+          <td>${item.duracionDias ? item.duracionDias + " días" : "-"}</td>
+          <td>${item.indicacion ?? "-"}</td>
         </tr>
       `).join("\n");
       const matriculaTexto = detalle.prescriptorMatricula ? `MP ${detalle.prescriptorMatricula}` : "";
@@ -1227,18 +1227,25 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
         <html><head><meta charset="utf-8">
         <title>Prescripción Médica</title>
         <style>
-          body { font-family: 'Times New Roman', serif; font-size: 12pt; margin: 2cm; }
-          h1 { font-size: 14pt; text-align: center; margin-bottom: 1cm; }
-          .info-grid { display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; margin-bottom: 0.8cm; }
-          .info-grid p { margin: 0; }
-          table { width: 100%; border-collapse: collapse; margin-top: 0.5cm; }
-          th { background: #eef; padding: 0.3rem 0.5rem; border-bottom: 2px solid #999; text-align: left; }
-          td { padding: 0.3rem 0.5rem; border-bottom: 1px solid #ccc; }
-          .firma { margin-top: 2cm; text-align: center; }
-          .firma hr { width: 50%; margin: 0 auto 0.3cm; }
+          @page { margin: 2cm; }
+          body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #222; line-height: 1.5; }
+          h1 { font-size: 16pt; text-align: center; color: #1a3c5e; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.2cm; border-bottom: 3px double #1a3c5e; padding-bottom: 0.4cm; }
+          .info-grid { display: flex; flex-wrap: wrap; gap: 0.4rem 2.5rem; margin-bottom: 0.8cm; padding: 0.5cm 0.4cm; border: 1px solid #ccc; border-radius: 4px; background: #fafbfc; }
+          .info-grid p { margin: 0.15rem 0; font-size: 10.5pt; }
+          .info-grid strong { color: #1a3c5e; }
+          table { width: 100%; border-collapse: collapse; margin-top: 0.4cm; }
+          th { background: #e8edf3; padding: 0.4rem 0.5rem; border-bottom: 2px solid #8a9eb0; text-align: left; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.04em; color: #2b4b6e; }
+          td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #d5dee8; vertical-align: top; }
+          tr:last-child td { border-bottom: none; }
+          .med-item { font-weight: 600; font-size: 11pt; color: #111; }
+          .firma { margin-top: 2.5cm; text-align: center; }
+          .firma hr { width: 45%; margin: 0 auto 0.3cm; border: none; border-top: 1px solid #555; }
+          .firma p { margin: 0.15rem 0; color: #333; }
+          .firma .medico-nombre { font-weight: 700; font-size: 12pt; }
+          .firma .medico-matricula { font-size: 10pt; color: #555; }
         </style>
         </head><body>
-        <h1>RECETA MÉDICA</h1>
+        <h1>Receta Médica</h1>
         <div class="info-grid">
           <p><strong>Médico:</strong> ${profesionalActual} ${matriculaTexto}</p>
           <p><strong>Paciente:</strong> ${selectedTurno?.paciente ?? "—"}</p>
@@ -1247,11 +1254,12 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
           <p><strong>Fecha:</strong> ${new Date().toLocaleDateString("es-AR")}</p>
         </div>
         <table><thead><tr>
-          <th>Medicamento</th><th>Dosis</th><th>Frecuencia</th><th>Duración</th><th>Indicación</th>
+          <th style="width:35%">Medicamento</th><th style="width:15%">Dosis</th><th style="width:18%">Frecuencia</th><th style="width:12%">Duración</th><th style="width:20%">Indicación</th>
         </tr></thead><tbody>${items}</tbody></table>
         <div class="firma">
-          <hr><p>${profesionalActual}</p>
-          <p>Firma y sello del médico</p>
+          <hr>
+          <p class="medico-nombre">${profesionalActual}</p>
+          <p class="medico-matricula">${matriculaTexto || "Firma y sello del médico"}</p>
         </div>
         </body></html>
       `);
