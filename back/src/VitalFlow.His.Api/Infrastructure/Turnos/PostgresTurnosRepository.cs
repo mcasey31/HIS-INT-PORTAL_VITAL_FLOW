@@ -337,9 +337,9 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         const string sql = """
             select tp.id,
                    tp.paciente_id,
-                   coalesce(e.nombre, '') as profesional,
-                   coalesce(s.nombre, '') as servicio,
-                   coalesce(c.nombre, '') as centro,
+                   coalesce(e.nombre, tp.profesional, '') as profesional,
+                   coalesce(s.nombre, tp.servicio, '') as servicio,
+                   coalesce(c.nombre, tp.centro, '') as centro,
                    tp.fecha_hora,
                    tp.estado,
                    tp.motivo,
@@ -375,9 +375,9 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         const string sql = """
             select tp.id,
                    tp.paciente_id,
-                   coalesce(e.nombre, '') as profesional,
-                   coalesce(s.nombre, '') as servicio,
-                   coalesce(c.nombre, '') as centro,
+                   coalesce(e.nombre, tp.profesional, '') as profesional,
+                   coalesce(s.nombre, tp.servicio, '') as servicio,
+                   coalesce(c.nombre, tp.centro, '') as centro,
                    tp.fecha_hora,
                    tp.estado,
                    tp.motivo,
@@ -435,9 +435,9 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
     {
         const string sql = """
             insert into sch_turno.turno_paciente
-                (id, paciente_id, centro_id, servicio_id, efector_id, cupo_id, fecha_hora, estado, motivo, updated_at)
+                (id, paciente_id, profesional, servicio, centro, centro_id, servicio_id, efector_id, cupo_id, fecha_hora, estado, motivo, updated_at)
             values
-                (@id, @pacienteId, @centroId, @servicioId, @efectorId, @cupoId, @fechaHora, @estado, @motivo, now())
+                (@id, @pacienteId, @profesional, @servicio, @centro, @centroId, @servicioId, @efectorId, @cupoId, @fechaHora, @estado, @motivo, now())
             on conflict (id) do nothing
             """;
 
@@ -456,9 +456,9 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
     {
         const string sql = """
             insert into sch_turno.turno_paciente
-                (id, paciente_id, centro_id, servicio_id, efector_id, cupo_id, fecha_hora, estado, motivo, updated_at)
+                (id, paciente_id, profesional, servicio, centro, centro_id, servicio_id, efector_id, cupo_id, fecha_hora, estado, motivo, updated_at)
             values
-                (@id, @pacienteId, @centroId, @servicioId, @efectorId, @cupoId, @fechaHora, @estado, @motivo, now())
+                (@id, @pacienteId, @profesional, @servicio, @centro, @centroId, @servicioId, @efectorId, @cupoId, @fechaHora, @estado, @motivo, now())
             on conflict (id) do nothing
             """;
 
@@ -491,8 +491,8 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
     public Guid UpsertCupoAndGetId(Guid bloqueId, DateTimeOffset horaInicio, DateTimeOffset horaFin)
     {
         const string sql = """
-            insert into sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, updated_at)
-            values (@bloqueId, @horaInicio, @horaFin, 'libre', 1, false, now())
+            insert into sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
+            values (@bloqueId, @horaInicio, @horaFin, 'libre', 1, false, 'SYSTEM', 'SYSTEM', now())
             on conflict (bloque_id, hora_inicio)
             do update set hora_fin = excluded.hora_fin, updated_at = now()
             returning id
@@ -571,6 +571,9 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
 
         cmd.Parameters.AddWithValue("id", t.Id);
         cmd.Parameters.AddWithValue("pacienteId", t.PacienteId);
+        cmd.Parameters.AddWithValue("profesional", t.Profesional);
+        cmd.Parameters.AddWithValue("servicio", t.Servicio);
+        cmd.Parameters.AddWithValue("centro", t.Centro);
         cmd.Parameters.AddWithValue("centroId", t.CentroId);
         cmd.Parameters.AddWithValue("servicioId", t.ServicioId);
         cmd.Parameters.AddWithValue("efectorId", t.EfectorId);
