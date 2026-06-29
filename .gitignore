@@ -1,29 +1,18 @@
-.DS_Store
-Thumbs.db
+﻿# Node / JS
+node_modules/
+.npm/
 
-# Environment files
+# Build artifacts
+.next/
+dist/
+build/
+out/
+coverage/
+
+# Env files
 .env
 .env.*
 !.env.example
-
-# Node / frontend
-front/node_modules/
-front/dist/
-front/playwright-report/
-front/test-results/
-front/.vite/
-
-# .NET / backend
-**/bin/
-**/obj/
-
-# IDE / editor
-.vs/
-.vscode/
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
 
 # Logs
 *.log
@@ -32,9 +21,20 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Coverage / reports
-coverage/
-*.coverage
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 
-# OS generated
-Desktop.ini
+# Python cache
+__pycache__/
+*.pyc
+
+# Docker / local volumes
+postgres_data/
+redis_data/
+pgdata/
+
+# Legacy git metadata backups
+_legacy_git_metadata/
