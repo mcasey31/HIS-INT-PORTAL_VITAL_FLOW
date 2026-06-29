@@ -125,7 +125,7 @@ public sealed class TurnosController(ITurnosService turnosService) : ControllerB
     }
 
     [HttpPost("asignacion")]
-    public ActionResult<AsignarTurnoResponse> AsignarTurno([FromBody] AsignarTurnoRequest request)
+    public async Task<ActionResult<AsignarTurnoResponse>> AsignarTurno([FromBody] AsignarTurnoRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.PacienteId)
             || string.IsNullOrWhiteSpace(request.SlotId)
@@ -136,7 +136,7 @@ public sealed class TurnosController(ITurnosService turnosService) : ControllerB
 
         try
         {
-            return Ok(turnosService.AsignarTurno(request));
+            return Ok(await turnosService.AsignarTurno(request));
         }
         catch (ArgumentException ex)
         {

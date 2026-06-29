@@ -144,6 +144,8 @@ builder.Services.AddScoped<IEstructuraInternaService, EstructuraInternaService>(
 builder.Services.AddScoped<IHistoriaClinicaService, HistoriaClinicaService>();
 builder.Services.AddScoped<IPersonaService, PersonaService>();
 builder.Services.AddScoped<ITurnosService, TurnosService>();
+builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
