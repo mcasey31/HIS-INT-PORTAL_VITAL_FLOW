@@ -18,7 +18,7 @@ public sealed class SmtpEmailService : IEmailService
 
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(_options.Host) &&
-        _options.Port > 0;
+        _options.Port is > 0;
 
     public async Task SendEmailAsync(string to, string subject, string body)
     {
@@ -37,7 +37,7 @@ public sealed class SmtpEmailService : IEmailService
         message.Body = builder.ToMessageBody();
 
         using var client = new SmtpClient();
-        await client.ConnectAsync(_options.Host, _options.Port, _options.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTlsWhenAvailable);
+        await client.ConnectAsync(_options.Host, _options.Port ?? 587, _options.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTlsWhenAvailable);
 
         if (!string.IsNullOrWhiteSpace(_options.Username))
         {
@@ -55,7 +55,7 @@ public sealed record SmtpOptions
 {
     public const string SectionName = "Smtp";
     public string Host { get; init; } = string.Empty;
-    public int Port { get; init; }
+    public int? Port { get; init; }
     public bool UseSsl { get; init; }
     public string? Username { get; init; }
     public string? Password { get; init; }
