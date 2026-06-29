@@ -339,6 +339,121 @@ public sealed class PostgresPersonaRepository(string connectionString) : IPerson
         return raw;
     }
 
+    public DomicilioResponse? GetDomicilio(Guid personaId)
+    {
+        const string sql = """
+            SELECT id, persona_id, localidad_id, pais, provincia, localidad,
+                   calle, numero, barrio, codigo_postal, piso, departamento, comentario
+            FROM sch_persona.domicilio
+            WHERE persona_id = @personaId AND activo = true
+            ORDER BY created_at DESC
+            LIMIT 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("personaId", personaId);
+        using var reader = cmd.ExecuteReader();
+
+        if (!reader.Read()) return null;
+
+        return new DomicilioResponse(
+            reader.GetGuid(0),
+            reader.GetGuid(1),
+            reader.IsDBNull(2) ? null : reader.GetString(2),
+            reader.GetString(3),
+            reader.GetString(4),
+            reader.GetString(5),
+            reader.GetString(6),
+            reader.GetString(7),
+            reader.GetString(8),
+            reader.GetString(9),
+            reader.GetString(10),
+            reader.GetString(11),
+            reader.GetString(12)
+        );
+    }
+
+    public DomicilioResponse UpsertDomicilio(Guid personaId, DomicilioRequest request)
+    {
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var tx = conn.BeginTransaction();
+
+        var existingId = GetActiveDomicilioId(conn, personaId);
+
+        if (existingId is not null)
+        {
+            const string sql = """
+                UPDATE sch_persona.domicilio
+                SET localidad_id = @localidadId,
+                    pais = @pais,
+                    provincia = @provincia,
+                    localidad = @localidad,
+                    calle = @calle,
+                    numero = @numero,
+                    barrio = @barrio,
+                    codigo_postal = @codigoPostal,
+                    piso = @piso,
+                    departamento = @departamento,
+                    comentario = @comentario,
+                    updated_at = now()
+                WHERE id = @id;
+                """;
+
+            using var cmd = new NpgsqlCommand(sql, conn, tx);
+            cmd.Parameters.AddWithValue("id", existingId.Value);
+            AddDomicilioParameters(cmd, request);
+            cmd.ExecuteNonQuery();
+        }
+        else
+        {
+            const string sql = """
+                INSERT INTO sch_persona.domicilio (id, persona_id, localidad_id, pais, provincia, localidad,
+                    calle, numero, barrio, codigo_postal, piso, departamento, comentario)
+                VALUES (@id, @personaId, @localidadId, @pais, @provincia, @localidad,
+                    @calle, @numero, @barrio, @codigoPostal, @piso, @departamento, @comentario);
+                """;
+
+            using var cmd = new NpgsqlCommand(sql, conn, tx);
+            cmd.Parameters.AddWithValue("id", Guid.NewGuid());
+            cmd.Parameters.AddWithValue("personaId", personaId);
+            AddDomicilioParameters(cmd, request);
+            cmd.ExecuteNonQuery();
+        }
+
+        tx.Commit();
+
+        return GetDomicilio(personaId)!;
+    }
+
+    private static Guid? GetActiveDomicilioId(NpgsqlConnection conn, Guid personaId)
+    {
+        const string sql = "SELECT id FROM sch_persona.domicilio WHERE persona_id = @personaId AND activo = true LIMIT 1;";
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("personaId", personaId);
+        var result = cmd.ExecuteScalar();
+        return result is not null ? (Guid)result : null;
+    }
+
+    private static void AddDomicilioParameters(NpgsqlCommand cmd, DomicilioRequest request)
+    {
+        cmd.Parameters.AddWithValue("localidadId", (object?)request.LocalidadId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("pais", (object?)request.Pais ?? "");
+        cmd.Parameters.AddWithValue("provincia", (object?)request.Provincia ?? "");
+        cmd.Parameters.AddWithValue("localidad", (object?)request.Localidad ?? "");
+        cmd.Parameters.AddWithValue("calle", (object?)request.Calle ?? "");
+        cmd.Parameters.AddWithValue("numero", (object?)request.Numero ?? "");
+        cmd.Parameters.AddWithValue("barrio", (object?)request.Barrio ?? "");
+        cmd.Parameters.AddWithValue("codigoPostal", (object?)request.CodigoPostal ?? "");
+        cmd.Parameters.AddWithValue("piso", (object?)request.Piso ?? "");
+        cmd.Parameters.AddWithValue("departamento", (object?)request.Departamento ?? "");
+        cmd.Parameters.AddWithValue("comentario", (object?)request.Comentario ?? "");
+    }
+
     private static string? ReadNullableString(NpgsqlDataReader reader, int ordinal)
     {
         if (reader.IsDBNull(ordinal))
@@ -349,4 +464,154 @@ public sealed class PostgresPersonaRepository(string connectionString) : IPerson
         var value = reader.GetString(ordinal).Trim();
         return value.Length == 0 ? null : value;
     }
+
+    public IReadOnlyList<PersonaContactoResponse> GetContactos(Guid personaId)
+    {
+        const string sql = """
+            SELECT id, persona_id, nombre, apellido, tipo_documento, numero_documento,
+                   fecha_nacimiento, sexo_biologico, telefono, email
+            FROM sch_persona.persona_contacto
+            WHERE persona_id = @personaId AND activo = true
+            ORDER BY created_at;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("personaId", personaId);
+        using var reader = cmd.ExecuteReader();
+
+        var result = new List<PersonaContactoResponse>();
+        while (reader.Read())
+        {
+            result.Add(new PersonaContactoResponse(
+                reader.GetGuid(0),
+                reader.GetGuid(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetString(4),
+                reader.GetString(5),
+                reader.GetFieldValue<DateOnly>(6).ToString("yyyy-MM-dd"),
+                reader.GetString(7),
+                reader.GetString(8),
+                reader.GetString(9)
+            ));
+        }
+
+        return result;
+    }
+
+    public PersonaContactoResponse CreateContacto(Guid personaId, PersonaContactoRequest request)
+    {
+        const string sql = """
+            INSERT INTO sch_persona.persona_contacto
+                (id, persona_id, nombre, apellido, tipo_documento, numero_documento,
+                 fecha_nacimiento, sexo_biologico, telefono, email)
+            VALUES
+                (@id, @personaId, @nombre, @apellido, @tipoDocumento, @numeroDocumento,
+                 @fechaNacimiento, @sexoBiologico, @telefono, @email)
+            RETURNING id, persona_id, nombre, apellido, tipo_documento, numero_documento,
+                      fecha_nacimiento, sexo_biologico, telefono, email;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        var id = Guid.NewGuid();
+        cmd.Parameters.AddWithValue("id", id);
+        cmd.Parameters.AddWithValue("personaId", personaId);
+        cmd.Parameters.AddWithValue("nombre", request.Nombre);
+        cmd.Parameters.AddWithValue("apellido", request.Apellido);
+        cmd.Parameters.AddWithValue("tipoDocumento", request.TipoDocumento);
+        cmd.Parameters.AddWithValue("numeroDocumento", request.NumeroDocumento);
+        cmd.Parameters.AddWithValue("fechaNacimiento", DateOnly.Parse(request.FechaNacimiento));
+        cmd.Parameters.AddWithValue("sexoBiologico", request.SexoBiologico);
+        cmd.Parameters.AddWithValue("telefono", (object?)request.Telefono ?? "");
+        cmd.Parameters.AddWithValue("email", (object?)request.Email ?? "");
+
+        using var reader = cmd.ExecuteReader();
+        reader.Read();
+        return new PersonaContactoResponse(
+            reader.GetGuid(0),
+            reader.GetGuid(1),
+            reader.GetString(2),
+            reader.GetString(3),
+            reader.GetString(4),
+            reader.GetString(5),
+            reader.GetFieldValue<DateOnly>(6).ToString("yyyy-MM-dd"),
+            reader.GetString(7),
+            reader.GetString(8),
+            reader.GetString(9)
+        );
+    }
+
+    public PersonaContactoResponse UpdateContacto(Guid contactoId, PersonaContactoRequest request)
+    {
+        const string sql = """
+            UPDATE sch_persona.persona_contacto
+            SET nombre = @nombre,
+                apellido = @apellido,
+                tipo_documento = @tipoDocumento,
+                numero_documento = @numeroDocumento,
+                fecha_nacimiento = @fechaNacimiento,
+                sexo_biologico = @sexoBiologico,
+                telefono = @telefono,
+                email = @email,
+                updated_at = now()
+            WHERE id = @id AND activo = true
+            RETURNING id, persona_id, nombre, apellido, tipo_documento, numero_documento,
+                      fecha_nacimiento, sexo_biologico, telefono, email;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", contactoId);
+        cmd.Parameters.AddWithValue("nombre", request.Nombre);
+        cmd.Parameters.AddWithValue("apellido", request.Apellido);
+        cmd.Parameters.AddWithValue("tipoDocumento", request.TipoDocumento);
+        cmd.Parameters.AddWithValue("numeroDocumento", request.NumeroDocumento);
+        cmd.Parameters.AddWithValue("fechaNacimiento", DateOnly.Parse(request.FechaNacimiento));
+        cmd.Parameters.AddWithValue("sexoBiologico", request.SexoBiologico);
+        cmd.Parameters.AddWithValue("telefono", (object?)request.Telefono ?? "");
+        cmd.Parameters.AddWithValue("email", (object?)request.Email ?? "");
+
+        using var reader = cmd.ExecuteReader();
+        if (!reader.Read())
+            throw new InvalidOperationException("No se encontro la persona de contacto.");
+
+        return new PersonaContactoResponse(
+            reader.GetGuid(0),
+            reader.GetGuid(1),
+            reader.GetString(2),
+            reader.GetString(3),
+            reader.GetString(4),
+            reader.GetString(5),
+            reader.GetFieldValue<DateOnly>(6).ToString("yyyy-MM-dd"),
+            reader.GetString(7),
+            reader.GetString(8),
+            reader.GetString(9)
+        );
+    }
+
+    public void DeleteContactos(Guid personaId, IReadOnlyList<Guid> contactoIds)
+    {
+        const string sql = """
+            UPDATE sch_persona.persona_contacto
+            SET activo = false, updated_at = now()
+            WHERE persona_id = @personaId AND id = ANY(@ids);
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("personaId", personaId);
+        cmd.Parameters.AddWithValue("ids", contactoIds.Select(id => id).ToArray());
+        cmd.ExecuteNonQuery();
+    }
 }
+

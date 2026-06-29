@@ -26,9 +26,14 @@ export type ContactoDato = {
 
 export type PersonaContactoVinculada = {
   id: string;
+  serverId?: string;
   tipoDocumento: string;
   numeroDocumento: string;
   apellidosNombres: string;
+  nombre: string;
+  apellido: string;
+  fechaNacimiento: string;
+  sexoBiologico: string;
   sexoEdad: string;
   telefonos: string[];
   email: string;

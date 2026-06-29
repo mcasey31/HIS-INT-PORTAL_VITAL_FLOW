@@ -143,6 +143,80 @@ public sealed class PersonasController(
         });
     }
 
+    [HttpGet("{personaId:guid}/domicilio")]
+    public IActionResult GetDomicilio(Guid personaId)
+    {
+        var domicilio = personaService.GetDomicilio(personaId);
+        if (domicilio is null)
+        {
+            return Ok(new DomicilioResponse(
+                Guid.Empty, personaId, null, "", "", "", "", "", "", "", "", "", ""
+            ));
+        }
+        return Ok(domicilio);
+    }
+
+    [HttpPut("{personaId:guid}/domicilio")]
+    public IActionResult UpsertDomicilio(Guid personaId, [FromBody] DomicilioRequest request)
+    {
+        try
+        {
+            var result = personaService.UpsertDomicilio(personaId, request);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("{personaId:guid}/contactos")]
+    public IActionResult GetContactos(Guid personaId)
+    {
+        return Ok(personaService.GetContactos(personaId));
+    }
+
+    [HttpPost("{personaId:guid}/contactos")]
+    public IActionResult CreateContacto(Guid personaId, [FromBody] PersonaContactoRequest request)
+    {
+        try
+        {
+            var result = personaService.CreateContacto(personaId, request);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{personaId:guid}/contactos/{contactoId:guid}")]
+    public IActionResult UpdateContacto(Guid personaId, Guid contactoId, [FromBody] PersonaContactoRequest request)
+    {
+        try
+        {
+            var result = personaService.UpdateContacto(personaId, contactoId, request);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    [HttpDelete("{personaId:guid}/contactos")]
+    public IActionResult DeleteContactos(Guid personaId, [FromQuery] string ids)
+    {
+        if (string.IsNullOrWhiteSpace(ids))
+            return BadRequest(new { message = "Debe especificar al menos un ID de contacto en el query string 'ids' separados por coma." });
+        var guids = ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                       .Select(s => Guid.Parse(s.Trim())).ToList();
+        if (guids.Count == 0)
+            return BadRequest(new { message = "Ningun ID valido proporcionado." });
+        personaService.DeleteContactos(personaId, guids);
+        return Ok(new { deleted = guids.Count });
+    }
+
     public sealed record BuscarPersonaSetMinimoBody(
         string TipoDocumento,
         string NumeroDocumento,
