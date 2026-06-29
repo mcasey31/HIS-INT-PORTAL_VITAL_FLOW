@@ -26,8 +26,50 @@
 
 .turnos-grid-2 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 0.6rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.turnos-grid-2 > label {
+  width: 100%;
+}
+
+.turnos-grid-2 input,
+.turnos-grid-2 select {
+  width: 100%;
+  display: block;
+}
+
+.turnos-disponibilidad-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.turnos-disponibilidad-grid input,
+.turnos-disponibilidad-grid select {
+  width: 100%;
+  display: block;
+}
+
+@media (max-width: 760px) {
+  .turnos-financiador-item {
+    flex-direction: column;
+  }
+
+  .turnos-financiador-item-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .turnos-proximos-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .turnos-disponibilidad-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 .turnos-label {
@@ -557,6 +599,10 @@
 }
 
 @media (max-width: 760px) {
+  .turnos-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
   .turnos-financiador-item {
     flex-direction: column;
   }

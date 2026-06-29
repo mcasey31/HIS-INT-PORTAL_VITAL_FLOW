@@ -24,6 +24,9 @@ public interface ITurnosRepository
     /// Devuelve turnos AGENDADOS de una fecha para validar ocupacion de slots en disponibilidad.
     IReadOnlyList<TurnoPacienteRow> GetTurnosAgendadosPorFecha(DateOnly fecha);
 
+    /// Devuelve turnos vinculados a un bloque de programacion (via cupo), incluyendo nombre del paciente.
+    IReadOnlyList<TurnoConPacienteRow> GetTurnosByBloqueId(Guid bloqueId);
+
     /// Insert batch de turnos (para seed inicial).
     void InsertTurnos(IEnumerable<TurnoPacienteRow> turnos);
 
@@ -79,4 +82,12 @@ public sealed record TurnoPacienteRow(
     Guid ServicioId = default,
     Guid EfectorId = default,
     Guid CupoId = default
+);
+
+/// Fila de turno_paciente con nombre del paciente resuelto desde sch_persona.persona.
+public sealed record TurnoConPacienteRow(
+    Guid TurnoId,
+    string PacienteNombre,
+    DateTimeOffset FechaHora,
+    string Estado
 );

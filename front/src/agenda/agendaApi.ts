@@ -102,3 +102,23 @@ export async function getDisponibilidad(agendaId: string): Promise<Disponibilida
 export async function createGrupoProfesional(payload: CreateGrupoProfesionalRequest): Promise<GrupoProfesionalResponse> {
   return httpClient.post<GrupoProfesionalResponse>(`/api/v1/grupos-profesionales`, payload);
 }
+
+export async function getGruposProfesionales(centroId?: string, servicioId?: string): Promise<GrupoProfesionalResponse[]> {
+  const params = new URLSearchParams();
+  if (centroId) params.set("centroId", centroId);
+  if (servicioId) params.set("servicioId", servicioId);
+  const qs = params.toString();
+  return httpClient.get<GrupoProfesionalResponse[]>(`/api/v1/grupos-profesionales${qs ? `?${qs}` : ""}`);
+}
+
+export async function getGrupoProfesionalById(id: string): Promise<GrupoProfesionalResponse> {
+  return httpClient.get<GrupoProfesionalResponse>(`/api/v1/grupos-profesionales/${id}`);
+}
+
+export async function updateGrupoProfesional(id: string, payload: CreateGrupoProfesionalRequest): Promise<GrupoProfesionalResponse> {
+  return httpClient.put<GrupoProfesionalResponse>(`/api/v1/grupos-profesionales/${id}`, payload);
+}
+
+export async function deleteGrupoProfesional(id: string): Promise<void> {
+  return httpClient.delete<void>(`/api/v1/grupos-profesionales/${id}`);
+}

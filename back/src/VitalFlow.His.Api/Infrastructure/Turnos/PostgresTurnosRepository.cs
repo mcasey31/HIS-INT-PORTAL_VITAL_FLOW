@@ -409,6 +409,40 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         return result;
     }
 
+    public IReadOnlyList<TurnoConPacienteRow> GetTurnosByBloqueId(Guid bloqueId)
+    {
+        const string sql = """
+            select tp.id,
+                   coalesce(p.apellido || ', ' || p.nombre, '') as paciente_nombre,
+                   tp.fecha_hora,
+                   tp.estado
+            from sch_turno.turno_paciente tp
+            inner join sch_agenda.cupo c on c.id = tp.cupo_id
+            left join sch_persona.persona p on p.id::text = tp.paciente_id
+            where c.bloque_id = @bloqueId
+            order by tp.fecha_hora
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("bloqueId", bloqueId);
+        using var reader = cmd.ExecuteReader();
+
+        var result = new List<TurnoConPacienteRow>();
+        while (reader.Read())
+        {
+            result.Add(new TurnoConPacienteRow(
+                Guid.Parse(reader.GetString(0)),
+                reader.GetString(1),
+                reader.GetFieldValue<DateTimeOffset>(2),
+                reader.GetString(3)
+            ));
+        }
+
+        return result;
+    }
+
     public bool ExisteTurnoActivoDuplicado(string pacienteId, string servicio, DateOnly fecha)
     {
         const string sql = """

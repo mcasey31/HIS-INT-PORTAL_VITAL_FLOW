@@ -97,8 +97,8 @@ export function TurnosBusqueda({ state }: { state: useTurnosState }) {
       <h3>Paso 2: Busqueda de disponibilidad</h3>
       <p className="turnos-step-help">Filtros obligatorios: Centro(s), Servicio y Practica. Profesional es opcional.</p>
 
-      <div className="turnos-grid-2">
-        <div>
+      <div className="turnos-disponibilidad-grid">
+        <div style={{ gridColumn: "1 / -1" }}>
           <span className="turnos-label">Centros *</span>
           <div className="turnos-multi-select">
             {centrosDisponibles.length === 0 ? (
@@ -143,6 +143,8 @@ export function TurnosBusqueda({ state }: { state: useTurnosState }) {
             ))}
           </select>
         </label>
+
+        <div></div>
       </div>
 
       <div className="personas-actions">

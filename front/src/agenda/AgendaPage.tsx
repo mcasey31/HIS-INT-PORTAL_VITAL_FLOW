@@ -211,6 +211,9 @@ export function AgendaPage({
     onConfirmarQuitarPracticaBloque,
     onLimpiarConsulta,
     codigoDiaSemanaJs,
+    gruposList, showGrupoForm, editingGrupoId, grupoSuccess, grupoError,
+    setGrupoSuccess, setGrupoError, setShowGrupoForm, setEditingGrupoId,
+    loadGrupos, openGruposSection, closeGruposSection, handleEditGrupo, handleDeleteGrupo, handleGrupoSave,
   } = useAgendaController();
 
   const bloqueAgendaFechaDesde = selectedAgenda?.fechaDesde ?? "";
@@ -483,6 +486,9 @@ export function AgendaPage({
           <button type="button" className="btn-primary btn-primary--large" onClick={openAltaAgendaStep}>
             Agregar agenda
           </button>
+          <button type="button" className="btn-outline-sm" onClick={openGruposSection} style={{ marginLeft: "0.5rem" }}>
+            Gestionar grupos profesionales
+          </button>
         </div>
 
         {!loading && fullyFilteredAgendas.length === 0 ? <div className="landing-empty">
@@ -679,6 +685,34 @@ export function AgendaPage({
                       <input type="number" min={1} value={bloqueIntervaloMinutos} onChange={e => setBloqueIntervaloMinutos(e.target.value)} />
                     </label>
                   </div>
+                  <div className="agenda-inline-actions">
+                    <button type="button" className="btn-outline-sm" onClick={onConsultarTurnosACancelar}>Consultar turnos a cancelar</button>
+                  </div>
+                  {turnosACancelar.length > 0 ? (
+                    <div>
+                      <p>Turnos afectados por la edicion:</p>
+                      <table className="agenda-bloques-table">
+                        <thead>
+                          <tr>
+                            <th>Paciente</th>
+                            <th>Fecha/Hora</th>
+                            <th>Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {turnosACancelar.map((t) => (
+                            <tr key={t.turnoId}>
+                              <td>{t.paciente}</td>
+                              <td>{new Date(t.fechaHora).toLocaleString()}</td>
+                              <td>{t.estado}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : selectedBloqueId && turnosACancelar.length === 0 ? (
+                    <p>No hay turnos para cancelar en este bloque.</p>
+                  ) : null}
                   <button type="submit">Guardar edicion de bloque</button>
                 </form>
               ) : null}
@@ -796,18 +830,31 @@ export function AgendaPage({
                   <input required value={bloqueNombre} onChange={e => setBloqueNombre(e.target.value)} />
                 </label>
               </div>
-              <div>
-                <label>
-                  Fecha desde
-                  <input type="date" required min={bloqueFechaDesdeMin} max={bloqueFechaDesdeMax} value={bloqueFechaDesde} onChange={e => setBloqueFechaDesde(e.target.value)} />
-                </label>
-              </div>
-              <div>
-                <label>
-                  Fecha hasta
-                  <input type="date" required min={bloqueFechaHastaMin} max={bloqueFechaHastaMax} value={bloqueFechaHasta} onChange={e => setBloqueFechaHasta(e.target.value)} />
-                </label>
-              </div>
+
+              {programadaBloqueTipo === "VARIABLE" ? (
+                <div>
+                  <label>
+                    Fecha
+                    <input type="date" required min={bloqueFechaDesdeMin} max={bloqueFechaDesdeMax} value={bloqueFechaDesde} onChange={e => { setBloqueFechaDesde(e.target.value); setBloqueFechaHasta(e.target.value); }} />
+                  </label>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label>
+                      Fecha desde
+                      <input type="date" required min={bloqueFechaDesdeMin} max={bloqueFechaDesdeMax} value={bloqueFechaDesde} onChange={e => setBloqueFechaDesde(e.target.value)} />
+                    </label>
+                  </div>
+                  <div>
+                    <label>
+                      Fecha hasta
+                      <input type="date" required min={bloqueFechaHastaMin} max={bloqueFechaHastaMax} value={bloqueFechaHasta} onChange={e => setBloqueFechaHasta(e.target.value)} />
+                    </label>
+                  </div>
+                </>
+              )}
+
               <div>
                 <label>
                   Hora inicio
@@ -824,6 +871,7 @@ export function AgendaPage({
                 <label>
                   Duracion turno (min)
                   <input type="number" required min={1} value={bloqueDuracionTurno} onChange={e => setBloqueDuracionTurno(e.target.value)} disabled={programadaBloqueTipo === "VARIABLE"} />
+                  {programadaBloqueTipo === "VARIABLE" ? <small className="agenda-hint">Fijado en 5 min para bloques variables</small> : null}
                 </label>
               </div>
               <div>
@@ -841,42 +889,47 @@ export function AgendaPage({
                   </select>
                 </label>
               </div>
-              <div>
-                <label>
-                  <input type="checkbox" checked={bloqueAtiendeFeriados} onChange={e => setBloqueAtiendeFeriados(e.target.checked)} />
-                  Atiende feriados
-                </label>
-              </div>
-              <div>
-                <label>
-                  Frecuencia
-                  <select required value={bloqueFrecuencia} onChange={e => setBloqueFrecuencia(e.target.value)}>
-                    {frecuenciasBloque.map((frecuencia) => <option key={frecuencia} value={frecuencia}>{frecuencia}</option>)}
-                  </select>
-                </label>
-              </div>
-              {bloqueFrecuencia === "ORDEN_MENSUAL" ? (
-                <div>
-                  <p>Semanas del mes (max 2)</p>
-                  <div className="agenda-weeks-grid">
-                    {[1, 2, 3, 4, 5].map((semana) => (
-                      <label key={semana} className="agenda-day-option">
-                        <input
-                          type="checkbox"
-                          checked={bloqueOrdenMensual.includes(semana)}
-                          onChange={() => toggleOrdenMensual(semana)}
-                        />
-                        Semana {semana}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
 
-              <div>
-                <p>Dias de atencion</p>
-                {renderDiasSelector()}
-              </div>
+              {programadaBloqueTipo !== "VARIABLE" ? (
+                <>
+                  <div>
+                    <label>
+                      <input type="checkbox" checked={bloqueAtiendeFeriados} onChange={e => setBloqueAtiendeFeriados(e.target.checked)} />
+                      Atiende feriados
+                    </label>
+                  </div>
+                  <div>
+                    <label>
+                      Frecuencia
+                      <select required value={bloqueFrecuencia} onChange={e => setBloqueFrecuencia(e.target.value)}>
+                        {frecuenciasBloque.map((frecuencia) => <option key={frecuencia} value={frecuencia}>{frecuencia}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  {bloqueFrecuencia === "ORDEN_MENSUAL" ? (
+                    <div>
+                      <p>Semanas del mes (max 2)</p>
+                      <div className="agenda-weeks-grid">
+                        {[1, 2, 3, 4, 5].map((semana) => (
+                          <label key={semana} className="agenda-day-option">
+                            <input
+                              type="checkbox"
+                              checked={bloqueOrdenMensual.includes(semana)}
+                              onChange={() => toggleOrdenMensual(semana)}
+                            />
+                            Semana {semana}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <p>Dias de atencion</p>
+                    {renderDiasSelector()}
+                  </div>
+                </>
+              ) : null}
 
               <div>
                 <label>
@@ -1133,6 +1186,127 @@ export function AgendaPage({
           </form>
 
           {renderBloquesResumen(true)}
+        </section>
+      ) : null}
+
+      {showGrupoForm ? (
+        <section className="agenda-page agenda-step-page">
+          <div className="advanced-header">
+            <div>
+              <p className="agenda-step-kicker">Gestion</p>
+              <h3>{editingGrupoId ? "Editar grupo profesional" : "Grupos profesionales"}</h3>
+            </div>
+            <div className="agenda-inline-actions">
+              <button type="button" className="btn-link" onClick={closeGruposSection}>Volver a consulta</button>
+            </div>
+          </div>
+
+          {grupoSuccess ? <p className="agenda-feedback agenda-feedback-success">{grupoSuccess}</p> : null}
+          {grupoError ? <p className="agenda-feedback agenda-feedback-error">{grupoError}</p> : null}
+
+          <div className="card-block vf-form">
+            <h4>Listado de grupos</h4>
+            {gruposList.length === 0 ? (
+              <p>No hay grupos profesionales cargados.</p>
+            ) : (
+              <table className="agenda-bloques-table">
+                <thead>
+                  <tr>
+                    <th>Codigo</th>
+                    <th>Nombre</th>
+                    <th>Centro</th>
+                    <th>Servicio</th>
+                    <th>Miembros</th>
+                    <th>Estado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gruposList.map((g) => (
+                    <tr key={g.id}>
+                      <td>{g.codigo}</td>
+                      <td>{g.nombre}</td>
+                      <td>{g.centro}</td>
+                      <td>{g.servicio}</td>
+                      <td>{g.miembros.filter(m => m.activo).map(m => m.efector).join(", ")}</td>
+                      <td><span className={`agenda-bloque-badge ${g.activo ? "badge-activo" : "badge-inactivo"}`}>{g.activo ? "Activo" : "Inactivo"}</span></td>
+                      <td className="agenda-bloque-actions">
+                        <button type="button" className="btn-icon-action" onClick={() => handleEditGrupo(g)} title="Editar grupo" aria-label="Editar grupo">✏</button>
+                        {g.activo ? (
+                          <button type="button" className="btn-icon-action" onClick={() => handleDeleteGrupo(g.id)} title="Eliminar grupo" aria-label="Eliminar grupo">🗑</button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <form onSubmit={handleGrupoSave} className="card-block agenda-form create-form vf-form" onChangeCapture={handlePotentialEdit}>
+            <h4>{editingGrupoId ? "Editar grupo" : "Nuevo grupo profesional"}</h4>
+            <div>
+              <label>
+                Codigo
+                <input required value={grupoCodigo} onChange={e => setGrupoCodigo(e.target.value)} />
+              </label>
+            </div>
+            <div>
+              <label>
+                Nombre
+                <input required value={grupoNombre} onChange={e => setGrupoNombre(e.target.value)} />
+              </label>
+            </div>
+            <div>
+              <label>
+                Descripcion
+                <input value={grupoDescripcion} onChange={e => setGrupoDescripcion(e.target.value)} />
+              </label>
+            </div>
+            <div>
+              <label>
+                Centro
+                <select required value={grupoCentroId} onChange={e => setGrupoCentroId(e.target.value)}>
+                  <option value="">Seleccione centro</option>
+                  {centros.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                </select>
+              </label>
+            </div>
+            <div>
+              <label>
+                Servicio
+                <select required value={grupoServicioId} onChange={e => setGrupoServicioId(e.target.value)} disabled={!grupoCentroId}>
+                  <option value="">Seleccione servicio</option>
+                  {grupoServicios.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                </select>
+              </label>
+            </div>
+            <div>
+              <p>Profesionales</p>
+              {grupoProfesionales.length === 0 ? (
+                <p className="agenda-bloques-empty">No hay profesionales disponibles para el centro y servicio seleccionados.</p>
+              ) : (
+                <div className="agenda-days-grid">
+                  {grupoProfesionales.map(prof => (
+                    <label key={prof.id} className="agenda-day-option">
+                      <input
+                        type="checkbox"
+                        checked={grupoMiembrosIds.includes(prof.id)}
+                        onChange={() => toggleGrupoMiembro(prof.id)}
+                      />
+                      {prof.nombre}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button type="submit" disabled={!canSubmitGrupo}>
+              {editingGrupoId ? "Guardar cambios" : "Crear grupo"}
+            </button>
+            {editingGrupoId ? (
+              <button type="button" className="btn-link" onClick={() => { setEditingGrupoId(null); setGrupoCodigo(""); setGrupoNombre(""); setGrupoDescripcion(""); setGrupoMiembrosIds([]); }}>Cancelar edicion</button>
+            ) : null}
+          </form>
         </section>
       ) : null}
 

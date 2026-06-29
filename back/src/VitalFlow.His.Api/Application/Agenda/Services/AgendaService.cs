@@ -1,11 +1,12 @@
 using VitalFlow.His.Api.Application.Agenda.Contracts;
 using VitalFlow.His.Api.Domain.Agenda;
+using VitalFlow.His.Api.Application.Turnos.Repositories;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace VitalFlow.His.Api.Application.Agenda.Services;
 
-public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
+public sealed class AgendaService(IAgendaRepository repository, ITurnosRepository turnosRepository) : IAgendaService
 {
     private static readonly string[] TiposEfector = ["PROFESIONAL", "GRUPO_PROFESIONALES", "DISPOSITIVO"];
     private static readonly string[] TiposAgenda = ["PROGRAMADA", "DEMANDA_ESPONTANEA"];
@@ -193,6 +194,118 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
 
         repository.AddGrupoProfesional(grupo);
 
+        return MapGrupo(grupo);
+    }
+
+    public IReadOnlyList<GrupoProfesionalResponse> GetGruposProfesionales(Guid? centroId, Guid? servicioId)
+    {
+        return repository.GetGruposProfesionales(centroId, servicioId)
+            .Select(MapGrupo)
+            .ToList();
+    }
+
+    public GrupoProfesionalResponse? GetGrupoProfesionalById(Guid id)
+    {
+        var grupo = repository.GetGrupoProfesionalById(id);
+        return grupo is null ? null : MapGrupo(grupo);
+    }
+
+    public GrupoProfesionalResponse? UpdateGrupoProfesional(Guid id, CreateGrupoProfesionalRequest request)
+    {
+        var existing = repository.GetGrupoProfesionalById(id);
+        if (existing is null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Codigo) || string.IsNullOrWhiteSpace(request.Nombre))
+        {
+            throw new ArgumentException("Codigo y nombre de grupo son obligatorios.");
+        }
+
+        var codigo = request.Codigo.Trim();
+        var nombre = request.Nombre.Trim();
+        if (codigo.Length > 40 || nombre.Length > 140)
+        {
+            throw new ArgumentException("Codigo o nombre de grupo excede longitud permitida.");
+        }
+
+        if (repository.ExistsGrupoProfesionalByCodigo(codigo, id))
+        {
+            throw new ArgumentException("Ya existe un grupo de profesionales con el mismo codigo.");
+        }
+
+        if (repository.ExistsGrupoProfesionalByNombre(request.CentroId, request.ServicioId, nombre, id))
+        {
+            throw new ArgumentException("Ya existe un grupo de profesionales con el mismo nombre para el centro/servicio.");
+        }
+
+        var centro = repository.GetCentros().FirstOrDefault(c => c.Id == request.CentroId)
+            ?? throw new ArgumentException("Centro invalido.");
+
+        var servicio = repository.GetServiciosByCentro(request.CentroId).FirstOrDefault(s => s.Id == request.ServicioId)
+            ?? throw new ArgumentException("Servicio invalido para el centro seleccionado.");
+
+        var profesionalesDisponibles = repository.GetEfectores(request.CentroId, request.ServicioId, "PROFESIONAL", null);
+        var profesionalesById = profesionalesDisponibles.ToDictionary(e => e.Id, e => e, EqualityComparer<Guid>.Default);
+
+        var idsMiembros = request.Miembros?.Select(m => m.EfectorId).ToList() ?? [];
+        if (idsMiembros.Count == 0)
+        {
+            throw new ArgumentException("Debe seleccionar al menos un profesional para el grupo.");
+        }
+
+        if (idsMiembros.Any(id => id == Guid.Empty))
+        {
+            throw new ArgumentException("Profesional invalido en miembros del grupo.");
+        }
+
+        if (idsMiembros.Distinct().Count() != idsMiembros.Count)
+        {
+            throw new ArgumentException("No se permiten profesionales repetidos dentro del grupo.");
+        }
+
+        foreach (var efectorId in idsMiembros)
+        {
+            if (!profesionalesById.ContainsKey(efectorId))
+            {
+                throw new ArgumentException("Todos los miembros del grupo deben ser profesionales del centro/servicio seleccionado.");
+            }
+        }
+
+        existing.Codigo = codigo;
+        existing.Nombre = nombre;
+        existing.CentroId = request.CentroId;
+        existing.CentroNombre = centro.Nombre;
+        existing.ServicioId = request.ServicioId;
+        existing.ServicioNombre = servicio.Nombre;
+        existing.Descripcion = request.Descripcion?.Trim();
+        existing.Miembros.Clear();
+
+        foreach (var miembro in request.Miembros!)
+        {
+            var efector = profesionalesById[miembro.EfectorId];
+            existing.Miembros.Add(new GrupoProfesionalMiembro
+            {
+                Id = Guid.NewGuid(),
+                EfectorId = miembro.EfectorId,
+                EfectorNombre = efector.Nombre,
+                Rol = string.IsNullOrWhiteSpace(miembro.Rol) ? null : miembro.Rol.Trim(),
+                Orden = miembro.Orden,
+                Activo = true
+            });
+        }
+
+        return repository.UpdateGrupoProfesional(existing) ? MapGrupo(existing) : null;
+    }
+
+    public bool DeleteGrupoProfesional(Guid id)
+    {
+        return repository.DeleteGrupoProfesional(id);
+    }
+
+    private static GrupoProfesionalResponse MapGrupo(GrupoProfesionalAggregate grupo)
+    {
         return new GrupoProfesionalResponse(
             grupo.Id,
             grupo.Codigo,
@@ -460,6 +573,12 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
             throw new ArgumentException("Codigo y nombre son obligatorios.");
         }
 
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        if (request.FechaDesde < today)
+        {
+            throw new ArgumentException("FechaDesde no puede ser menor al dia de hoy.");
+        }
+
         if (request.FechaHasta.HasValue && request.FechaHasta.Value < request.FechaDesde)
         {
             throw new ArgumentException("FechaHasta no puede ser menor que FechaDesde.");
@@ -528,8 +647,6 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
             throw new ArgumentException("Tipo de agenda no soportado para alta de bloques.");
         }
 
-        ValidarBloqueObligatorio(request);
-
         var tipoBloque = string.IsNullOrWhiteSpace(request.TipoBloque)
             ? string.Empty
             : request.TipoBloque.Trim().ToUpperInvariant();
@@ -546,6 +663,8 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
             throw new ArgumentException("Para agenda de demanda espontanea debe usar tipo de bloque DEMANDA_ESPONTANEA.");
         }
 
+        ValidarBloqueObligatorio(request, tipoBloque);
+
         if (request.FechaDesde == default || request.FechaHasta == default)
         {
             throw new ArgumentException("FechaDesde y FechaHasta son obligatorias.");
@@ -554,6 +673,11 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
         if (request.FechaDesde > request.FechaHasta)
         {
             throw new ArgumentException("FechaHasta no puede ser menor que FechaDesde.");
+        }
+
+        if (string.Equals(tipoBloque, "VARIABLE", StringComparison.OrdinalIgnoreCase) && request.FechaDesde != request.FechaHasta)
+        {
+            throw new ArgumentException("Para bloque variable las fechas desde y hasta deben ser iguales (unica fecha).");
         }
 
         if (request.FechaDesde < agenda.FechaDesde)
@@ -574,16 +698,20 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
             throw new ArgumentException("HoraFin debe ser mayor que HoraInicio.");
         }
 
-        if (request.Dias is null || request.Dias.Count == 0 || request.Dias.Any(d => !DiasSemana.Contains(d, StringComparer.OrdinalIgnoreCase)))
+        var esVariable = string.Equals(tipoBloque, "VARIABLE", StringComparison.OrdinalIgnoreCase);
+
+        if (!esVariable && (request.Dias is null || request.Dias.Count == 0 || request.Dias.Any(d => !DiasSemana.Contains(d, StringComparer.OrdinalIgnoreCase))))
         {
             throw new ArgumentException("Debe seleccionar al menos un dia valido.");
         }
 
-        var diasNormalizados = request.Dias
-            .Select(d => d.Trim().ToUpperInvariant())
-            .Where(d => !string.IsNullOrWhiteSpace(d))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var diasNormalizados = esVariable
+            ? [CodigoDiaSemana(request.FechaDesde.DayOfWeek)]
+            : request.Dias
+                .Select(d => d.Trim().ToUpperInvariant())
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
         var now = GetBusinessNow();
         var hoy = DateOnly.FromDateTime(now.DateTime);
@@ -755,24 +883,25 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
         var creado = repository.AddBloque(agendaId, bloque);
         if (creado)
         {
-            _ = RecalcularCupos(agendaId);
+            RecalcularCupos(agendaId);
         }
 
         return creado;
     }
 
-    private static void ValidarBloqueObligatorio(CreateBloqueRequest request)
+    private static void ValidarBloqueObligatorio(CreateBloqueRequest request, string tipoBloque)
     {
+        var esVariable = string.Equals(tipoBloque, "VARIABLE", StringComparison.OrdinalIgnoreCase);
+
         if (string.IsNullOrWhiteSpace(request.Nombre)
             || string.IsNullOrWhiteSpace(request.TipoBloque)
             || request.FechaDesde == default
             || request.FechaHasta == default
             || string.IsNullOrWhiteSpace(request.HoraInicio)
             || string.IsNullOrWhiteSpace(request.HoraFin)
-            || request.Dias is null
-            || request.Dias.Count == 0
+            || (!esVariable && (request.Dias is null || request.Dias.Count == 0))
             || request.LugarAtencionId == Guid.Empty
-            || string.IsNullOrWhiteSpace(request.Frecuencia))
+            || (!esVariable && string.IsNullOrWhiteSpace(request.Frecuencia)))
         {
             throw new ArgumentException("Todos los campos obligatorios del bloque deben completarse.");
         }
@@ -836,7 +965,7 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
         var actualizado = repository.UpdateBloque(agendaId, bloque);
         if (actualizado)
         {
-            _ = RecalcularCupos(agendaId);
+            RecalcularCupos(agendaId);
         }
 
         return actualizado;
@@ -881,7 +1010,7 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
         var actualizado = repository.UpdateBloquePracticas(agendaId, bloqueId, practicasFiltradas);
         if (actualizado)
         {
-            _ = RecalcularCupos(agendaId);
+            RecalcularCupos(agendaId);
         }
 
         return actualizado;
@@ -895,8 +1024,8 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
             return null;
         }
 
-        // HU 7795 necesita integracion con modulo Turnos para traer datos reales.
-        return Array.Empty<TurnoACancelarResponse>();
+        var turnos = turnosRepository.GetTurnosByBloqueId(bloqueId);
+        return turnos.Select(t => new TurnoACancelarResponse(t.TurnoId, t.PacienteNombre, t.FechaHora, t.Estado)).ToList();
     }
 
     public bool AddBloqueo(Guid agendaId, CreateBloqueoRequest request)
@@ -1060,7 +1189,28 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
 
             var cuposBase = (int)Math.Floor(mins / b.IntervaloMinutos);
             var cuposSobreturno = Math.Max(b.Sobreturnos, 0);
-            return cuposBase + cuposSobreturno;
+            var capacidadDiaria = cuposBase + cuposSobreturno;
+
+            if (string.Equals(b.TipoBloque, "VARIABLE", StringComparison.OrdinalIgnoreCase))
+            {
+                return capacidadDiaria;
+            }
+
+            var dias = ObtenerDiasBloque(b);
+            var diasPorSemana = dias.Count;
+            if (diasPorSemana == 0)
+            {
+                return capacidadDiaria;
+            }
+
+            var factorFrecuencia = b.Frecuencia?.Trim().ToUpperInvariant() switch
+            {
+                "QUINCENAL" => 0.5,
+                "ORDEN_MENSUAL" when b.OrdenMensualSemanas.Count > 0 => b.OrdenMensualSemanas.Count / 4.0,
+                _ => 1.0
+            };
+
+            return (int)Math.Ceiling(capacidadDiaria * diasPorSemana * factorFrecuencia);
         });
 
         var now = DateTimeOffset.UtcNow;
@@ -1109,11 +1259,14 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var agendasActivasMismoEfector = repository.GetAll()
+        var idsMismoEfector = repository.GetAll()
             .Where(a => a.Activa && a.CentroId == agendaActual.CentroId && a.EfectorId == agendaActual.EfectorId)
-            .Select(a => repository.GetById(a.Id))
-            .Where(a => a is not null)
-            .Cast<AgendaAggregate>();
+            .Select(a => a.Id)
+            .ToList();
+
+        var agendasActivasMismoEfector = idsMismoEfector.Count > 0
+            ? repository.GetByIds(idsMismoEfector)
+            : [];
 
         foreach (var agenda in agendasActivasMismoEfector)
         {
@@ -1169,11 +1322,14 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var agendasActivasMismoCentro = repository.GetAll()
+        var idsMismoCentro = repository.GetAll()
             .Where(a => a.Activa && a.CentroId == agendaActual.CentroId && a.EfectorId != agendaActual.EfectorId)
-            .Select(a => repository.GetById(a.Id))
-            .Where(a => a is not null)
-            .Cast<AgendaAggregate>();
+            .Select(a => a.Id)
+            .ToList();
+
+        var agendasActivasMismoCentro = idsMismoCentro.Count > 0
+            ? repository.GetByIds(idsMismoCentro)
+            : [];
 
         foreach (var agenda in agendasActivasMismoCentro)
         {

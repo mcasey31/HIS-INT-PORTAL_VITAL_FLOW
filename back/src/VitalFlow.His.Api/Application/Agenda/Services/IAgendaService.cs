@@ -14,6 +14,10 @@ public interface IAgendaService
     IReadOnlyList<string> GetTiposEfector();
     IReadOnlyList<string> GetTiposAgenda();
     GrupoProfesionalResponse CreateGrupoProfesional(CreateGrupoProfesionalRequest request);
+    IReadOnlyList<GrupoProfesionalResponse> GetGruposProfesionales(Guid? centroId, Guid? servicioId);
+    GrupoProfesionalResponse? GetGrupoProfesionalById(Guid id);
+    GrupoProfesionalResponse? UpdateGrupoProfesional(Guid id, CreateGrupoProfesionalRequest request);
+    bool DeleteGrupoProfesional(Guid id);
     IReadOnlyList<AgendaSummaryResponse> GetAgendas(string? query, bool? activa);
     AgendaDetailResponse? GetAgendaById(Guid agendaId);
     AgendaSummaryResponse CreateAgenda(CreateAgendaRequest request);

@@ -870,6 +870,229 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
         return grupo;
     }
 
+    public IReadOnlyList<GrupoProfesionalAggregate> GetGruposProfesionales(Guid? centroId, Guid? servicioId)
+    {
+        var sql = """
+            select g.id, g.centro_id, coalesce(c.nombre, ''), g.servicio_id, coalesce(s.nombre, ''),
+                   g.codigo, g.nombre, g.descripcion, g.activo
+            from sch_agenda.grupo_profesional g
+            left join sch_agenda.centro c on c.id = g.centro_id
+            left join sch_agenda.servicio s on s.id = g.servicio_id
+            where (g.centro_id = @centro_id or @centro_id is null)
+              and (g.servicio_id = @servicio_id or @servicio_id is null)
+            order by g.codigo;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        var grupos = new List<GrupoProfesionalAggregate>();
+        using (var cmd = new NpgsqlCommand(sql, conn))
+        {
+            cmd.Parameters.AddWithValue("centro_id", (object?)centroId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("servicio_id", (object?)servicioId ?? DBNull.Value);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                grupos.Add(new GrupoProfesionalAggregate
+                {
+                    Id = reader.GetGuid(0),
+                    CentroId = reader.GetGuid(1),
+                    CentroNombre = reader.GetString(2),
+                    ServicioId = reader.GetGuid(3),
+                    ServicioNombre = reader.GetString(4),
+                    Codigo = reader.GetString(5),
+                    Nombre = reader.GetString(6),
+                    Descripcion = reader.IsDBNull(7) ? null : reader.GetString(7),
+                    Activo = reader.GetBoolean(8)
+                });
+            }
+        }
+
+        if (grupos.Count == 0)
+        {
+            return grupos;
+        }
+
+        var ids = grupos.Select(g => g.Id).ToList();
+        const string sqlMiembros = """
+            select m.grupo_profesional_id, m.id, m.efector_id, coalesce(e.nombre, ''), m.rol, m.orden, m.activo
+            from sch_agenda.grupo_profesional_miembro m
+            left join sch_agenda.efector e on e.id = m.efector_id
+            where m.grupo_profesional_id = any(@ids)
+            order by m.orden;
+            """;
+
+        using (var cmdMiembros = new NpgsqlCommand(sqlMiembros, conn))
+        {
+            cmdMiembros.Parameters.AddWithValue("ids", ids);
+            using var reader = cmdMiembros.ExecuteReader();
+            while (reader.Read())
+            {
+                var grupoId = reader.GetGuid(0);
+                var grupo = grupos.FirstOrDefault(g => g.Id == grupoId);
+                if (grupo is null) continue;
+
+                grupo.Miembros.Add(new GrupoProfesionalMiembro
+                {
+                    Id = reader.GetGuid(1),
+                    EfectorId = reader.GetGuid(2),
+                    EfectorNombre = reader.GetString(3),
+                    Rol = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    Orden = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                    Activo = reader.GetBoolean(6)
+                });
+            }
+        }
+
+        return grupos;
+    }
+
+    public GrupoProfesionalAggregate? GetGrupoProfesionalById(Guid id)
+    {
+        const string sqlGrupo = """
+            select g.id, g.centro_id, coalesce(c.nombre, ''), g.servicio_id, coalesce(s.nombre, ''),
+                   g.codigo, g.nombre, g.descripcion, g.activo
+            from sch_agenda.grupo_profesional g
+            left join sch_agenda.centro c on c.id = g.centro_id
+            left join sch_agenda.servicio s on s.id = g.servicio_id
+            where g.id = @id;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        GrupoProfesionalAggregate? grupo = null;
+        using (var cmd = new NpgsqlCommand(sqlGrupo, conn))
+        {
+            cmd.Parameters.AddWithValue("id", id);
+            using var reader = cmd.ExecuteReader();
+            if (!reader.Read()) return null;
+
+            grupo = new GrupoProfesionalAggregate
+            {
+                Id = reader.GetGuid(0),
+                CentroId = reader.GetGuid(1),
+                CentroNombre = reader.GetString(2),
+                ServicioId = reader.GetGuid(3),
+                ServicioNombre = reader.GetString(4),
+                Codigo = reader.GetString(5),
+                Nombre = reader.GetString(6),
+                Descripcion = reader.IsDBNull(7) ? null : reader.GetString(7),
+                Activo = reader.GetBoolean(8)
+            };
+        }
+
+        const string sqlMiembros = """
+            select m.id, m.efector_id, coalesce(e.nombre, ''), m.rol, m.orden, m.activo
+            from sch_agenda.grupo_profesional_miembro m
+            left join sch_agenda.efector e on e.id = m.efector_id
+            where m.grupo_profesional_id = @grupo_id
+            order by m.orden;
+            """;
+
+        using (var cmdMiembros = new NpgsqlCommand(sqlMiembros, conn))
+        {
+            cmdMiembros.Parameters.AddWithValue("grupo_id", id);
+            using var reader = cmdMiembros.ExecuteReader();
+            while (reader.Read())
+            {
+                grupo.Miembros.Add(new GrupoProfesionalMiembro
+                {
+                    Id = reader.GetGuid(0),
+                    EfectorId = reader.GetGuid(1),
+                    EfectorNombre = reader.GetString(2),
+                    Rol = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    Orden = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                    Activo = reader.GetBoolean(5)
+                });
+            }
+        }
+
+        return grupo;
+    }
+
+    public bool UpdateGrupoProfesional(GrupoProfesionalAggregate grupo)
+    {
+        const string sqlUpdateGrupo = """
+            update sch_agenda.grupo_profesional
+            set codigo = @codigo, nombre = @nombre, centro_id = @centro_id, servicio_id = @servicio_id,
+                descripcion = @descripcion, activo = @activo, updated_at = now()
+            where id = @id;
+            """;
+
+        const string sqlDeleteMiembros = """
+            delete from sch_agenda.grupo_profesional_miembro
+            where grupo_profesional_id = @grupo_id;
+            """;
+
+        const string sqlInsertMiembro = """
+            insert into sch_agenda.grupo_profesional_miembro
+                (id, grupo_profesional_id, efector_id, rol, orden, activo,
+                 source_system, source_id, fhir_profile, created_by, updated_by)
+            values
+                (@id, @grupo_profesional_id, @efector_id, @rol, @orden, @activo,
+                 @source_system, @source_id, @fhir_profile, @created_by, @updated_by);
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var tx = conn.BeginTransaction();
+
+        using (var cmdUpdate = new NpgsqlCommand(sqlUpdateGrupo, conn, tx))
+        {
+            cmdUpdate.Parameters.AddWithValue("id", grupo.Id);
+            cmdUpdate.Parameters.AddWithValue("codigo", grupo.Codigo);
+            cmdUpdate.Parameters.AddWithValue("nombre", grupo.Nombre);
+            cmdUpdate.Parameters.AddWithValue("centro_id", grupo.CentroId);
+            cmdUpdate.Parameters.AddWithValue("servicio_id", grupo.ServicioId);
+            cmdUpdate.Parameters.AddWithValue("descripcion", (object?)grupo.Descripcion ?? DBNull.Value);
+            cmdUpdate.Parameters.AddWithValue("activo", grupo.Activo);
+            cmdUpdate.ExecuteNonQuery();
+        }
+
+        using (var cmdDelete = new NpgsqlCommand(sqlDeleteMiembros, conn, tx))
+        {
+            cmdDelete.Parameters.AddWithValue("grupo_id", grupo.Id);
+            cmdDelete.ExecuteNonQuery();
+        }
+
+        foreach (var miembro in grupo.Miembros)
+        {
+            using var cmdInsert = new NpgsqlCommand(sqlInsertMiembro, conn, tx);
+            cmdInsert.Parameters.AddWithValue("id", miembro.Id);
+            cmdInsert.Parameters.AddWithValue("grupo_profesional_id", grupo.Id);
+            cmdInsert.Parameters.AddWithValue("efector_id", miembro.EfectorId);
+            cmdInsert.Parameters.AddWithValue("rol", (object?)miembro.Rol ?? DBNull.Value);
+            cmdInsert.Parameters.AddWithValue("orden", (object?)miembro.Orden ?? DBNull.Value);
+            cmdInsert.Parameters.AddWithValue("activo", miembro.Activo);
+            cmdInsert.Parameters.AddWithValue("source_system", "vitalflow-his");
+            cmdInsert.Parameters.AddWithValue("source_id", miembro.Id.ToString());
+            cmdInsert.Parameters.AddWithValue("fhir_profile", "http://hl7.org/fhir/StructureDefinition/PractitionerRole");
+            cmdInsert.Parameters.AddWithValue("created_by", "system");
+            cmdInsert.Parameters.AddWithValue("updated_by", "system");
+            cmdInsert.ExecuteNonQuery();
+        }
+
+        tx.Commit();
+        return true;
+    }
+
+    public bool DeleteGrupoProfesional(Guid id)
+    {
+        const string sql = """
+            update sch_agenda.grupo_profesional
+            set activo = false, updated_at = now()
+            where id = @id;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", id);
+        return cmd.ExecuteNonQuery() > 0;
+    }
+
     public AgendaAggregate? GetById(Guid agendaId)
     {
         const string sqlAgenda = """
@@ -1020,6 +1243,179 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
         }
 
         return agenda;
+    }
+
+    public IReadOnlyList<AgendaAggregate> GetByIds(IReadOnlyList<Guid> ids)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        const string sqlAgendas = """
+            select a.id, a.codigo, a.nombre,
+                   a.centro_id, coalesce(c.nombre, ''),
+                   a.servicio_id, coalesce(s.nombre, ''),
+                   a.tipo_efector,
+                   a.efector_id, coalesce(e.nombre, ''),
+                   a.tipo_agenda,
+                   a.visible_contact_center,
+                   a.estado, a.fecha_desde, a.fecha_hasta, a.observacion
+            from sch_agenda.agenda a
+            left join sch_agenda.centro c on c.id = a.centro_id
+            left join sch_agenda.servicio s on s.id = a.servicio_id
+            left join sch_agenda.efector e on e.id = a.efector_id
+            where a.id = any(@ids);
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        var agendas = new Dictionary<Guid, AgendaAggregate>();
+        using (var cmd = new NpgsqlCommand(sqlAgendas, conn))
+        {
+            cmd.Parameters.AddWithValue("ids", ids.ToList());
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var agenda = new AgendaAggregate
+                {
+                    Id = reader.GetGuid(0),
+                    Codigo = reader.GetString(1),
+                    Nombre = reader.GetString(2),
+                    CentroId = reader.GetGuid(3),
+                    CentroNombre = reader.GetString(4),
+                    ServicioId = reader.GetGuid(5),
+                    ServicioNombre = reader.GetString(6),
+                    TipoEfector = reader.GetString(7),
+                    EfectorId = reader.GetGuid(8),
+                    EfectorNombre = reader.GetString(9),
+                    TipoAgenda = reader.GetString(10),
+                    VisibleContactCenter = reader.GetBoolean(11),
+                    Activa = string.Equals(reader.GetString(12), "ACTIVA", StringComparison.OrdinalIgnoreCase),
+                    FechaDesde = reader.GetFieldValue<DateOnly>(13),
+                    FechaHasta = reader.IsDBNull(14) ? null : reader.GetFieldValue<DateOnly>(14),
+                    Observacion = reader.IsDBNull(15) ? null : reader.GetString(15)
+                };
+                agendas[agenda.Id] = agenda;
+            }
+        }
+
+        if (agendas.Count == 0)
+        {
+            return [];
+        }
+
+        const string sqlBloques = """
+            select b.agenda_id, b.id, b.nombre, b.tipo_bloque, b.fecha_desde, b.fecha_hasta, b.atiende_feriados, b.dias_semana,
+                b.fecha, b.hora_inicio, b.hora_fin, b.duracion_turno_minutos, b.intervalo_minutos,
+                b.lugar_atencion_id, coalesce(l.nombre, ''), b.frecuencia, b.orden_mensual_semanas, b.sobreturnos, b.practicas_json, b.estado
+            from sch_agenda.bloque_programacion b
+            left join sch_agenda.lugar_atencion l on l.id = b.lugar_atencion_id
+            where b.agenda_id = any(@ids);
+            """;
+
+        using (var cmdBloques = new NpgsqlCommand(sqlBloques, conn))
+        {
+            cmdBloques.Parameters.AddWithValue("ids", ids.ToList());
+            using var reader = cmdBloques.ExecuteReader();
+            while (reader.Read())
+            {
+                var agendaId = reader.GetGuid(0);
+                if (!agendas.TryGetValue(agendaId, out var agenda))
+                {
+                    continue;
+                }
+
+                agenda.Bloques.Add(new BloqueProgramacion
+                {
+                    Id = reader.GetGuid(1),
+                    Nombre = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                    TipoBloque = reader.IsDBNull(3) ? "FIJA" : reader.GetString(3),
+                    FechaDesde = reader.IsDBNull(4) ? reader.GetFieldValue<DateOnly>(8) : reader.GetFieldValue<DateOnly>(4),
+                    FechaHasta = reader.IsDBNull(5) ? reader.GetFieldValue<DateOnly>(8) : reader.GetFieldValue<DateOnly>(5),
+                    AtiendeFeriados = !reader.IsDBNull(6) && reader.GetBoolean(6),
+                    Fecha = reader.GetFieldValue<DateOnly>(8),
+                    HoraInicio = reader.GetFieldValue<TimeOnly>(9),
+                    HoraFin = reader.GetFieldValue<TimeOnly>(10),
+                    DuracionTurnoMinutos = reader.IsDBNull(11) ? reader.GetInt32(12) : reader.GetInt32(11),
+                    IntervaloMinutos = reader.GetInt32(12),
+                    LugarAtencionId = reader.IsDBNull(13) ? Guid.Empty : reader.GetGuid(13),
+                    LugarAtencionNombre = reader.IsDBNull(14) ? string.Empty : reader.GetString(14),
+                    Frecuencia = reader.IsDBNull(15) ? "SEMANAL" : reader.GetString(15),
+                    Sobreturnos = reader.IsDBNull(17) ? 0 : reader.GetInt32(17),
+                    Activo = reader.IsDBNull(19) || string.Equals(reader.GetString(19), "ACTIVO", StringComparison.OrdinalIgnoreCase)
+                });
+
+                if (!reader.IsDBNull(7))
+                {
+                    var dias = reader.GetString(7).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    agenda.Bloques[^1].Dias.AddRange(dias);
+                }
+
+                if (!reader.IsDBNull(16))
+                {
+                    try
+                    {
+                        var semanas = JsonSerializer.Deserialize<List<int>>(reader.GetString(16));
+                        if (semanas is not null)
+                        {
+                            agenda.Bloques[^1].OrdenMensualSemanas.AddRange(semanas);
+                        }
+                    }
+                    catch
+                    {
+                        // no-op: keep compatibility with legacy values
+                    }
+                }
+
+                if (!reader.IsDBNull(18))
+                {
+                    try
+                    {
+                        var practicas = JsonSerializer.Deserialize<List<BloquePractica>>(reader.GetString(18));
+                        if (practicas is not null)
+                        {
+                            agenda.Bloques[^1].Practicas.AddRange(practicas.Where(p => !string.IsNullOrWhiteSpace(p.Nombre)));
+                        }
+                    }
+                    catch
+                    {
+                        // no-op: keep compatibility with legacy values
+                    }
+                }
+            }
+        }
+
+        const string sqlBloqueos = """
+            select agenda_id, id, inicio, fin, tipo
+            from sch_agenda.bloqueo_agenda
+            where agenda_id = any(@ids);
+            """;
+
+        using (var cmdBloqueos = new NpgsqlCommand(sqlBloqueos, conn))
+        {
+            cmdBloqueos.Parameters.AddWithValue("ids", ids.ToList());
+            using var reader = cmdBloqueos.ExecuteReader();
+            while (reader.Read())
+            {
+                var agendaId = reader.GetGuid(0);
+                if (!agendas.TryGetValue(agendaId, out var agenda))
+                {
+                    continue;
+                }
+
+                agenda.Bloqueos.Add(new BloqueoAgenda
+                {
+                    Id = reader.GetGuid(1),
+                    Inicio = reader.GetFieldValue<DateTimeOffset>(2),
+                    Fin = reader.GetFieldValue<DateTimeOffset>(3),
+                    Tipo = reader.GetString(4)
+                });
+            }
+        }
+
+        return agendas.Values.ToList();
     }
 
     public bool ExistsByCodigo(string codigo, Guid? excludingAgendaId)

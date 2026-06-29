@@ -58,8 +58,6 @@ export function TurnosPage() {
 
   return (
     <section className="turnos-page" aria-label="Asignar turno" onChangeCapture={handlePotentialEdit}>
-      <h2>Asignar turno</h2>
-      
       <TurnosIdentificacion state={wrappedState} navigate={navigate} />
       <TurnosProximosPaciente state={wrappedState} />
       <TurnosBusqueda state={wrappedState} />

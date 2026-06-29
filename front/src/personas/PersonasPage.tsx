@@ -849,138 +849,138 @@ export function PersonasPage({}: PersonasPageProps) {
       {empadronarContactoModalOpen ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Empadronar persona de contacto">
           <div className="scan-dni-modal persona-contacto-modal">
-            <h3>{contactoEditandoId ? "Editar persona de contacto" : "Empadronar persona de contacto"}</h3>
-            <p>{contactoEditandoId ? "Modifique los datos de la persona de contacto." : "Complete set minimo y datos de contacto para agregar la persona como contacto."}</p>
+            <div className="modal-header">
+              <h3>{contactoEditandoId ? "Editar persona de contacto" : "Empadronar persona de contacto"}</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                <button type="button" className="btn-outline" onClick={onCerrarEmpadronarContacto}>Cancelar</button>
+                <button type="button" onClick={onGuardarPersonaContacto} disabled={!puedeGuardarPersonaContacto}>Guardar</button>
+                <button type="button" className="modal-close" onClick={onCerrarEmpadronarContacto}>&times;</button>
+              </div>
+            </div>
+            <div className="modal-body">
+              <p>{contactoEditandoId ? "Modifique los datos de la persona de contacto." : "Complete set minimo y datos de contacto para agregar la persona como contacto."}</p>
 
-            <div className="set-minimo-grid persona-contacto-set-grid">
-              <label>
-                Nombre *
-                <input value={contactoNombre} onChange={(event) => setContactoNombre(event.target.value)} placeholder="Nombre" />
-              </label>
-              <label>
-                Apellido *
-                <input value={contactoApellido} onChange={(event) => setContactoApellido(event.target.value)} placeholder="Apellido" />
-              </label>
-              <label>
-                Tipo de documento *
-                <select value={contactoTipoDocumento} onChange={(event) => setContactoTipoDocumento(event.target.value)}>
-                  {tiposDocumento.map((tipo) => (
-                    <option key={`contacto-${tipo.codigo}`} value={tipo.codigo}>
-                      {tipo.nombre}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Numero de documento *
-                <input
-                  value={contactoNumeroDocumento}
-                  onChange={(event) => setContactoNumeroDocumento(event.target.value.toUpperCase())}
-                  placeholder="Numero"
+              <div className="set-minimo-grid persona-contacto-set-grid">
+                <label>
+                  Nombre *
+                  <input value={contactoNombre} onChange={(event) => setContactoNombre(event.target.value)} placeholder="Nombre" />
+                </label>
+                <label>
+                  Apellido *
+                  <input value={contactoApellido} onChange={(event) => setContactoApellido(event.target.value)} placeholder="Apellido" />
+                </label>
+                <label>
+                  Tipo de documento *
+                  <select value={contactoTipoDocumento} onChange={(event) => setContactoTipoDocumento(event.target.value)}>
+                    {tiposDocumento.map((tipo) => (
+                      <option key={`contacto-${tipo.codigo}`} value={tipo.codigo}>
+                        {tipo.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Numero de documento *
+                  <input
+                    value={contactoNumeroDocumento}
+                    onChange={(event) => setContactoNumeroDocumento(event.target.value.toUpperCase())}
+                    placeholder="Numero"
+                  />
+                </label>
+                <label>
+                  Fecha de nacimiento *
+                  <input type="date" value={contactoFechaNacimiento} onChange={(event) => setContactoFechaNacimiento(event.target.value)} />
+                </label>
+                <label>
+                  Sexo biologico *
+                  <select value={contactoSexoBiologico} onChange={(event) => setContactoSexoBiologico(event.target.value)}>
+                    <option value="">Seleccione</option>
+                    <option value="M">Masculino</option>
+                    <option value="F">Femenino</option>
+                  </select>
+                </label>
+              </div>
+
+              <label className="scan-raw-label persona-contacto-scan-row">
+                Escanear DNI
+                <textarea
+                  value={contactoScanRawData}
+                  onChange={(event) => setContactoScanRawData(event.target.value)}
+                  placeholder="Pegue JSON o cadena QR con separador @"
+                  rows={3}
                 />
               </label>
-              <label>
-                Fecha de nacimiento *
-                <input type="date" value={contactoFechaNacimiento} onChange={(event) => setContactoFechaNacimiento(event.target.value)} />
-              </label>
-              <label>
-                Sexo biologico *
-                <select value={contactoSexoBiologico} onChange={(event) => setContactoSexoBiologico(event.target.value)}>
-                  <option value="">Seleccione</option>
-                  <option value="M">Masculino</option>
-                  <option value="F">Femenino</option>
-                </select>
-              </label>
-            </div>
+              {contactoScanMessage ? <p className="scan-success">{contactoScanMessage}</p> : null}
+              <div className="confirm-actions persona-contacto-scan-actions">
+                <button type="button" className="btn-outline" onClick={onEscanearDniPersonaContacto}>
+                  Escanear DNI
+                </button>
+              </div>
 
-            <label className="scan-raw-label persona-contacto-scan-row">
-              Escanear DNI
-              <textarea
-                value={contactoScanRawData}
-                onChange={(event) => setContactoScanRawData(event.target.value)}
-                placeholder="Pegue JSON o cadena QR con separador @"
-                rows={3}
-              />
-            </label>
-            {contactoScanMessage ? <p className="scan-success">{contactoScanMessage}</p> : null}
-            <div className="confirm-actions persona-contacto-scan-actions">
-              <button type="button" className="btn-outline" onClick={onEscanearDniPersonaContacto}>
-                Escanear DNI
-              </button>
-            </div>
-
-            <h4 className="persona-contacto-subtitle">Datos de contacto</h4>
-            <div className="contacto-rows">
-              {contactoDatosContacto.map((item, index) => {
-                const isLastRow = index === contactoDatosContacto.length - 1;
-                return (
-                  <div key={item.id} className="contacto-row">
-                    <label>
-                      Tipo
-                      <select
-                        value={item.tipo}
-                        onChange={(event) => onActualizarDatoContactoPersona(item.id, { tipo: event.target.value as ContactoTipo })}
-                      >
-                        <option value="">Seleccione</option>
-                        <option value="TELEFONO">Telefono</option>
-                        <option value="CORREO_ELECTRONICO">Correo electronico</option>
-                      </select>
-                    </label>
-                    <label>
-                      Valor
-                      <input
-                        value={item.valor}
-                        onChange={(event) =>
-                          onActualizarDatoContactoPersona(item.id, {
-                            valor: normalizarValorContacto(item.tipo, event.target.value)
-                          })
-                        }
-                        placeholder="Valor"
-                      />
-                    </label>
-                    <label>
-                      Uso
-                      <select value={item.uso} onChange={(event) => onActualizarDatoContactoPersona(item.id, { uso: event.target.value as ContactoUso })}>
-                        <option value="">Seleccione</option>
-                        <option value="PERSONAL">Personal</option>
-                        <option value="LABORAL">Laboral</option>
-                        <option value="OTRO">Otro</option>
-                      </select>
-                    </label>
-                    <div className="contacto-action-col">
-                      <button
-                        type="button"
-                        className="contacto-icon-btn contacto-delete-btn"
-                        onClick={() => onEliminarDatoContactoPersona(item.id)}
-                        aria-label="Eliminar dato de contacto"
-                      >
-                        x
-                      </button>
-                      {isLastRow ? (
+              <h4 className="persona-contacto-subtitle">Datos de contacto</h4>
+              <div className="contacto-rows">
+                {contactoDatosContacto.map((item, index) => {
+                  const isLastRow = index === contactoDatosContacto.length - 1;
+                  return (
+                    <div key={item.id} className="contacto-row">
+                      <label>
+                        Tipo
+                        <select
+                          value={item.tipo}
+                          onChange={(event) => onActualizarDatoContactoPersona(item.id, { tipo: event.target.value as ContactoTipo })}
+                        >
+                          <option value="">Seleccione</option>
+                          <option value="TELEFONO">Telefono</option>
+                          <option value="CORREO_ELECTRONICO">Correo electronico</option>
+                        </select>
+                      </label>
+                      <label>
+                        Valor
+                        <input
+                          value={item.valor}
+                          onChange={(event) =>
+                            onActualizarDatoContactoPersona(item.id, {
+                              valor: normalizarValorContacto(item.tipo, event.target.value)
+                            })
+                          }
+                          placeholder="Valor"
+                        />
+                      </label>
+                      <label>
+                        Uso
+                        <select value={item.uso} onChange={(event) => onActualizarDatoContactoPersona(item.id, { uso: event.target.value as ContactoUso })}>
+                          <option value="">Seleccione</option>
+                          <option value="PERSONAL">Personal</option>
+                          <option value="LABORAL">Laboral</option>
+                          <option value="OTRO">Otro</option>
+                        </select>
+                      </label>
+                      <div className="contacto-action-col">
                         <button
                           type="button"
-                          className="contacto-icon-btn contacto-add-btn"
-                          onClick={onAgregarDatoContactoPersona}
-                          aria-label="Agregar dato de contacto"
+                          className="contacto-icon-btn contacto-delete-btn"
+                          onClick={() => onEliminarDatoContactoPersona(item.id)}
+                          aria-label="Eliminar dato de contacto"
                         >
-                          +
+                          x
                         </button>
-                      ) : (
-                        <span className="contacto-icon-slot" aria-hidden="true" />
-                      )}
+                        {isLastRow ? (
+                          <button
+                            type="button"
+                            className="contacto-icon-btn contacto-add-btn"
+                            onClick={onAgregarDatoContactoPersona}
+                            aria-label="Agregar dato de contacto"
+                          >
+                            +
+                          </button>
+                        ) : (
+                          <span className="contacto-icon-slot" aria-hidden="true" />
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="confirm-actions">
-              <button type="button" className="btn-outline" onClick={onCerrarEmpadronarContacto}>
-                Cancelar
-              </button>
-              <button type="button" onClick={onGuardarPersonaContacto} disabled={!puedeGuardarPersonaContacto}>
-                Guardar
-              </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

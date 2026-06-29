@@ -68,6 +68,14 @@ public sealed class InMemoryAgendaRepository : IAgendaRepository
         return agenda;
     }
 
+    public IReadOnlyList<AgendaAggregate> GetByIds(IReadOnlyList<Guid> ids)
+    {
+        return ids.Select(id => _store.TryGetValue(id, out var a) ? a : null)
+            .Where(a => a is not null)
+            .Cast<AgendaAggregate>()
+            .ToList();
+    }
+
     public bool ExistsByCodigo(string codigo, Guid? excludingAgendaId)
     {
         return _store.Values.Any(a =>
@@ -291,6 +299,43 @@ public sealed class InMemoryAgendaRepository : IAgendaRepository
     {
         _gruposStore[grupo.Id] = grupo;
         return grupo;
+    }
+
+    public IReadOnlyList<GrupoProfesionalAggregate> GetGruposProfesionales(Guid? centroId, Guid? servicioId)
+    {
+        return _gruposStore.Values
+            .Where(g => (!centroId.HasValue || g.CentroId == centroId.Value)
+                     && (!servicioId.HasValue || g.ServicioId == servicioId.Value))
+            .OrderBy(g => g.Codigo)
+            .ToList();
+    }
+
+    public GrupoProfesionalAggregate? GetGrupoProfesionalById(Guid id)
+    {
+        _gruposStore.TryGetValue(id, out var grupo);
+        return grupo;
+    }
+
+    public bool UpdateGrupoProfesional(GrupoProfesionalAggregate grupo)
+    {
+        if (!_gruposStore.ContainsKey(grupo.Id))
+        {
+            return false;
+        }
+
+        _gruposStore[grupo.Id] = grupo;
+        return true;
+    }
+
+    public bool DeleteGrupoProfesional(Guid id)
+    {
+        if (!_gruposStore.TryGetValue(id, out var grupo))
+        {
+            return false;
+        }
+
+        grupo.Activo = false;
+        return true;
     }
 
     public AgendaAggregate AddAgenda(AgendaAggregate agenda)

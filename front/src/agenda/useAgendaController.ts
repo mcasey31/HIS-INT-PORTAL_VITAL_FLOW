@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type {
   AgendaSummary, AgendaDetail, SelectorOption, EfectorOption,
   DiaSemanaOption, PracticaOption, BloquePracticaRequest, TurnoACancelar,
-  CreateGrupoProfesionalMiembroRequest, AgendaDetailBloque,
+  CreateGrupoProfesionalMiembroRequest, AgendaDetailBloque, GrupoProfesionalResponse,
 } from "./agendaTypes";
 import {
   getAgendas, getCentros, getServicios, getTiposEfector, getTiposAgenda,
@@ -10,6 +10,7 @@ import {
   getFrecuenciasBloque, getPracticas, createAgenda, updateAgenda, copyAgenda,
   setAgendaEstado, addBloque, updateBloque, removeBloquePractica,
   getTurnosACancelar, getDisponibilidad, createGrupoProfesional,
+  getGruposProfesionales, getGrupoProfesionalById, updateGrupoProfesional, deleteGrupoProfesional,
 } from "./agendaApi";
 
 type AgendaPageProps = { openHu7027Token?: number };
@@ -97,6 +98,11 @@ export function useAgendaController({ openHu7027Token = 0 }: AgendaPageProps = {
   const [programadaBloqueTipo, setProgramadaBloqueTipo] = useState<"FIJA" | "VARIABLE">("FIJA");
   const [showVariableConfirmModal, setShowVariableConfirmModal] = useState(false);
   const [practicaPendienteEliminar, setPracticaPendienteEliminar] = useState<{ bloqueId: string; nombre: string } | null>(null);
+  const [gruposList, setGruposList] = useState<GrupoProfesionalResponse[]>([]);
+  const [showGrupoForm, setShowGrupoForm] = useState(false);
+  const [editingGrupoId, setEditingGrupoId] = useState<string | null>(null);
+  const [grupoSuccess, setGrupoSuccess] = useState<string | null>(null);
+  const [grupoError, setGrupoError] = useState<string | null>(null);
 
   const filteredLandingAgendas = useMemo(() => {
     return agendas.filter(a => {
@@ -288,6 +294,75 @@ export function useAgendaController({ openHu7027Token = 0 }: AgendaPageProps = {
     } catch (err) { setError(err instanceof Error ? err.message : "Error al crear grupo de profesionales"); }
   }
 
+  async function loadGrupos() {
+    try {
+      const data = await getGruposProfesionales();
+      setGruposList(data);
+    } catch (err) { setGrupoError(err instanceof Error ? err.message : "Error al cargar grupos"); }
+  }
+
+  function openGruposSection() {
+    void loadGrupos();
+    setShowGrupoForm(true);
+    setEditingGrupoId(null);
+    setGrupoCodigo("");
+    setGrupoNombre("");
+    setGrupoDescripcion("");
+    setGrupoCentroId(centros[0]?.id ?? "");
+    setGrupoServicioId("");
+    setGrupoMiembrosIds([]);
+    setGrupoSuccess(null);
+    setGrupoError(null);
+  }
+
+  function closeGruposSection() {
+    setShowGrupoForm(false);
+    setEditingGrupoId(null);
+  }
+
+  async function handleEditGrupo(grupo: GrupoProfesionalResponse) {
+    setEditingGrupoId(grupo.id);
+    setGrupoCodigo(grupo.codigo);
+    setGrupoNombre(grupo.nombre);
+    setGrupoDescripcion(grupo.descripcion ?? "");
+    setGrupoCentroId(grupo.centroId);
+    setGrupoServicioId(grupo.servicioId);
+    setGrupoMiembrosIds(grupo.miembros.filter(m => m.activo).map(m => m.efectorId));
+    setGrupoSuccess(null);
+    setGrupoError(null);
+  }
+
+  async function handleDeleteGrupo(id: string) {
+    if (!confirm("Confirma que desea eliminar el grupo profesional?")) return;
+    try {
+      await deleteGrupoProfesional(id);
+      setGrupoSuccess("Grupo profesional eliminado correctamente");
+      await loadGrupos();
+    } catch (err) { setGrupoError(err instanceof Error ? err.message : "Error al eliminar grupo"); }
+  }
+
+  async function handleGrupoSave(event: FormEvent) {
+    event.preventDefault();
+    if (!canSubmitGrupo) return;
+    try {
+      const payload = {
+        codigo: grupoCodigo.trim(), nombre: grupoNombre.trim(), centroId: grupoCentroId,
+        servicioId: grupoServicioId, descripcion: grupoDescripcion.trim() || undefined,
+        miembros: grupoMiembrosIds.map((id, i) => ({ efectorId: id, orden: i + 1 })),
+      };
+      if (editingGrupoId) {
+        await updateGrupoProfesional(editingGrupoId, payload);
+        setGrupoSuccess("Grupo profesional actualizado correctamente");
+      } else {
+        await createGrupoProfesional(payload);
+        setGrupoSuccess("Grupo profesional creado correctamente");
+      }
+      setGrupoCodigo(""); setGrupoNombre(""); setGrupoDescripcion(""); setGrupoMiembrosIds([]);
+      setEditingGrupoId(null);
+      await loadGrupos();
+    } catch (err) { setGrupoError(err instanceof Error ? err.message : "Error al guardar grupo"); }
+  }
+
   async function onConsultarDisponibilidad() {
     if (!selectedAgendaId) return;
     try {
@@ -343,8 +418,8 @@ export function useAgendaController({ openHu7027Token = 0 }: AgendaPageProps = {
     if (!n) { setError("Debe ingresar nombre de practica"); return; }
     if (bloquePracticas.some(p => p.nombre.toLowerCase() === n.toLowerCase())) { setError("La practica ya fue agregada"); return; }
     const sugerida = practicasCatalogo.find(p => p.nombre === n)?.duracionMinutosSugerida;
-    const duracion = practicaDuracion.trim() ? Number(practicaDuracion) : sugerida;
-    if (duracion !== undefined && (!Number.isFinite(duracion) || duracion <= 0)) { setError("Duracion de practica invalida"); return; }
+    const duracion = practicaDuracion.trim() ? Number(practicaDuracion) : (sugerida ?? 15);
+    if (!Number.isFinite(duracion) || duracion <= 0) { setError("Duracion de practica invalida"); return; }
     setBloquePracticas(prev => [...prev, { nombre: n, duracionMinutos: duracion }]);
     setPracticaNombre(""); setPracticaDuracion(""); setError(null);
   }
@@ -421,11 +496,10 @@ export function useAgendaController({ openHu7027Token = 0 }: AgendaPageProps = {
   async function onAgregarBloqueVariable(event: FormEvent) {
     event.preventDefault(); setSuccessMessage(null); setError(null);
     if (!selectedAgenda) return;
-    if (!bloqueNombre.trim() || !bloqueFechaDesde || !bloqueFechaHasta || !bloqueHoraInicio || !bloqueHoraFin || !bloqueLugarAtencionId) { setError("Debe completar todos los campos obligatorios del bloque variable"); return; }
-    if (bloqueDias.length === 0) { setError("Debe seleccionar al menos un dia"); return; }
-    const rangoErr = validarBloqueDentroDeAgenda(bloqueFechaDesde, bloqueFechaHasta);
+    if (!bloqueNombre.trim() || !bloqueFechaDesde || !bloqueHoraInicio || !bloqueHoraFin || !bloqueLugarAtencionId) { setError("Debe completar todos los campos obligatorios del bloque variable"); return; }
+    const rangoErr = validarBloqueDentroDeAgenda(bloqueFechaDesde, bloqueFechaDesde);
     if (rangoErr) { setError(rangoErr); return; }
-    const horarioErr = validarBloqueSinHorarioPasado(bloqueFechaDesde, bloqueFechaHasta, bloqueHoraInicio, bloqueDias);
+    const horarioErr = validarBloqueSinHorarioPasado(bloqueFechaDesde, bloqueFechaDesde, bloqueHoraInicio, []);
     if (horarioErr) { setError(horarioErr); return; }
     if (!Number.isFinite(Number(bloqueSobreturnos)) || Number(bloqueSobreturnos) < 0) { setError("Sobreturnos invalidos"); return; }
     if (bloquePracticas.length === 0) { setError("Debe agregar al menos una practica asociada"); return; }
@@ -435,7 +509,7 @@ export function useAgendaController({ openHu7027Token = 0 }: AgendaPageProps = {
   async function onConfirmarAgregarBloqueVariable() {
     if (!selectedAgenda) return;
     try {
-      await addBloque(selectedAgenda.id, { nombre: bloqueNombre.trim(), tipoBloque: "VARIABLE", fechaDesde: bloqueFechaDesde, fechaHasta: bloqueFechaHasta, atiendeFeriados: bloqueAtiendeFeriados, dias: bloqueDias, horaInicio: bloqueHoraInicio, horaFin: bloqueHoraFin, duracionTurnoMinutos: 5, lugarAtencionId: bloqueLugarAtencionId, frecuencia: bloqueFrecuencia, ordenMensualSemanas: bloqueFrecuencia === "ORDEN_MENSUAL" ? bloqueOrdenMensual : [], practicas: bloquePracticas, sobreturnos: Number(bloqueSobreturnos) });
+      await addBloque(selectedAgenda.id, { nombre: bloqueNombre.trim(), tipoBloque: "VARIABLE", fechaDesde: bloqueFechaDesde, fechaHasta: bloqueFechaDesde, atiendeFeriados: false, dias: [], horaInicio: bloqueHoraInicio, horaFin: bloqueHoraFin, duracionTurnoMinutos: 5, lugarAtencionId: bloqueLugarAtencionId, frecuencia: "SEMANAL", ordenMensualSemanas: [], practicas: bloquePracticas, sobreturnos: Number(bloqueSobreturnos) });
       setSelectedAgenda(await getAgendaById(selectedAgenda.id)); await loadAgendas();
       setError(null); setSuccessMessage(`Bloque de programacion guardado: ${bloqueNombre.trim()} (tipo VARIABLE).`); setShowVariableConfirmModal(false);
     } catch (err) { setError(err instanceof Error ? err.message : "Error al agregar bloque variable"); }
@@ -503,6 +577,7 @@ export function useAgendaController({ openHu7027Token = 0 }: AgendaPageProps = {
     advancedFechaDesde, advancedFechaHasta, practicasQuery,
     grupoCodigo, grupoNombre, grupoDescripcion, grupoCentroId, grupoServicioId, grupoServicios, grupoProfesionales, grupoMiembrosIds,
     programadaBloqueTipo, showVariableConfirmModal, practicaPendienteEliminar,
+    gruposList, showGrupoForm, editingGrupoId, grupoSuccess, grupoError,
 
     setAgendas, setLoading, setError, setSuccessMessage, setSearchQuery, setEstadoFiltro,
     setNombre, setCentroId, setServicioId, setTipoEfector, setEfectorId, setTipoAgenda, setVisibleContactCenter,
@@ -522,6 +597,7 @@ export function useAgendaController({ openHu7027Token = 0 }: AgendaPageProps = {
     setGrupoCodigo, setGrupoNombre, setGrupoDescripcion, setGrupoCentroId, setGrupoServicioId,
     setGrupoServicios, setGrupoProfesionales, setGrupoMiembrosIds,
     setProgramadaBloqueTipo, setShowVariableConfirmModal, setPracticaPendienteEliminar,
+    setGruposList, setShowGrupoForm, setEditingGrupoId, setGrupoSuccess, setGrupoError,
 
     filteredLandingAgendas, fullyFilteredAgendas, practicasFiltradas, canSubmitGrupo,
     canSubmit, canSubmitBloqueDemanda,
@@ -533,5 +609,6 @@ export function useAgendaController({ openHu7027Token = 0 }: AgendaPageProps = {
     onEditarBloque, onConsultarTurnosACancelar, onQuitarPracticaBloque,
     onSolicitarQuitarPracticaBloque, onConfirmarQuitarPracticaBloque, onLimpiarConsulta,
     codigoDiaSemanaJs,
+    loadGrupos, openGruposSection, closeGruposSection, handleEditGrupo, handleDeleteGrupo, handleGrupoSave,
   };
 }

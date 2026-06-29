@@ -4,6 +4,7 @@ public interface IAgendaRepository
 {
     IReadOnlyList<AgendaAggregate> GetAll();
     AgendaAggregate? GetById(Guid agendaId);
+    IReadOnlyList<AgendaAggregate> GetByIds(IReadOnlyList<Guid> ids);
     bool ExistsByCodigo(string codigo, Guid? excludingAgendaId);
     bool ExistsByNombre(string nombre, Guid? excludingAgendaId);
     IReadOnlyList<CentroAgenda> GetCentros();
@@ -19,6 +20,10 @@ public interface IAgendaRepository
     bool ExistsGrupoProfesionalByCodigo(string codigo, Guid? excludingGrupoId);
     bool ExistsGrupoProfesionalByNombre(Guid centroId, Guid servicioId, string nombre, Guid? excludingGrupoId);
     GrupoProfesionalAggregate AddGrupoProfesional(GrupoProfesionalAggregate grupo);
+    IReadOnlyList<GrupoProfesionalAggregate> GetGruposProfesionales(Guid? centroId, Guid? servicioId);
+    GrupoProfesionalAggregate? GetGrupoProfesionalById(Guid id);
+    bool UpdateGrupoProfesional(GrupoProfesionalAggregate grupo);
+    bool DeleteGrupoProfesional(Guid id);
     AgendaAggregate AddAgenda(AgendaAggregate agenda);
     bool UpdateAgenda(AgendaAggregate agenda);
     bool AddBloque(Guid agendaId, BloqueProgramacion bloque);
