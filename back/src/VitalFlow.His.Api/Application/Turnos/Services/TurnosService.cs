@@ -507,6 +507,12 @@ public sealed class TurnosService(
         var profesional = ResolveProfesionalNombre(request.Profesional, slotContext);
         var fechaHoraTurno = ResolveFechaHoraTurno(request.Fecha, request.Hora, slotContext);
 
+        var fechaTurno = DateOnly.FromDateTime(fechaHoraTurno.DateTime);
+        if (turnosRepository.ExisteTurnoActivoDuplicado(request.PacienteId, servicio, fechaTurno))
+        {
+            throw new InvalidOperationException("El paciente ya posee un turno activo en el mismo servicio y fecha.");
+        }
+
         RegisterTurnoAgendado(request.PacienteId, request.SlotId, null, centro, servicio, profesional, fechaHoraTurno,
             slotContext.CentroId, slotContext.ServicioId, slotContext.EfectorId, slotContext.BloqueId, slotContext.DuracionTurnoMinutos);
 
@@ -527,7 +533,7 @@ public sealed class TurnosService(
         return new AsignarTurnoResponse(
             true,
             $"turno-{request.SlotId}",
-            "El paciente ya posee un turno en la misma fecha/hora. Se permite asignacion por regla actual.",
+            null,
             "Se asigno un turno en la especialidad seleccionada.",
             notificacion
         );
@@ -558,6 +564,11 @@ public sealed class TurnosService(
 
         var centro = slotContext.Centro;
         var fechaHoraTurno = ResolveFechaHoraTurno(request.Fecha, request.Hora, slotContext);
+        var fechaTurno = DateOnly.FromDateTime(fechaHoraTurno.DateTime);
+        if (turnosRepository.ExisteTurnoActivoDuplicado(request.PacienteId, slotContext.Servicio, fechaTurno))
+        {
+            throw new InvalidOperationException("El paciente ya posee un turno activo en el mismo servicio y fecha.");
+        }
         RegisterTurnoAgendado(request.PacienteId, request.SlotId, "Sobreturno asignado", centro, slotContext.Servicio, slotContext.Profesional, fechaHoraTurno,
             slotContext.CentroId, slotContext.ServicioId, slotContext.EfectorId, slotContext.BloqueId, slotContext.DuracionTurnoMinutos);
 

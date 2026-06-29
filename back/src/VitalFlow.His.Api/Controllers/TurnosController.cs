@@ -134,7 +134,18 @@ public sealed class TurnosController(ITurnosService turnosService) : ControllerB
             return BadRequest(new { message = "pacienteId, slotId y financiadorPlanId son obligatorios." });
         }
 
-        return Ok(turnosService.AsignarTurno(request));
+        try
+        {
+            return Ok(turnosService.AsignarTurno(request));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("sobreturnos/asignacion")]
@@ -153,6 +164,10 @@ public sealed class TurnosController(ITurnosService turnosService) : ControllerB
             return Ok(turnosService.AsignarSobreturno(request));
         }
         catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
         {
             return BadRequest(new { message = ex.Message });
         }

@@ -409,6 +409,28 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         return result;
     }
 
+    public bool ExisteTurnoActivoDuplicado(string pacienteId, string servicio, DateOnly fecha)
+    {
+        const string sql = """
+            select 1
+            from sch_turno.turno_paciente
+            where paciente_id = @pacienteId
+              and upper(servicio) = upper(@servicio)
+              and (fecha_hora at time zone 'UTC')::date = @fecha
+              and upper(estado) in ('AGENDADO', 'PROGRAMADO')
+            limit 1
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("pacienteId", pacienteId);
+        cmd.Parameters.AddWithValue("servicio", servicio);
+        cmd.Parameters.AddWithValue("fecha", fecha);
+        using var reader = cmd.ExecuteReader();
+        return reader.Read();
+    }
+
     public void InsertTurnos(IEnumerable<TurnoPacienteRow> turnos)
     {
         const string sql = """

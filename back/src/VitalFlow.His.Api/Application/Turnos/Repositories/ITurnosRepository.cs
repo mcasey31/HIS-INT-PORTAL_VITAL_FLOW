@@ -30,6 +30,9 @@ public interface ITurnosRepository
     /// Insert de un turno individual.
     void InsertTurno(TurnoPacienteRow turno);
 
+    /// Verifica si el paciente ya tiene un turno activo (AGENDADO/PROGRAMADO) para el mismo servicio en la misma fecha.
+    bool ExisteTurnoActivoDuplicado(string pacienteId, string servicio, DateOnly fecha);
+
     /// Actualiza estado/motivo de un turno existente por ID.
     /// Devuelve cantidad de filas afectadas.
     int UpdateEstadoTurno(string turnoId, string estado, string? motivo);
