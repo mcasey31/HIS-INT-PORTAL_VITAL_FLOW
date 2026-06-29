@@ -1,0 +1,24 @@
+﻿# HU 11773 - Realización de prácticas en consultorio
+
+## Trazabilidad
+- Epic: EPICA HISTORIA CLINICA AMBULATORIA
+- Feature: FEATURE_11702_PRA-CTICAS-EN-CONSULTORIO
+- Tipo Azure: Product Backlog Item
+- Estado: New
+- URL: https://dev.azure.com/SofreDigital/ODI/_workitems/edit/11773/
+
+## User Story
+Como [rol]
+quiero [capacidad]
+para [beneficio].
+
+## Azure Descripcion
+- Sin descripcion en Azure.
+
+## Azure Criterios de Aceptacion
+- Sin criterios de aceptacion en Azure.
+
+## Azure Tasks
+- Sin tasks hijas en Azure.
+
+

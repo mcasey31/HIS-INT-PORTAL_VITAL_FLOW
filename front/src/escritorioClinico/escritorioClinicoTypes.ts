@@ -401,6 +401,7 @@ export interface MedicamentoResponse {
   laboratorio: string;
   familia: string;
   forma: string;
+  esGenerico: boolean;
 }
 
 // --- Existing receta API types ---
@@ -419,6 +420,8 @@ export interface RecetaDigitalDetalleResponse {
   pacienteId: string;
   encuentroId?: string;
   turnoId?: string;
+  prescriptorUsuarioId: string;
+  prescriptorMatricula: string;
   estado: string;
   creadoEn: string;
   items: RecetaDigitalItemResponse[];
@@ -440,6 +443,12 @@ export interface AnularRecetaDigitalResponse {
   recetaId: string;
   estadoAnterior: string;
   estadoNuevo: string;
+}
+
+export interface FinanciadorActivoResponse {
+  financiadorNombre: string;
+  numeroAfiliado: string;
+  planNombre: string;
 }
 
 export interface CrearPrescripcionRequest {
@@ -495,6 +504,16 @@ export function buildRecetarioUrl(turno: TurnoAdmision): string {
   return target.toString();
 }
 
+function buildHistoriaClinica(evoluciones: EvolucionAmbulatoriaResponse[]): RegistroPanoramica[] {
+  return evoluciones.map(ev => ({
+    id: ev.evolucionId,
+    fechaHora: ev.fechaAtencion,
+    titulo: `${ev.especialidad} — ${ev.profesional}`,
+    detalle: ev.texto ? extractPlainTextFromHtml(ev.texto).substring(0, 200) : "Sin detalle",
+    problemasAsociados: ev.problemasAsociados
+  }));
+}
+
 export function buildPanoramica(
   turno: TurnoAdmision | null,
   evolucionesAmbulatorias: EvolucionAmbulatoriaResponse[],
@@ -502,10 +521,11 @@ export function buildPanoramica(
 ): SeccionPanoramica[] {
   if (!turno) return [];
   const ultimaAtencionAmbulatoria = buildUltimaAtencionAmbulatoria(evolucionesAmbulatorias);
+  const historiaClinica = buildHistoriaClinica(evolucionesAmbulatorias);
   const toTen = (rows: RegistroPanoramica[]) => sortByMostRecent(rows).slice(0, 10);
   return [
     { key: "problemas-cronicos", titulo: "Problemas cronicos", registros: toTen(problemasCronicos) },
-    { key: "historia-clinica", titulo: "Historia clinica", registros: [] },
+    { key: "historia-clinica", titulo: "Historia clinica", registros: toTen(historiaClinica) },
     { key: "internaciones", titulo: "Estudios previos de internacion", registros: [] },
     { key: "intervenciones", titulo: "Intervenciones quirurgicas", registros: [] },
     { key: "ultima-atencion", titulo: "Ultima atencion ambulatoria", registros: toTen(ultimaAtencionAmbulatoria) },

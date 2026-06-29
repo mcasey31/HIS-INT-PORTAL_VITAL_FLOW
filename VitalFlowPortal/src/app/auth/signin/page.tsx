@@ -1,12 +1,13 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { HeartPulse, ArrowLeft, ShieldCheck, Lock, User, Loader2 } from "lucide-react";
+import { HeartPulse, ArrowLeft, ShieldCheck, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 export default function PatientSignInPage() {
   const [dni, setDni] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -18,7 +19,7 @@ export default function PatientSignInPage() {
     try {
       const result = await signIn("paciente-dni", {
         dni: dni.trim(),
-        password: "1234",
+        password,
         redirect: false
       });
 
@@ -80,12 +81,12 @@ export default function PatientSignInPage() {
                 <label className="block text-xs font-bold text-slate-700 mb-2">Contraseña</label>
                 <input
                   type="password"
-                  placeholder="1234"
-                  defaultValue="1234"
-                  disabled
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg bg-slate-100 text-slate-500 cursor-not-allowed"
+                  placeholder="Ingresá tu contraseña"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
-                <p className="text-[9px] text-slate-500 mt-1">* Contraseña temporal: 1234</p>
               </div>
 
               {error && <p className="text-sm text-red-500 font-bold">{error}</p>}
@@ -100,21 +101,6 @@ export default function PatientSignInPage() {
               </button>
             </form>
 
-            <div className="relative py-2">
-                <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-100"></div>
-                </div>
-                <div className="relative flex justify-center">
-                    <span className="bg-white px-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">o usa acceso demo</span>
-                </div>
-            </div>
-
-            <button 
-              onClick={() => signIn("demo", { username: "test", password: "test", redirect: false }).then(() => window.location.href = "/dashboard")}
-              className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all"
-            >
-              Entrar como Paciente Demo
-            </button>
           </div>
         </div>
 

@@ -96,4 +96,21 @@ public sealed class PersonaService(IPersonaRepository repository) : IPersonaServ
             string.IsNullOrWhiteSpace(telefono) ? null : telefono.Trim()
         );
     }
+
+    public DomicilioResponse? GetDomicilio(Guid personaId) => repository.GetDomicilio(personaId);
+
+    public DomicilioResponse UpsertDomicilio(Guid personaId, DomicilioRequest request) =>
+        repository.UpsertDomicilio(personaId, request);
+
+    public IReadOnlyList<PersonaContactoResponse> GetContactos(Guid personaId) =>
+        repository.GetContactos(personaId);
+
+    public PersonaContactoResponse CreateContacto(Guid personaId, PersonaContactoRequest request) =>
+        repository.CreateContacto(personaId, request);
+
+    public PersonaContactoResponse UpdateContacto(Guid personaId, Guid contactoId, PersonaContactoRequest request) =>
+        repository.UpdateContacto(contactoId, request);
+
+    public void DeleteContactos(Guid personaId, IReadOnlyList<Guid> contactoIds) =>
+        repository.DeleteContactos(personaId, contactoIds);
 }

@@ -52,40 +52,36 @@ export const authConfig = {
         async authorize(credentials) {
             if (!credentials?.dni || !credentials?.password) return null;
 
-            // ONLY ACCEPT PASSWORD "1234" FOR ALL DNIs DURING TESTING
-            if (credentials.password !== "1234") {
-              console.warn(`[DNI Auth] Invalid password for DNI ${credentials.dni}`);
-              return null;
-            }
-
             try {
               const dni = credentials.dni as string;
+              const password = credentials.password as string;
               const email = `dni-${dni}@pacientes.local`;
               const username = `paciente-${dni}`;
-              const DEMO_HIS_ID = "edf33d1d-bf17-41f4-9e40-40c2e21d1eb6"; // fallback demo
 
-              let hisPatientId = DEMO_HIS_ID;
-              try {
-                const resolvedHisId = await getHisPatientIdByDni(dni);
-                if (resolvedHisId) {
-                  hisPatientId = resolvedHisId;
-                }
-              } catch (e) {
-                console.warn(`[DNI Auth] HIS lookup failed for DNI ${dni}, using demo fallback`, e);
+              const hisPatientId = await getHisPatientIdByDni(dni);
+              if (!hisPatientId) {
+                console.warn(`[DNI Auth] DNI ${dni} does not exist in HIS. Login rejected.`);
+                return null;
               }
 
-              // 1. Find or create User using upsert
-              const user = await db.user.upsert({
-                where: { email },
-                update: {},
-                create: {
-                  email,
-                  name: `Paciente ${dni}`,
-                  role: "PATIENT",
-                  username,
-                  password: "1234"
-                }
-              });
+              const existingUser = await db.user.findUnique({ where: { email } });
+              if (existingUser && existingUser.password !== password) {
+                console.warn(`[DNI Auth] Invalid password for DNI ${dni}`);
+                return null;
+              }
+
+              // 1. Find or create User
+              const user = existingUser
+                ? existingUser
+                : await db.user.create({
+                    data: {
+                      email,
+                      name: `Paciente ${dni}`,
+                      role: "PATIENT",
+                      username,
+                      password,
+                    },
+                  });
               console.log(`[DNI Auth] User: ${user.id} (${email})`);
 
               // 2. Find or create Patient linked to HIS
@@ -132,48 +128,6 @@ export const authConfig = {
             }
         }
     }),
-
-    // Demo/Test login (test/test)
-    CredentialsProvider({
-        id: "demo",
-        name: "Acceso Demo",
-        credentials: {
-          username: { label: "Usuario", type: "text" },
-          password: { label: "Contraseña", type: "password" }
-        },
-        async authorize(credentials) {
-            if (!credentials?.username || !credentials?.password) return null;
-
-            if (credentials.username === "test" && credentials.password === "test") {
-              return {
-                id: "test-user-id",
-                name: "Paciente de Prueba",
-                email: "test@prm.com",
-                image: "https://i.pravatar.cc/150?u=mock"
-              };
-            }
-
-            try {
-              const user = await db.user.findUnique({
-                where: { username: credentials.username as string },
-                include: { professional: true }
-              });
-
-              if (user && user.password === credentials.password) {
-                return {
-                  id: user.id,
-                  name: user.name,
-                  email: user.email,
-                  role: user.role,
-                };
-              }
-            } catch {
-              return null;
-            }
-
-            return null;
-        }
-    }),
   ],
   adapter: PrismaAdapter(db),
   pages: {
@@ -198,7 +152,7 @@ export const authConfig = {
       ...session,
       user: {
         ...session.user,
-        id: token.sub || "test-user-id",
+        id: token.sub ?? "",
         role: token.role as string,
       },
     }),

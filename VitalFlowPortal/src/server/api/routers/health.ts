@@ -1,108 +1,182 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure, hisProcedure } from "~/server/api/trpc";
-import { MockHISAdapter } from "~/server/services/his/mock-adapter";
-import { VitalFlowHISAdapter } from "~/server/services/his/vitalflow-adapter-class";
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
 import { db } from "~/server/db";
 import { getSelectores, buscarDisponibilidad, getPatientAppointmentsFromHis, reservarTurno, cancelarTurno } from "~/server/services/his/vitalflow-adapter";
 
-// Instanciamos el adaptador universal (Mock por ahora)
-const mockService = new MockHISAdapter();
-const hisService = new VitalFlowHISAdapter();
-const DEMO_HIS_PATIENT_ID = process.env.HIS_DEMO_PATIENT_ID ?? "edf33d1d-bf17-41f4-9e40-40c2e21d1eb6";
+async function getHisPatientIdForUser(userId: string): Promise<string> {
+  const patient = await db.patient.findUnique({
+    where: { userId },
+    select: { hisId: true },
+  });
+
+  if (!patient?.hisId) {
+    throw new Error("Paciente sin vinculacion HIS. Complete onboarding y mapeo hisId.");
+  }
+
+  return patient.hisId;
+}
+
 
 export const healthRouter = createTRPCRouter({
   // Obtener resumen para el Dashboard
-  getDashboardSummary: publicProcedure.query(async () => {
-    const patientId = "patient_123";
-    
-    const [appointments, studies] = await Promise.all([
-      mockService.getPatientAppointments(patientId),
-      mockService.getPatientStudies(patientId),
-    ]);
+  getDashboardSummary: protectedProcedure.query(async ({ ctx }) => {
+    const hisPatientId = await getHisPatientIdForUser(ctx.session.user.id);
+    const appointments = await getPatientAppointmentsFromHis(hisPatientId, {
+      historial: false,
+      page: 1,
+      pageSize: 20,
+    });
 
     return {
       nextAppointment: appointments[0] ?? null,
-      recentStudiesCount: studies.length,
-      latestStudy: studies[0] ?? null,
+      recentStudiesCount: 0,
+      latestStudy: null,
       appointmentsCount: appointments.length
     };
   }),
 
   // Obtener todos los estudios detallados con filtros
-  getMedicalHistory: publicProcedure
+  getMedicalHistory: protectedProcedure
     .input(z.object({
       type: z.enum(['LAB', 'IMG']).optional(),
       days: z.number().optional()
     }).optional())
-    .query(async ({ input }) => {
-      const patientId = "patient_123";
-      return await mockService.getPatientStudies(patientId, input);
+    .query(async () => {
+      // Sin endpoint HIS integrado para estudios en este router.
+      // No devolvemos datos mock para evitar resultados falsos.
+      return [];
     }),
 
   // Obtener turnos reservados del paciente: futuros + historial
-  getAppointments: hisProcedure.query(async ({ ctx }) => {
-    const userId = ctx.session.user.id;
-    let hisPatientId = DEMO_HIS_PATIENT_ID;
+  getAppointments: protectedProcedure.query(async ({ ctx }) => {
+    const hisPatientId = await getHisPatientIdForUser(ctx.session.user.id);
 
-    try {
-      const patient = await db.patient.findUnique({
-        where: { userId },
-        select: { hisId: true },
-      });
-      hisPatientId = patient?.hisId ?? hisPatientId;
-    } catch (e) {
-      console.warn("[health.getAppointments] DB error getting patient:", e);
-    }
+    const futureAppointments = await getPatientAppointmentsFromHis(hisPatientId, {
+      historial: false,
+      page: 1,
+      pageSize: 20,
+    });
 
-    const [futureAppointments, pastAppointments] = await Promise.all([
-      getPatientAppointmentsFromHis(hisPatientId, { historial: false, page: 1, pageSize: 20 }),
-      getPatientAppointmentsFromHis(hisPatientId, { historial: true, page: 1, pageSize: 20 }),
-    ]);
+    const pastAppointments = await getPatientAppointmentsFromHis(hisPatientId, {
+      historial: true,
+      page: 1,
+      pageSize: 20,
+    });
 
-    return { future: futureAppointments, past: pastAppointments };
+    return {
+      future: futureAppointments,
+      past: pastAppointments,
+    };
   }),
 
   // ── Integración HIS real ────────────────────────────────────────────────
 
   // Obtener centros, servicios, prácticas y profesionales disponibles
   getSelectores: publicProcedure.query(async () => {
-    return getSelectores();
+    return await getSelectores();
   }),
 
   // Buscar slots disponibles según filtros (para "Solicitar Nuevo Turno")
-  searchAvailableSlots: hisProcedure
+  searchAvailableSlots: protectedProcedure
     .input(z.object({
-      centroIds: z.array(z.string()).optional(),
-      servicioId: z.string().optional(),
-      practicaId: z.string().optional(),
+      centroIds: z.array(z.string()).min(1),
+      servicioId: z.string().min(1),
+      practicaId: z.string().min(1).optional(),
       profesionalId: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
+      const hisPatientId = await getHisPatientIdForUser(ctx.session.user.id);
       const slots = await buscarDisponibilidad({
-        pacienteId: ctx.session.user.id,
-        financiadorPlanId: "particular",
-        centroIds: input.centroIds || ["00000000-0000-0000-0000-000000000001"],
-        servicioId: input.servicioId || "00000000-0000-0000-0000-000000000101",
-        practicaId: input.practicaId || "prac-00000000-0000-0000-0000-000000000101-consulta-general",
+        pacienteId: hisPatientId,
+        centroIds: input.centroIds,
+        servicioId: input.servicioId,
+        practicaId: input.practicaId || "",
         profesionalId: input.profesionalId,
       });
 
-      return slots.map((slot, idx) => ({
-        id: slot.id || `slot-${idx}`,
-        externalId: slot.id,
-        start: new Date(`${slot.fecha}T${slot.hora}`),
-        end: new Date(`${slot.fecha}T${slot.hora}:30`),
-        status: "available" as const,
-        professional: {
-          id: slot.profesional,
-          name: slot.profesional,
-          specialty: slot.servicio,
-        },
-        facility: {
-          id: slot.centro,
-          name: slot.centro,
-        },
-        reason: `${slot.servicio} - ${slot.practica}`,
+      return slots
+        .filter((slot) => slot.tipoSlot !== "ST")
+        .map((slot, idx) => ({
+          id: slot.id || `slot-${idx}`,
+          externalId: slot.id,
+          start: new Date(`${slot.fecha}T${slot.hora}`),
+          end: new Date(`${slot.fecha}T${slot.hora}:30`),
+          status: "available" as const,
+          professional: {
+            id: slot.profesional,
+            name: slot.profesional,
+            specialty: slot.servicio,
+          },
+          facility: {
+            id: slot.centro,
+            name: slot.centro,
+          },
+          reason: `${slot.servicio} - ${slot.practica}`,
+        }));
+    }),
+
+  // Buscar slots por flujo de cascada: centro -> servicio -> profesional (opcional)
+  searchAvailableSlotsCascade: protectedProcedure
+    .input(z.object({
+      centroId: z.string().min(1),
+      servicioId: z.string().min(1),
+      profesionalId: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const hisPatientId = await getHisPatientIdForUser(ctx.session.user.id);
+      const selectores = await getSelectores();
+
+      const practicas = selectores.practicas.filter((p) => {
+        if (p.servicioId !== input.servicioId) return false;
+        if (!p.centroIds.includes(input.centroId)) return false;
+        if (input.profesionalId && !p.profesionalIds.includes(input.profesionalId)) return false;
+        return true;
+      });
+
+      if (practicas.length === 0) {
+        return [];
+      }
+
+      const allSlots = await Promise.all(
+        practicas.map((practica) =>
+          buscarDisponibilidad({
+            pacienteId: hisPatientId,
+            centroIds: [input.centroId],
+            servicioId: input.servicioId,
+            practicaId: practica.id,
+            profesionalId: input.profesionalId,
+          })
+        )
+      );
+
+      const unique = new Map<string, (typeof allSlots)[number][number]>();
+      for (const slotsByPractica of allSlots) {
+        for (const slot of slotsByPractica) {
+          const key = slot.id || `${slot.fecha}|${slot.hora}|${slot.centro}|${slot.servicio}|${slot.practica}|${slot.profesional}`;
+          if (!unique.has(key)) {
+            unique.set(key, slot);
+          }
+        }
+      }
+
+      return Array.from(unique.values())
+        .filter((slot) => slot.tipoSlot !== "ST")
+        .map((slot, idx) => ({
+          id: slot.id || `slot-${idx}`,
+          externalId: slot.id,
+          start: new Date(`${slot.fecha}T${slot.hora}`),
+          end: new Date(`${slot.fecha}T${slot.hora}:30`),
+          status: "available" as const,
+          professional: {
+            id: slot.profesional,
+            name: slot.profesional,
+            specialty: slot.servicio,
+          },
+          facility: {
+            id: slot.centro,
+            name: slot.centro,
+          },
+          reason: `${slot.servicio} - ${slot.practica}`,
       }));
     }),
 
@@ -115,52 +189,39 @@ export const healthRouter = createTRPCRouter({
       
       console.log("MUTATION: joinQueue para email:", userEmail);
 
-      try {
-        // 1. Buscar o crear usuario por EMAIL
-        const user = await db.user.upsert({
-          where: { email: userEmail },
-          update: {},
-          create: {
-              email: userEmail,
-              name: ctx.session.user.name || "Usuario de Test"
-          }
-        });
+      // 1. Buscar o crear usuario por EMAIL
+      const user = await db.user.upsert({
+        where: { email: userEmail },
+        update: {},
+        create: {
+            email: userEmail,
+            name: ctx.session.user.name || "Usuario"
+        }
+      });
 
-        // 2. Vincular paciente
-        const patient = await db.patient.upsert({
-          where: { userId: user.id },
-          update: {},
-          create: { userId: user.id, onboardingCompleted: true }
-        });
+      // 2. Vincular paciente
+      const patient = await db.patient.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: { userId: user.id, onboardingCompleted: true }
+      });
 
-        console.log("Paciente vinculado:", patient.id);
+      console.log("Paciente vinculado:", patient.id);
 
-        // Cancelar WAITING previos
-        await db.telemedicineCall.updateMany({
-          where: { patientId: patient.id, status: "WAITING" },
-          data: { status: "CANCELLED" },
-        });
+      // Cancelar WAITING previos
+      await db.telemedicineCall.updateMany({
+        where: { patientId: patient.id, status: "WAITING" },
+        data: { status: "CANCELLED" },
+      });
 
-        // Crear nueva llamada
-        return await db.telemedicineCall.create({
-          data: {
-            patientId: patient.id,
-            specialty: input.specialty,
-            status: "WAITING",
-          },
-        });
-      } catch (error) {
-        console.error("DB Error in joinQueue, using fallback:", error);
-        // Fallback para que la demo no se rompa si la DB falla
-        return {
-          id: `mock-call-${Date.now()}`,
-          patientId: "mock-patient",
+      // Crear nueva llamada
+      return await db.telemedicineCall.create({
+        data: {
+          patientId: patient.id,
           specialty: input.specialty,
           status: "WAITING",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-      }
+        },
+      });
     }),
 
   getActiveCall: protectedProcedure.query(async ({ ctx }) => {
@@ -267,40 +328,45 @@ export const healthRouter = createTRPCRouter({
     }),
 
   // Reservar turno en el HIS
-  reservarTurno: hisProcedure
+  reservarTurno: protectedProcedure
     .input(z.object({
       slotId: z.string().describe("ID del slot/turno disponible"),
     }))
     .mutation(async ({ ctx, input }) => {
-      let hisPatientId = DEMO_HIS_PATIENT_ID;
       try {
-        const patient = await db.patient.findUnique({
-          where: { userId: ctx.session.user.id },
-          select: { hisId: true },
-        });
-        if (patient?.hisId) {
-          hisPatientId = patient.hisId;
-        }
-      } catch (e) {
-        console.warn("[health.reservarTurno] DB error getting patient, using demo HIS ID:", e);
-      }
+        console.log(`[health.reservarTurno] User ${ctx.session.user.id} reserving slot ${input.slotId}`);
 
-      const result = await reservarTurno(input.slotId, hisPatientId);
-      
-      return {
-        success: result.success,
-        appointmentId: result.id || result.externalId,
-        message: result.success ? "Turno reservado exitosamente" : "Error al reservar el turno",
-      };
+        const hisPatientId = await getHisPatientIdForUser(ctx.session.user.id);
+
+        // Call HIS to reserve the slot
+        const result = await reservarTurno(input.slotId, hisPatientId);
+        
+        console.log(`[health.reservarTurno] Reservation result:`, result);
+        
+        return {
+          success: result.success,
+          appointmentId: result.id || result.externalId,
+          message: result.success ? "Turno reservado exitosamente" : "Error al reservar el turno",
+        };
+      } catch (e) {
+        console.error("[health.reservarTurno] Error:", e);
+        throw new Error(`Failed to reserve appointment: ${String(e)}`);
+      }
     }),
 
-  cancelarTurno: hisProcedure
+  cancelarTurno: protectedProcedure
     .input(z.object({
       turnoId: z.string(),
       motivo: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
-      const result = await cancelarTurno(input.turnoId, input.motivo);
-      return { success: true, estado: result.estado };
+    .mutation(async ({ ctx, input }) => {
+      console.log(`[health.cancelarTurno] User ${ctx.session.user.id} cancelling turno ${input.turnoId}`);
+      try {
+        const result = await cancelarTurno(input.turnoId, input.motivo);
+        return { success: true, estado: result.estado };
+      } catch (e) {
+        console.error("[health.cancelarTurno] Error:", e);
+        throw new Error(`No se pudo cancelar el turno: ${String(e)}`);
+      }
     }),
 });

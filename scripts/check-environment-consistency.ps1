@@ -42,7 +42,7 @@ Write-Host "Checking unified environment consistency..." -ForegroundColor Cyan
 # Required integration containers
 Assert-True (Test-ContainerRunning 'vitalflow_his_backend') 'Integration HIS backend is running (vitalflow_his_backend).'
 Assert-True (Test-ContainerRunning 'vitalflow_portal_backend') 'Integration Portal backend is running (vitalflow_portal_backend).'
-Assert-True (Test-ContainerRunning 'vitalflow-frontend') 'HIS frontend is running (vitalflow-frontend).'
+Assert-True (Test-ContainerRunning 'vitalflow_his_frontend') 'HIS frontend is running (vitalflow_his_frontend).'
 
 # Legacy containers must be off
 Assert-False (Test-ContainerRunning 'vitalflow-backend') 'Legacy HIS backend is NOT running (vitalflow-backend).'
@@ -51,17 +51,25 @@ Assert-False (Test-ContainerRunning 'vitalflow-postgres') 'Legacy HIS postgres i
 # Portal target endpoint
 $portalHisBase = docker exec vitalflow_portal_backend sh -lc "printenv HIS_API_BASE_URL" 2>$null
 $portalHisBase = ($portalHisBase | Out-String).Trim()
-Assert-True ($portalHisBase -eq 'http://host.docker.internal:3011/api') "Portal uses HIS_API_BASE_URL=http://host.docker.internal:3011/api (actual: $portalHisBase)."
+$validPortalTargets = @(
+    'http://host.docker.internal:3011/api',
+    'http://his_backend:8080/api'
+)
+Assert-True ($validPortalTargets -contains $portalHisBase) "Portal uses a valid HIS_API_BASE_URL (actual: $portalHisBase)."
 
 # HIS frontend proxy target
-$frontendProxyLine = docker exec vitalflow-frontend sh -lc "cat /etc/nginx/conf.d/default.conf | grep proxy_pass" 2>$null
+$frontendProxyLine = docker exec vitalflow_his_frontend sh -lc "cat /etc/nginx/conf.d/default.conf | grep proxy_pass" 2>$null
 $frontendProxyLine = ($frontendProxyLine | Out-String).Trim()
-Assert-True ($frontendProxyLine -match 'proxy_pass\s+http://host\.docker\.internal:3011;') "HIS frontend proxies /api to host.docker.internal:3011 (actual: $frontendProxyLine)."
+$validFrontendProxy =
+    ($frontendProxyLine -match 'proxy_pass\s+http://host\.docker\.internal:3011;') -or
+    ($frontendProxyLine -match 'proxy_pass\s+http://his_backend:8080;') -or
+    ($frontendProxyLine -match 'proxy_pass\s+\$his_upstream;')
+Assert-True $validFrontendProxy "HIS frontend proxies /api to a valid HIS backend target (actual: $frontendProxyLine)."
 
 if (-not $SkipApiCheck) {
     Write-Host "Running quick API consistency check..." -ForegroundColor Cyan
 
-    $loginBody = '{"username":"admin","password":"Admin123!"}'
+    $loginBody = '{"username":"admin","password":"admin"}'
     $login = Invoke-RestMethod -Method Post -Uri 'http://localhost:3011/api/v1/auth/login' -ContentType 'application/json' -Body $loginBody
     Assert-True (-not [string]::IsNullOrWhiteSpace($login.accessToken)) 'HIS login works on http://localhost:3011/api.'
 

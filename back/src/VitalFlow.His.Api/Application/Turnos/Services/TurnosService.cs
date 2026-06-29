@@ -12,7 +12,8 @@ public sealed class TurnosService(
     IPersonaRepository personaRepository,
     IAgendaRepository agendaRepository,
     ITurnosRepository turnosRepository,
-    IAdmisionRepository admisionRepository) : ITurnosService
+    IAdmisionRepository admisionRepository,
+    IEmailService emailService) : ITurnosService
 {
     private const string EstadoAgendado = "AGENDADO";
     private const string EstadoConsumido = "CONSUMIDO";
@@ -495,7 +496,7 @@ public sealed class TurnosService(
         turnosRepository.FinalizarVigenciaFinanciadorPaciente(pacienteGuid, financiadorPlanGuid);
     }
 
-    public AsignarTurnoResponse AsignarTurno(AsignarTurnoRequest request)
+    public async Task<AsignarTurnoResponse> AsignarTurno(AsignarTurnoRequest request)
     {
         var slotContext = SlotContextById.TryGetValue(request.SlotId, out var ctx) ? ctx : null;
         if (slotContext is null)
@@ -507,6 +508,12 @@ public sealed class TurnosService(
         var profesional = ResolveProfesionalNombre(request.Profesional, slotContext);
         var fechaHoraTurno = ResolveFechaHoraTurno(request.Fecha, request.Hora, slotContext);
 
+        var fechaTurno = DateOnly.FromDateTime(fechaHoraTurno.DateTime);
+        if (turnosRepository.ExisteTurnoActivoDuplicado(request.PacienteId, servicio, fechaTurno))
+        {
+            throw new InvalidOperationException("El paciente ya posee un turno activo en el mismo servicio y fecha.");
+        }
+
         RegisterTurnoAgendado(request.PacienteId, request.SlotId, null, centro, servicio, profesional, fechaHoraTurno,
             slotContext.CentroId, slotContext.ServicioId, slotContext.EfectorId, slotContext.BloqueId, slotContext.DuracionTurnoMinutos);
 
@@ -516,6 +523,14 @@ public sealed class TurnosService(
             var fecha = request.Fecha ?? DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(1));
             var hora = string.IsNullOrWhiteSpace(request.Hora) ? "08:00" : request.Hora.Trim();
             var asunto = $"Turno asignado - {servicio} - {fecha:dd/MM/yyyy} {hora}";
+            var cuerpo = $"<p>Se le ha asignado un turno en <strong>{centro}</strong>.</p>" +
+                         $"<p>Servicio: {servicio}</p>" +
+                         $"<p>Profesional: {profesional}</p>" +
+                         $"<p>Fecha: {fecha:dd/MM/yyyy} a las {hora}</p>" +
+                         $"<p>Por favor, presente este comprobante el d\u00eda del turno.</p>";
+
+            await emailService.SendEmailAsync(request.Email.Trim(), asunto, cuerpo);
+
             notificacion = new NotificacionTurnoEmailResponse(
                 request.Email.Trim(),
                 asunto,
@@ -527,7 +542,7 @@ public sealed class TurnosService(
         return new AsignarTurnoResponse(
             true,
             $"turno-{request.SlotId}",
-            "El paciente ya posee un turno en la misma fecha/hora. Se permite asignacion por regla actual.",
+            null,
             "Se asigno un turno en la especialidad seleccionada.",
             notificacion
         );
@@ -552,12 +567,22 @@ public sealed class TurnosService(
             throw new ArgumentException("El slot de sobreturno no es valido.");
         }
 
-        var stKey = slotContext.StKey;
-
-        turnosRepository.DecrementarSobreturno(stKey);
-
         var centro = slotContext.Centro;
         var fechaHoraTurno = ResolveFechaHoraTurno(request.Fecha, request.Hora, slotContext);
+        var fechaTurno = DateOnly.FromDateTime(fechaHoraTurno.DateTime);
+
+        if (turnosRepository.ExisteTurnoActivoDuplicado(request.PacienteId, slotContext.Servicio, fechaTurno))
+        {
+            throw new InvalidOperationException("El paciente ya posee un turno activo en el mismo servicio y fecha.");
+        }
+
+        var stKey = slotContext.StKey;
+        var restantes = turnosRepository.DecrementarSobreturno(stKey);
+        if (restantes < 0)
+        {
+            throw new InvalidOperationException("No hay cupo de sobreturno disponible.");
+        }
+
         RegisterTurnoAgendado(request.PacienteId, request.SlotId, "Sobreturno asignado", centro, slotContext.Servicio, slotContext.Profesional, fechaHoraTurno,
             slotContext.CentroId, slotContext.ServicioId, slotContext.EfectorId, slotContext.BloqueId, slotContext.DuracionTurnoMinutos);
 
@@ -586,7 +611,11 @@ public sealed class TurnosService(
         // turnos.id admite varchar(100); usar GUID compacto evita overflow con slotIds largos.
         var turnoId = Guid.NewGuid().ToString("N");
         var duracion = duracionTurnoMinutos > 0 ? duracionTurnoMinutos : 30;
-        var cupoId = turnosRepository.UpsertCupoAndGetId(bloqueId, fechaHoraTurno, fechaHoraTurno.AddMinutes(duracion));
+        var cupoId = turnosRepository.TryReservarCupo(bloqueId, fechaHoraTurno, fechaHoraTurno.AddMinutes(duracion));
+        if (cupoId is null)
+        {
+            throw new InvalidOperationException("El cupo seleccionado ya no se encuentra disponible. Por favor, vuelva a consultar disponibilidad.");
+        }
         
         // Insertar en sch_turno.turno_paciente
         turnosRepository.InsertTurno(new TurnoPacienteRow(
@@ -601,7 +630,7 @@ public sealed class TurnosService(
             centroId,
             servicioId,
             efectorId,
-            cupoId));
+            cupoId!.Value));
 
         // También insertar en sch_admision.turno_admision para que la cancelación funcione
         admisionRepository.UpsertTurnoAdmision(new TurnoAdmisionRow(

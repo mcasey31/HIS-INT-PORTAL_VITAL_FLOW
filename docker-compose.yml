@@ -8,12 +8,14 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-vitalflow_his}
       POSTGRES_USER: ${POSTGRES_USER:-vitalflow_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_password_change_me}
       PGTZ: ${PGTZ:-America/Argentina/Buenos_Aires}
     ports:
       - "${POSTGRES_PORT:-55432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./scripts/seed-data.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
     networks:
       - vitalflow_network
     healthcheck:
@@ -30,7 +32,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: vitalflow_redis
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-CHANGE_ME_REDIS_PASSWORD}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secure_password}
     ports:
       - "${REDIS_PORT:-6389}:6379"
     volumes:
@@ -55,10 +57,10 @@ services:
     container_name: vitalflow_his_backend
     environment:
       ASPNETCORE_ENVIRONMENT: ${NODE_ENV:-development}
-      ConnectionStrings__VitalFlowHisDb: Host=postgres;Port=5432;Database=${POSTGRES_DB:-vitalflow_his};Username=${POSTGRES_USER:-vitalflow_user};Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-CHANGE_ME_REDIS_PASSWORD}@redis:6379
+      ConnectionStrings__VitalFlowHisDb: Host=postgres;Port=5432;Database=${POSTGRES_DB:-vitalflow_his};Username=${POSTGRES_USER:-vitalflow_user};Password=${POSTGRES_PASSWORD:-secure_password_change_me}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secure_password}@redis:6379
       Jwt__Issuer: ${JWT_ISSUER:-https://his.vitalflow.local}
-      Jwt__SigningKey: ${JWT_SECRET_KEY:-CHANGE_ME_JWT_SECRET_KEY_32_CHARS}
+      Jwt__SigningKey: ${JWT_SECRET_KEY:-change-me-in-production-please-use-at-least-32-bytes}
       Jwt__Audience: ${JWT_AUDIENCE:-portal-vitalflow}
       LOG_LEVEL: ${LOG_LEVEL:-debug}
       API_PREFIX: /api
@@ -74,9 +76,10 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "dotnet",
-          "--version"
+            "CMD",
+            "bash",
+            "-lc",
+            "</dev/tcp/127.0.0.1/8080"
         ]
       interval: 15s
       timeout: 5s
@@ -96,14 +99,15 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: ${PORTAL_PORT:-3010}
       NEXT_PUBLIC_API_URL: http://localhost:3010/api
-      NEXT_PUBLIC_HIS_API_URL: ${NEXT_PUBLIC_HIS_API_URL:-http://localhost:5000/api}
-      HIS_API_BASE_URL: ${HIS_API_BASE_URL:-http://host.docker.internal:5000/api}
-      HIS_API_USERNAME: ${HIS_API_USERNAME:-CHANGE_ME_API_USER}
-      HIS_API_PASSWORD: ${HIS_API_PASSWORD:-CHANGE_ME_API_PASS}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-vitalflow_user}:${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-vitalflow_portal}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-CHANGE_ME_REDIS_PASSWORD}@redis:6379
-      JWT_SECRET: ${JWT_SECRET:-CHANGE_ME_PORTAL_JWT_SECRET}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-CHANGE_ME_NEXTAUTH_SECRET}
+      NEXT_PUBLIC_HIS_API_URL: ${NEXT_PUBLIC_HIS_API_URL:-http://localhost:3001/api}
+      HIS_API_BASE_URL: ${HIS_API_BASE_URL:-http://his_backend:8080/api}
+      HIS_API_USERNAME: ${HIS_API_USERNAME:-admin}
+      HIS_API_PASSWORD: ${HIS_API_PASSWORD:-admin}
+      HIS_LOGIN_CENTRO_ID: ${HIS_LOGIN_CENTRO_ID:-global}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vitalflow_user}:${POSTGRES_PASSWORD:-secure_password_change_me}@postgres:5432/${POSTGRES_DB:-vitalflow_portal}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secure_password}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-portal-jwt-secret-change-me}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-nextauth-secret-change-me}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3010}
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}
@@ -132,14 +136,148 @@ services:
     networks:
       - vitalflow_network
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000 || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 240s
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
     restart: unless-stopped
     labels:
       - "com.example.description=VitalFlow Portal - Patient Facing PWA"
+
+  # ============================================
+  # HIS Frontend - React/Vite (admin HIS)
+  # ============================================
+  his_frontend:
+    build:
+      context: ./VitalFlowHis/front
+      dockerfile: Dockerfile
+    container_name: vitalflow_his_frontend
+    ports:
+      - "5175:80"
+    depends_on:
+      his_backend:
+        condition: service_started
+    networks:
+      - vitalflow_network
+    restart: unless-stopped
+    labels:
+      - "com.example.description=VitalFlow HIS Frontend"
+
+  # ============================================
+  # Optional: CONV-FACT - instancia separada
+  # ============================================
+  conv_fact_postgres:
+    image: postgres:15-alpine
+    container_name: vitalflow_conv_fact_postgres
+    environment:
+      POSTGRES_DB: ${CONV_FACT_DB_NAME:-odi_db_facturacion}
+      POSTGRES_USER: ${CONV_FACT_DB_USER:-conv_fact_user}
+      POSTGRES_PASSWORD: ${CONV_FACT_DB_PASSWORD:-conv_fact_password_change_me}
+      PGTZ: ${PGTZ:-America/Argentina/Buenos_Aires}
+    ports:
+      - "${CONV_FACT_DB_PORT:-55440}:5432"
+    volumes:
+      - conv_fact_postgres_data:/var/lib/postgresql/data
+    networks:
+      - vitalflow_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CONV_FACT_DB_USER:-conv_fact_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    profiles:
+      - conv-fact
+
+  conv_fact_backend:
+    build:
+      context: ./VitalFlowHis/modules/conv-fact/back
+      dockerfile: Dockerfile
+    container_name: vitalflow_conv_fact_backend
+    working_dir: /var/www
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      DB_CONNECTION: pgsql
+      DB_HOST: conv_fact_postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${CONV_FACT_DB_NAME:-odi_db_facturacion}
+      DB_USERNAME: ${CONV_FACT_DB_USER:-conv_fact_user}
+      DB_PASSWORD: ${CONV_FACT_DB_PASSWORD:-conv_fact_password_change_me}
+      HIS_DB_HOST: postgres
+      HIS_DB_PORT: 5432
+      HIS_DB_DATABASE: ${POSTGRES_DB:-vitalflow_his}
+      HIS_DB_USERNAME: ${POSTGRES_USER:-vitalflow_user}
+      HIS_DB_PASSWORD: ${POSTGRES_PASSWORD:-secure_password_change_me}
+    command: >
+      sh -lc "
+      [ -f .env ] || cp .env.example .env;
+      composer install --no-interaction --no-scripts;
+      php artisan key:generate --force;
+      php-fpm
+      "
+    volumes:
+      - ./VitalFlowHis/modules/conv-fact/back:/var/www
+      - conv_fact_vendor_backend:/var/www/vendor
+      - ./VitalFlowHis/modules/conv-fact/pkg_back_tools:/var/pkg_back_tools
+      - ./VitalFlowHis/modules/conv-fact/pkg_back_security:/var/pkg_back_security
+      - ./VitalFlowHis/modules/conv-fact/sd_storing:/var/sd_storing
+    depends_on:
+      conv_fact_postgres:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - vitalflow_network
+    restart: unless-stopped
+    profiles:
+      - conv-fact
+
+  conv_fact_worker:
+    build:
+      context: ./VitalFlowHis/modules/conv-fact/back
+      dockerfile: Dockerfile
+    container_name: vitalflow_conv_fact_worker
+    working_dir: /var/www
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      DB_CONNECTION: pgsql
+      DB_HOST: conv_fact_postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${CONV_FACT_DB_NAME:-odi_db_facturacion}
+      DB_USERNAME: ${CONV_FACT_DB_USER:-conv_fact_user}
+      DB_PASSWORD: ${CONV_FACT_DB_PASSWORD:-conv_fact_password_change_me}
+      HIS_DB_HOST: postgres
+      HIS_DB_PORT: 5432
+      HIS_DB_DATABASE: ${POSTGRES_DB:-vitalflow_his}
+      HIS_DB_USERNAME: ${POSTGRES_USER:-vitalflow_user}
+      HIS_DB_PASSWORD: ${POSTGRES_PASSWORD:-secure_password_change_me}
+    command: >
+      sh -lc "
+      [ -f .env ] || cp .env.example .env;
+      composer install --no-interaction --no-scripts;
+      while true; do php artisan conv-fact:procesar-outbox --limit=100; sleep 60; done
+      "
+    volumes:
+      - ./VitalFlowHis/modules/conv-fact/back:/var/www
+      - conv_fact_vendor_worker:/var/www/vendor
+      - ./VitalFlowHis/modules/conv-fact/pkg_back_tools:/var/pkg_back_tools
+      - ./VitalFlowHis/modules/conv-fact/pkg_back_security:/var/pkg_back_security
+      - ./VitalFlowHis/modules/conv-fact/sd_storing:/var/sd_storing
+    depends_on:
+      conv_fact_postgres:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      conv_fact_backend:
+        condition: service_started
+    networks:
+      - vitalflow_network
+    restart: unless-stopped
+    profiles:
+      - conv-fact
 
   # ============================================
   # Nginx - Reverse Proxy & Load Balancer
@@ -170,7 +308,7 @@ services:
     image: dpage/pgadmin4:latest
     container_name: vitalflow_pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@vitalflow.local}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@vitalflow.dev}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-pgadmin_change_me}
     ports:
       - "${PGADMIN_PORT:-5050}:80"
@@ -191,7 +329,7 @@ services:
     image: rediscommander/redis-commander:latest
     container_name: vitalflow_redis_commander
     environment:
-      REDIS_HOSTS: local:redis:6379:0:${REDIS_PASSWORD:-CHANGE_ME_REDIS_PASSWORD}
+      REDIS_HOSTS: local:redis:6379:0:${REDIS_PASSWORD:-redis_secure_password}
     ports:
       - "${REDIS_COMMANDER_PORT:-8081}:8081"
     depends_on:
@@ -213,6 +351,12 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
+  conv_fact_postgres_data:
+    driver: local
+  conv_fact_vendor_backend:
+    driver: local
+  conv_fact_vendor_worker:
     driver: local
   redis_data:
     driver: local

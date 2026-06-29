@@ -13,7 +13,6 @@ import { ZodError } from "zod";
 
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
-import { HISApiError, toTRPCCode } from "~/server/services/his/his-error";
 
 /**
  * 1. CONTEXT
@@ -132,20 +131,3 @@ export const protectedProcedure = t.procedure
       },
     });
   });
-
-const hisErrorMiddleware = t.middleware(async ({ next }) => {
-  try {
-    return await next();
-  } catch (e) {
-    if (e instanceof HISApiError) {
-      throw new TRPCError({
-        code: toTRPCCode(e.statusCode),
-        message: e.hisMessage,
-        cause: e,
-      });
-    }
-    throw e;
-  }
-});
-
-export const hisProcedure = protectedProcedure.use(hisErrorMiddleware);

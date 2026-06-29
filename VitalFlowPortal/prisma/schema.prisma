@@ -114,6 +114,7 @@ model InsuranceProvider {
     id          String   @id @default(cuid())
     name        String   @unique
     code        String?  @unique // Código nacional de prestador
+    hisFinanciadorId String? @unique
     logoUrl     String?
     plans       InsurancePlan[]
     patients    Patient[]
@@ -125,6 +126,7 @@ model InsurancePlan {
     id                  String            @id @default(cuid())
     insuranceProviderId String
     name                String            // Ej: 210, 410, Classic, Oro
+    hisPlanId           String?           @unique
     insurance           InsuranceProvider @relation(fields: [insuranceProviderId], references: [id], onDelete: Cascade)
     patients            Patient[]
 

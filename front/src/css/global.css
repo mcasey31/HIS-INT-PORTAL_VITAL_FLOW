@@ -699,6 +699,22 @@ button:disabled {
   color: #2b3e57;
 }
 
+.hc-prescripcion-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.hc-prescripcion-header-actions .btn-outline {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+.hc-prescripcion-header-actions button:not(.btn-outline):not(.modal-close) {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.78rem;
+}
+
 .modal-body {
   margin: 0;
 }

@@ -6,9 +6,23 @@ import type { AppointmentStatus, UniversalAppointment } from "./universal-types"
  * Usa el token de admin del HIS para autenticar las llamadas server-side.
  */
 
-const HIS_BASE = process.env.HIS_API_BASE_URL ?? "http://host.docker.internal:5000/api";
-const HIS_USER = process.env.HIS_API_USERNAME ?? "admin";
-const HIS_PASSWORD = process.env.HIS_API_PASSWORD ?? "admin";
+const HIS_BASE = process.env.HIS_API_BASE_URL;
+const HIS_USER = process.env.HIS_API_USERNAME;
+const HIS_PASSWORD = process.env.HIS_API_PASSWORD;
+const HIS_LOGIN_CENTRO_ID = process.env.HIS_LOGIN_CENTRO_ID ?? "global";
+const HIS_LOCAL_UTC_OFFSET = process.env.HIS_LOCAL_UTC_OFFSET ?? "-03:00";
+
+function getRequiredHisConfig() {
+  if (!HIS_BASE || !HIS_USER || !HIS_PASSWORD) {
+    throw new Error("[HISAdapter] Missing HIS_API_BASE_URL, HIS_API_USERNAME or HIS_API_PASSWORD");
+  }
+
+  return {
+    base: HIS_BASE,
+    user: HIS_USER,
+    password: HIS_PASSWORD,
+  };
+}
 
 // Tipos que devuelven los endpoints del HIS
 export type HisSelectoresResponse = {
@@ -34,9 +48,17 @@ export type HisSlot = {
   mensaje?: string;
 };
 
+export type HisFinanciadorCatalogo = {
+  financiadorId: string;
+  financiadorCodigo: string;
+  financiadorNombre: string;
+  planId: string;
+  planCodigo: string;
+  planNombre: string;
+};
+
 export type HisBuscarRequest = {
   pacienteId: string;
-  financiadorPlanId: string;
   centroIds: string[];
   servicioId: string;
   practicaId: string;
@@ -73,11 +95,16 @@ let cachedToken: string | null = null;
 let tokenExpiry = 0;
 
 async function getHisToken(): Promise<string> {
+  const cfg = getRequiredHisConfig();
   const now = Date.now();
   if (cachedToken && now < tokenExpiry) return cachedToken;
 
-  const loginBody = JSON.stringify({ username: HIS_USER, password: HIS_PASSWORD });
-  const res = await fetch(`${HIS_BASE}/v1/auth/login`, {
+  const loginBody = JSON.stringify({
+    username: cfg.user,
+    password: cfg.password,
+    centroId: HIS_LOGIN_CENTRO_ID,
+  });
+  const res = await fetch(`${cfg.base}/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: loginBody,
@@ -94,8 +121,9 @@ async function getHisToken(): Promise<string> {
 }
 
 async function hisGet<T>(path: string): Promise<T> {
+  const cfg = getRequiredHisConfig();
   const token = await getHisToken();
-  const res = await fetch(`${HIS_BASE}${path}`, {
+  const res = await fetch(`${cfg.base}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`[HISAdapter] GET ${path} → ${res.status}`);
@@ -103,8 +131,9 @@ async function hisGet<T>(path: string): Promise<T> {
 }
 
 async function hisPost<T>(path: string, body: unknown): Promise<T> {
+  const cfg = getRequiredHisConfig();
   const token = await getHisToken();
-  const res = await fetch(`${HIS_BASE}${path}`, {
+  const res = await fetch(`${cfg.base}${path}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -124,6 +153,22 @@ export async function getSelectores(): Promise<HisSelectoresResponse> {
 
 export async function buscarDisponibilidad(req: HisBuscarRequest): Promise<HisSlot[]> {
   return hisPost<HisSlot[]>("/v1/turnos/disponibilidad/buscar", req);
+}
+
+export async function getHisFinanciadoresCatalogo(): Promise<HisFinanciadorCatalogo[]> {
+  return hisGet<HisFinanciadorCatalogo[]>("/v1/turnos/financiadores/catalogo");
+}
+
+export async function guardarFinanciadorPacienteHis(
+  pacienteId: string,
+  request: { financiadorId: string; planId: string; numeroAfiliado?: string }
+): Promise<void> {
+  await hisPost(`/v1/turnos/pacientes/${encodeURIComponent(pacienteId)}/financiadores`, {
+    financiadorId: request.financiadorId,
+    planId: request.planId,
+    numeroAfiliado: request.numeroAfiliado,
+    reemplazarFinanciadorPlanId: null,
+  });
 }
 
 export async function getHisPatientIdByDni(dni: string): Promise<string | null> {
@@ -163,8 +208,25 @@ function mapTurnoEstadoToAppointmentStatus(estado: string): AppointmentStatus {
   return "pending";
 }
 
+function parseHisTurnoDate(fechaHora: string): Date {
+  const raw = fechaHora.trim();
+  const normalized = raw.endsWith("Z") ? raw.replace(/Z$/i, "+00:00") : raw;
+
+  // HIS currently returns many local appointments as +00:00. Reinterpret as local HIS offset.
+  if (/[+-]00:00$/i.test(normalized)) {
+    const asLocal = normalized.replace(/[+-]00:00$/i, HIS_LOCAL_UTC_OFFSET);
+    const reparsed = new Date(asLocal);
+    if (!Number.isNaN(reparsed.getTime())) {
+      return reparsed;
+    }
+  }
+
+  const parsed = new Date(raw);
+  return parsed;
+}
+
 function mapHisTurnoToUniversal(turno: HisTurnoPaciente): UniversalAppointment {
-  const start = new Date(turno.fechaHora);
+  const start = parseHisTurnoDate(turno.fechaHora);
   const end = new Date(start.getTime() + 20 * 60 * 1000);
 
   return {

@@ -19,7 +19,7 @@ export default function StaffLoginPage() {
     setError("");
 
     try {
-      const result = await signIn("demo", {
+      const result = await signIn("credentials", {
         username,
         password,
         redirect: false,

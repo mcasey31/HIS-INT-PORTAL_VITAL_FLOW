@@ -18,6 +18,7 @@ public sealed class SecurityHeadersMiddleware
             context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
             context.Response.Headers["X-XSS-Protection"] = "0";
             context.Response.Headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=(), usb=(), payment=(), fullscreen=()";
+            context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none'; base-uri 'self'";
 
             return Task.CompletedTask;
         });

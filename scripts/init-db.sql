@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS sch_agenda.centro (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS ux_sch_agenda_centro_nombre_canonico
+    ON sch_agenda.centro (lower(btrim(nombre)));
+
 -- Servicio (Medical specialty)
 CREATE TABLE IF NOT EXISTS sch_agenda.servicio (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -68,6 +71,39 @@ CREATE TABLE IF NOT EXISTS sch_agenda.efector (
     updated_at TIMESTAMPTZ DEFAULT now(),
     UNIQUE(centro_id, codigo)
 );
+
+CREATE OR REPLACE FUNCTION sch_agenda.fn_validar_profesional_con_usuario_persona()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF upper(coalesce(NEW.tipo_efector, '')) <> 'PROFESIONAL' THEN
+        RETURN NEW;
+    END IF;
+
+    IF NEW.usuario_id IS NULL THEN
+        RAISE EXCEPTION 'Los efectores profesionales deben tener un usuario del sistema asociado.';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM sch_seguridad.usuario_sistema u
+        WHERE u.id = NEW.usuario_id
+          AND u.persona_id IS NOT NULL
+    ) THEN
+        RAISE EXCEPTION 'El usuario asociado al efector profesional debe existir y tener una persona vinculada.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_validar_profesional_con_usuario_persona ON sch_agenda.efector;
+
+CREATE TRIGGER trg_validar_profesional_con_usuario_persona
+BEFORE INSERT OR UPDATE ON sch_agenda.efector
+FOR EACH ROW
+EXECUTE FUNCTION sch_agenda.fn_validar_profesional_con_usuario_persona();
 
 -- Agenda (Schedule)
 CREATE TABLE IF NOT EXISTS sch_agenda.agenda (

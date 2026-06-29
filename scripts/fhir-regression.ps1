@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "[fhir-regression] Starting..."
 
-$newPass = "Admin123!"
+$newPass = "admin"
 $bytes = New-Object byte[] 16
 $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
 $rng.GetBytes($bytes)

@@ -1,24 +1,10 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { getHisFinanciadoresCatalogo, guardarFinanciadorPacienteHis } from "~/server/services/his/vitalflow-adapter";
 
 export const patientRouter = createTRPCRouter({
   // Obtener estado de onboarding y datos actuales
   getOnboardingStatus: protectedProcedure.query(async ({ ctx }) => {
-    // BYPASS PARA SIMULACIÓN (Demos sin dependencia de BD)
-    if (ctx.session.user.id === "test-user-id") {
-      return {
-        id: "mock-patient-id",
-        userId: "test-user-id",
-        dni: "12345678",
-        onboardingCompleted: true,
-        insuranceProviderId: null,
-        insurancePlanId: null,
-        membershipNumber: "SM-1234567-01",
-        insurance: null,
-        plan: null
-      };
-    }
-
     try {
         let patient = await ctx.db.patient.findUnique({
           where: { userId: ctx.session.user.id },
@@ -27,13 +13,37 @@ export const patientRouter = createTRPCRouter({
 
         // AUTO-ONBOARD: Si el paciente es nuevo, lo creamos con onboardingCompleted = true
         if (!patient) {
-          patient = await ctx.db.patient.create({
-            data: { 
-              userId: ctx.session.user.id, 
-              onboardingCompleted: true 
-            },
+          // Buscar el User real en BD por email (el token.sub puede no coincidir con el id de BD si hubo desincronización)
+          const sessionEmail = ctx.session.user.email;
+          let realUserId = ctx.session.user.id;
+          if (sessionEmail) {
+            const userByEmail = await ctx.db.user.findUnique({ where: { email: sessionEmail }, select: { id: true } });
+            if (userByEmail) {
+              realUserId = userByEmail.id;
+            } else {
+              // El user no existe ni por id ni por email: crearlo con el id correcto
+              await ctx.db.user.create({
+                data: {
+                  id: ctx.session.user.id,
+                  email: sessionEmail,
+                  name: ctx.session.user.name ?? "Paciente",
+                },
+              });
+            }
+          }
+          // Verificar nuevamente con el realUserId antes de crear
+          const existingByRealId = await ctx.db.patient.findUnique({
+            where: { userId: realUserId },
             include: { insurance: true, plan: true }
           });
+          if (existingByRealId) {
+            patient = existingByRealId;
+          } else {
+            patient = await ctx.db.patient.create({
+              data: { userId: realUserId, onboardingCompleted: true },
+              include: { insurance: true, plan: true }
+            });
+          }
         } else if (!patient.onboardingCompleted) {
           // Si existe pero no completó onboarding, lo actualizamos
           patient = await ctx.db.patient.update({
@@ -51,8 +61,38 @@ export const patientRouter = createTRPCRouter({
 
   // Listar Obras Sociales para el buscador
   getInsuranceProviders: protectedProcedure.query(async ({ ctx }) => {
+    const hisCatalogo = await getHisFinanciadoresCatalogo();
+
+    for (const item of hisCatalogo) {
+      const provider = await ctx.db.insuranceProvider.upsert({
+        where: { hisFinanciadorId: item.financiadorId },
+        update: {
+          name: item.financiadorNombre,
+          code: item.financiadorCodigo || null,
+        },
+        create: {
+          name: item.financiadorNombre,
+          code: item.financiadorCodigo || null,
+          hisFinanciadorId: item.financiadorId,
+        },
+      });
+
+      await ctx.db.insurancePlan.upsert({
+        where: { hisPlanId: item.planId },
+        update: {
+          name: item.planNombre,
+          insuranceProviderId: provider.id,
+        },
+        create: {
+          name: item.planNombre,
+          insuranceProviderId: provider.id,
+          hisPlanId: item.planId,
+        },
+      });
+    }
+
     return await ctx.db.insuranceProvider.findMany({
-      include: { plans: true },
+      include: { plans: { orderBy: { name: "asc" } } },
       orderBy: { name: "asc" }
     });
   }),
@@ -210,6 +250,47 @@ export const patientRouter = createTRPCRouter({
         where: { id: ctx.session.user.id },
         data: { name }
       });
+
+      const patientBefore = await ctx.db.patient.findUnique({
+        where: { userId: ctx.session.user.id },
+        include: {
+          plan: {
+            include: {
+              insurance: true,
+            },
+          },
+        },
+      });
+
+      if (!patientBefore) {
+        throw new Error("Paciente no encontrado.");
+      }
+
+      const selectedPlanId = patientData.insurancePlanId ?? patientBefore.insurancePlanId;
+      const plan = selectedPlanId
+        ? await ctx.db.insurancePlan.findUnique({
+            where: { id: selectedPlanId },
+            include: { insurance: true },
+          })
+        : null;
+
+      if (selectedPlanId && !plan) {
+        throw new Error("El plan seleccionado no existe.");
+      }
+
+      if (plan) {
+        if (!plan.hisPlanId || !plan.insurance?.hisFinanciadorId) {
+          throw new Error("El plan seleccionado no está sincronizado con HIS. Recargá la pantalla e intentá de nuevo.");
+        }
+
+        if (patientBefore.hisId) {
+          await guardarFinanciadorPacienteHis(patientBefore.hisId, {
+            financiadorId: plan.insurance.hisFinanciadorId,
+            planId: plan.hisPlanId,
+            numeroAfiliado: patientData.membershipNumber ?? patientBefore.membershipNumber ?? undefined,
+          });
+        }
+      }
 
       // Actualizar datos en Patient
       return await ctx.db.patient.update({
