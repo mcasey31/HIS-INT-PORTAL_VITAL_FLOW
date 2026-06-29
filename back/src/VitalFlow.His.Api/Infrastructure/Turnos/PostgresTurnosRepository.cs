@@ -507,6 +507,27 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         return (Guid)cmd.ExecuteScalar()!;
     }
 
+    public Guid? TryReservarCupo(Guid bloqueId, DateTimeOffset horaInicio, DateTimeOffset horaFin)
+    {
+        const string sql = """
+            insert into sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
+            values (@bloqueId, @horaInicio, @horaFin, 'reservado', 1, false, 'SYSTEM', 'SYSTEM', now())
+            on conflict (bloque_id, hora_inicio)
+            do update set estado = 'reservado', hora_fin = excluded.hora_fin, updated_at = now()
+            where sch_agenda.cupo.estado = 'libre'
+            returning id
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("bloqueId", bloqueId);
+        cmd.Parameters.AddWithValue("horaInicio", horaInicio);
+        cmd.Parameters.AddWithValue("horaFin", horaFin);
+        var result = cmd.ExecuteScalar();
+        return result is Guid g ? g : null;
+    }
+
     // ── sobreturno_disponibilidad ────────────────────────────────────────────
 
     public int GetOrInitSobreturnosDisponibles(string stKey, int capacidadInicial)

@@ -606,7 +606,11 @@ public sealed class TurnosService(
         // turnos.id admite varchar(100); usar GUID compacto evita overflow con slotIds largos.
         var turnoId = Guid.NewGuid().ToString("N");
         var duracion = duracionTurnoMinutos > 0 ? duracionTurnoMinutos : 30;
-        var cupoId = turnosRepository.UpsertCupoAndGetId(bloqueId, fechaHoraTurno, fechaHoraTurno.AddMinutes(duracion));
+        var cupoId = turnosRepository.TryReservarCupo(bloqueId, fechaHoraTurno, fechaHoraTurno.AddMinutes(duracion));
+        if (cupoId is null)
+        {
+            throw new InvalidOperationException("El cupo seleccionado ya no se encuentra disponible. Por favor, vuelva a consultar disponibilidad.");
+        }
         
         // Insertar en sch_turno.turno_paciente
         turnosRepository.InsertTurno(new TurnoPacienteRow(
@@ -621,7 +625,7 @@ public sealed class TurnosService(
             centroId,
             servicioId,
             efectorId,
-            cupoId));
+            cupoId!.Value));
 
         // También insertar en sch_admision.turno_admision para que la cancelación funcione
         admisionRepository.UpsertTurnoAdmision(new TurnoAdmisionRow(

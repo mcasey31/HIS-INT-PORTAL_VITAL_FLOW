@@ -37,8 +37,12 @@ public interface ITurnosRepository
     /// Devuelve cantidad de filas afectadas.
     int UpdateEstadoTurno(string turnoId, string estado, string? motivo);
 
-    /// Inserta cupo si no existe para (bloqueId, horaInicio) y devuelve su ID.
+    /// Inserta cupo si no existe para (bloqueId, horaInicio) y devuelve su ID, sin validar estado.
     Guid UpsertCupoAndGetId(Guid bloqueId, DateTimeOffset horaInicio, DateTimeOffset horaFin);
+
+    /// Intenta reservar un cupo atómicamente. Si el cupo existe y está 'libre', lo marca 'reservado'.
+    /// Si no existe, lo crea como 'reservado'. Devuelve el cupo ID o null si ya está tomado.
+    Guid? TryReservarCupo(Guid bloqueId, DateTimeOffset horaInicio, DateTimeOffset horaFin);
 
     // ── sobreturno_disponibilidad ────────────────────────────────────────────
 
