@@ -567,17 +567,22 @@ public sealed class TurnosService(
             throw new ArgumentException("El slot de sobreturno no es valido.");
         }
 
-        var stKey = slotContext.StKey;
-
-        turnosRepository.DecrementarSobreturno(stKey);
-
         var centro = slotContext.Centro;
         var fechaHoraTurno = ResolveFechaHoraTurno(request.Fecha, request.Hora, slotContext);
         var fechaTurno = DateOnly.FromDateTime(fechaHoraTurno.DateTime);
+
         if (turnosRepository.ExisteTurnoActivoDuplicado(request.PacienteId, slotContext.Servicio, fechaTurno))
         {
             throw new InvalidOperationException("El paciente ya posee un turno activo en el mismo servicio y fecha.");
         }
+
+        var stKey = slotContext.StKey;
+        var restantes = turnosRepository.DecrementarSobreturno(stKey);
+        if (restantes < 0)
+        {
+            throw new InvalidOperationException("No hay cupo de sobreturno disponible.");
+        }
+
         RegisterTurnoAgendado(request.PacienteId, request.SlotId, "Sobreturno asignado", centro, slotContext.Servicio, slotContext.Profesional, fechaHoraTurno,
             slotContext.CentroId, slotContext.ServicioId, slotContext.EfectorId, slotContext.BloqueId, slotContext.DuracionTurnoMinutos);
 

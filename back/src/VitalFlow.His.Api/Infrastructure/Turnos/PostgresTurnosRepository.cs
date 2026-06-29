@@ -552,9 +552,10 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
     {
         const string sql = """
             update sch_turno.sobreturno_disponibilidad
-            set disponibles = greatest(disponibles - 1, 0),
+            set disponibles = disponibles - 1,
                 updated_at  = now()
             where st_key = @stKey
+              and disponibles > 0
             returning disponibles
             """;
 
@@ -563,7 +564,7 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("stKey", stKey);
         var result = cmd.ExecuteScalar();
-        return result is int i ? i : 0;
+        return result is int i ? i : -1;
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
