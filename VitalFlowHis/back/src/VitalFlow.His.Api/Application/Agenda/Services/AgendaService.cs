@@ -227,17 +227,22 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
                 || a.Nombre.Contains(q, StringComparison.OrdinalIgnoreCase));
         }
 
+        var agendasSincronizadas = agendas
+            .Select(a => SincronizarEstadoAgendaPorBloques(a.Id))
+            .Where(a => a is not null)
+            .Cast<AgendaAggregate>();
+
         if (activa.HasValue)
         {
-            agendas = agendas.Where(a => a.Activa == activa.Value);
+            agendasSincronizadas = agendasSincronizadas.Where(a => a.Activa == activa.Value);
         }
 
-        return agendas.Select(MapSummary).ToList();
+        return agendasSincronizadas.Select(MapSummary).ToList();
     }
 
     public AgendaDetailResponse? GetAgendaById(Guid agendaId)
     {
-        var agenda = repository.GetById(agendaId);
+        var agenda = SincronizarEstadoAgendaPorBloques(agendaId);
         if (agenda is null)
         {
             return null;
@@ -756,6 +761,7 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
         if (creado)
         {
             _ = RecalcularCupos(agendaId);
+            SincronizarEstadoAgendaPorBloques(agendaId);
         }
 
         return creado;
@@ -837,6 +843,7 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
         if (actualizado)
         {
             _ = RecalcularCupos(agendaId);
+            SincronizarEstadoAgendaPorBloques(agendaId);
         }
 
         return actualizado;
@@ -1040,6 +1047,48 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
     public DisponibilidadResponse? RecalcularCupos(Guid agendaId)
     {
         return GetDisponibilidad(agendaId);
+    }
+
+    private AgendaAggregate? SincronizarEstadoAgendaPorBloques(Guid agendaId)
+    {
+        var agenda = repository.GetById(agendaId);
+        if (agenda is null)
+        {
+            return null;
+        }
+
+        var debeEstarActiva = agenda.Bloques.Any(b => b.Activo && BloqueDentroDeVigenciaAgenda(agenda, b));
+        if (agenda.Activa == debeEstarActiva)
+        {
+            return agenda;
+        }
+
+        agenda.Activa = debeEstarActiva;
+        _ = repository.UpdateAgenda(agenda);
+        return agenda;
+    }
+
+    private static bool BloqueDentroDeVigenciaAgenda(AgendaAggregate agenda, BloqueProgramacion bloque)
+    {
+        var bloqueFechaDesde = bloque.FechaDesde == default ? bloque.Fecha : bloque.FechaDesde;
+        var bloqueFechaHasta = bloque.FechaHasta == default ? bloque.Fecha : bloque.FechaHasta;
+
+        if (bloqueFechaHasta < bloqueFechaDesde)
+        {
+            return false;
+        }
+
+        if (bloqueFechaDesde < agenda.FechaDesde)
+        {
+            return false;
+        }
+
+        if (agenda.FechaHasta.HasValue && bloqueFechaHasta > agenda.FechaHasta.Value)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     public DisponibilidadResponse? GetDisponibilidad(Guid agendaId)

@@ -112,6 +112,63 @@ public sealed class PostgresPersonaRepository(string connectionString) : IPerson
             .ToArray();
     }
 
+    public IReadOnlyList<PersonaCandidataResponse> BuscarPorApellidoNombre(string apellido, string nombre)
+    {
+        const string sql = """
+            select id,
+                   apellido,
+                   nombre,
+                   tipo_documento_codigo,
+                   numero_documento,
+                   fecha_nacimiento,
+                   sexo_biologico,
+                   estado,
+                   email,
+                   telefono
+            from sch_persona.persona
+            where estado = 'ACTIVO'
+              and apellido ILIKE @apellido
+              and nombre ILIKE @nombre
+            order by apellido, nombre;
+            """;
+
+        var apellidoSearch = (apellido ?? string.Empty).Trim();
+        var nombreSearch = (nombre ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(apellidoSearch) || string.IsNullOrWhiteSpace(nombreSearch))
+        {
+            return [];
+        }
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("apellido", $"%{apellidoSearch}%");
+        cmd.Parameters.AddWithValue("nombre", $"%{nombreSearch}%");
+
+        using var reader = cmd.ExecuteReader();
+
+        var result = new List<PersonaCandidataResponse>();
+        while (reader.Read())
+        {
+            result.Add(new PersonaCandidataResponse(
+                reader.GetGuid(0),
+                $"{reader.GetString(1)}, {reader.GetString(2)}",
+                reader.GetString(3),
+                reader.GetString(4),
+                reader.GetFieldValue<DateOnly>(5),
+                reader.GetString(6),
+                reader.GetString(7),
+                100,
+                ReadNullableString(reader, 8),
+                ReadNullableString(reader, 9)
+            ));
+        }
+
+        return result;
+    }
+
     public IReadOnlyList<PersonaCandidataResponse> BuscarPorSetDatosMinimos(BuscarPersonaSetMinimoRequest request)
     {
         const string sql = """

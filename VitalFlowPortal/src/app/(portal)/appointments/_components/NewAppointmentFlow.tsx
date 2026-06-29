@@ -3,16 +3,13 @@
 import React, { useState, useEffect } from "react";
 import { 
     Search, 
-    Filter, 
     X, 
     Check, 
     Calendar, 
     Clock, 
     MapPin, 
-    ChevronRight, 
     Stethoscope, 
     User,
-    ArrowRight,
     Loader2,
     CalendarCheck2
 } from "lucide-react";
@@ -21,13 +18,21 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
 export function NewAppointmentFlow({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-    const [mode, setMode] = useState<"quick" | "filtered">("quick");
+    const [mode, setMode] = useState<"search" | "quick" | "filtered">("search");
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedServicio, setSelectedServicio] = useState("");
     const [selectedCenters, setSelectedCenters] = useState<string[]>([]);
     const [selectedPractica, setSelectedPractica] = useState("");
     const [selectedProfesional, setSelectedProfesional] = useState("");
+    const [selectedCenterSingle, setSelectedCenterSingle] = useState("");
+    const [selectedServicioCascade, setSelectedServicioCascade] = useState("");
+    const [selectedProfesionalCascade, setSelectedProfesionalCascade] = useState("");
+    const [quickCenterId, setQuickCenterId] = useState("");
+    const [quickServicioId, setQuickServicioId] = useState("");
+    const [quickProfesionalId, setQuickProfesionalId] = useState("");
     const [buscarEnabled, setBuscarEnabled] = useState(false);
+    const [searchContext, setSearchContext] = useState<"none" | "quick" | "search" | "filtered">("none");
+    const [quickSearchPending, setQuickSearchPending] = useState(false);
 
     // ── Datos del HIS ─────────────────────────────────────────────────────
     const { data: selectores, isLoading: loadingSelectores } = api.health.getSelectores.useQuery(undefined, {
@@ -37,13 +42,37 @@ export function NewAppointmentFlow({ isOpen, onClose }: { isOpen: boolean, onClo
 
     const { data: slots, isLoading: isSearching, refetch: doSearch } = api.health.searchAvailableSlots.useQuery(
         {
-            centroIds: selectedCenters.length > 0 ? selectedCenters : undefined,
-            servicioId: selectedServicio || undefined,
+            centroIds: selectedCenters,
+            servicioId: selectedServicio,
             practicaId: selectedPractica || undefined,
             profesionalId: selectedProfesional || undefined,
         },
         {
-            enabled: buscarEnabled && selectedCenters.length > 0 && !!selectedServicio && !!selectedPractica,
+            enabled: buscarEnabled && selectedCenters.length > 0 && !!selectedServicio,
+            staleTime: 0,
+        }
+    );
+
+    const { data: cascadeSlots, isLoading: isSearchingCascade, refetch: doCascadeSearch } = api.health.searchAvailableSlotsCascade.useQuery(
+        {
+            centroId: selectedCenterSingle,
+            servicioId: selectedServicioCascade,
+            profesionalId: selectedProfesionalCascade || undefined,
+        },
+        {
+            enabled: false,
+            staleTime: 0,
+        }
+    );
+
+    const { data: quickSlots, isLoading: isSearchingQuick, refetch: doQuickSearch } = api.health.searchAvailableSlotsCascade.useQuery(
+        {
+            centroId: quickCenterId,
+            servicioId: quickServicioId,
+            profesionalId: quickProfesionalId || undefined,
+        },
+        {
+            enabled: false,
             staleTime: 0,
         }
     );
@@ -51,10 +80,52 @@ export function NewAppointmentFlow({ isOpen, onClose }: { isOpen: boolean, onClo
     // Servicios disponibles en los centros seleccionados
     const serviciosDisponibles = selectores?.servicios ?? [];
 
+    const normalizeText = (value: string) =>
+        value
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .trim();
+
+    const matchesSearchTerm = (term: string, candidate: string) => {
+        const parts = normalizeText(term).split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return false;
+        const normalizedCandidate = normalizeText(candidate);
+        return parts.every((part) => normalizedCandidate.includes(part));
+    };
+
+    const normalizedSearch = normalizeText(searchTerm);
+    const quickMatches = normalizedSearch.length < 2 ? [] : [
+        ...(selectores?.centros ?? []).filter((c) => matchesSearchTerm(searchTerm, `centro ${c.nombre}`)).map((c) => ({
+            type: "centro" as const,
+            id: c.id,
+            label: c.nombre,
+        })),
+        ...(selectores?.servicios ?? []).filter((s) => matchesSearchTerm(searchTerm, `servicio especialidad ${s.nombre}`)).map((s) => ({
+            type: "servicio" as const,
+            id: s.id,
+            label: s.nombre,
+        })),
+        ...(selectores?.profesionales ?? []).filter((p) => matchesSearchTerm(searchTerm, `medico doctor ${p.nombre}`)).map((p) => ({
+            type: "medico" as const,
+            id: p.id,
+            label: p.nombre,
+        })),
+    ].slice(0, 8);
+
     // Centros que tienen el servicio seleccionado
     const centrosDisponibles = selectores?.centros.filter(c =>
         !selectedServicio || selectores.servicios.find(s => s.id === selectedServicio)?.centroIds.includes(c.id)
     ) ?? [];
+
+    const serviciosPorCentro = selectores?.servicios.filter((s) =>
+        !selectedCenterSingle || s.centroIds.includes(selectedCenterSingle)
+    ) ?? [];
+
+    const profesionalesPorCentroServicio = selectores?.profesionales.filter((p) => {
+        if (!selectedCenterSingle || !selectedServicioCascade) return false;
+        return p.centroIds.includes(selectedCenterSingle) && p.servicioIds.includes(selectedServicioCascade);
+    }) ?? [];
 
     // Prácticas del servicio seleccionado
     const practicasDisponibles = selectores?.practicas.filter(p => p.servicioId === selectedServicio) ?? [];
@@ -72,15 +143,91 @@ export function NewAppointmentFlow({ isOpen, onClose }: { isOpen: boolean, onClo
         setBuscarEnabled(false);
     }, [selectedServicio]);
 
+    useEffect(() => {
+        setSelectedServicioCascade("");
+        setSelectedProfesionalCascade("");
+    }, [selectedCenterSingle]);
+
+    useEffect(() => {
+        setSelectedProfesionalCascade("");
+    }, [selectedServicioCascade]);
+
+    useEffect(() => {
+        if (!quickSearchPending) return;
+        if (!quickCenterId || !quickServicioId) {
+            setQuickSearchPending(false);
+            return;
+        }
+
+        void doQuickSearch().finally(() => {
+            setBuscarEnabled(true);
+            setSearchContext("quick");
+            setQuickSearchPending(false);
+        });
+    }, [quickSearchPending, quickCenterId, quickServicioId, doQuickSearch]);
+
     // Reset al cambiar de modo
     useEffect(() => {
         setSelectedServicio("");
         setSearchTerm("");
         setBuscarEnabled(false);
+        setSearchContext("none");
     }, [mode]);
 
-    const handleFilteredSearch = () => {
+    const handleFilteredSearch = async () => {
+        await doSearch();
         setBuscarEnabled(true);
+        setSearchContext("filtered");
+    };
+
+    const runCascadeSearch = async () => {
+        await doCascadeSearch();
+        setBuscarEnabled(true);
+        setSearchContext("search");
+    };
+
+    const runQuickSearch = async () => {
+        if (!normalizedSearch) {
+            setBuscarEnabled(true);
+            setSearchContext("quick");
+            return;
+        }
+
+        const centerIds = new Set<string>();
+        const serviceIds = new Set<string>();
+        const professionalIds = new Set<string>();
+
+        for (const c of selectores?.centros ?? []) {
+            if (matchesSearchTerm(searchTerm, `centro ${c.nombre}`)) centerIds.add(c.id);
+        }
+        for (const s of selectores?.servicios ?? []) {
+            if (matchesSearchTerm(searchTerm, `servicio especialidad ${s.nombre}`)) {
+                serviceIds.add(s.id);
+                s.centroIds.forEach((id) => centerIds.add(id));
+            }
+        }
+        for (const p of selectores?.profesionales ?? []) {
+            if (matchesSearchTerm(searchTerm, `medico doctor ${p.nombre}`)) {
+                professionalIds.add(p.id);
+                p.centroIds.forEach((id) => centerIds.add(id));
+                p.servicioIds.forEach((id) => serviceIds.add(id));
+            }
+        }
+
+        const selectedCenter = Array.from(centerIds)[0] ?? "";
+        const selectedService = Array.from(serviceIds)[0] ?? "";
+        const selectedDoctor = Array.from(professionalIds)[0] ?? "";
+
+        if (!selectedCenter || !selectedService) {
+            setBuscarEnabled(true);
+            setSearchContext("quick");
+            return;
+        }
+
+        setQuickCenterId(selectedCenter);
+        setQuickServicioId(selectedService);
+        setQuickProfesionalId(selectedDoctor);
+        setQuickSearchPending(true);
     };
 
     const clearFilters = () => {
@@ -89,8 +236,28 @@ export function NewAppointmentFlow({ isOpen, onClose }: { isOpen: boolean, onClo
         setSelectedCenters([]);
         setSelectedPractica("");
         setSelectedProfesional("");
+        setSelectedCenterSingle("");
+        setSelectedServicioCascade("");
+        setSelectedProfesionalCascade("");
+        setQuickCenterId("");
+        setQuickServicioId("");
+        setQuickProfesionalId("");
         setBuscarEnabled(false);
+        setSearchContext("none");
+        setQuickSearchPending(false);
     };
+
+    const displayedSlots = searchContext === "quick"
+        ? quickSlots
+        : searchContext === "search"
+            ? cascadeSlots
+            : slots;
+
+    const searchingNow = searchContext === "quick"
+        ? isSearchingQuick
+        : searchContext === "search"
+            ? isSearchingCascade
+            : isSearching;
 
     if (!isOpen) return null;
 
@@ -111,6 +278,12 @@ export function NewAppointmentFlow({ isOpen, onClose }: { isOpen: boolean, onClo
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-8">
                     {/* Mode Selector */}
                     <div className="flex p-1 bg-slate-100 rounded-2xl w-fit">
+                        <button 
+                            onClick={() => setMode("search")}
+                            className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === "search" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
+                        >
+                            Busqueda
+                        </button>
                         <button 
                             onClick={() => setMode("quick")}
                             className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === "quick" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
@@ -144,7 +317,91 @@ export function NewAppointmentFlow({ isOpen, onClose }: { isOpen: boolean, onClo
                                             />
                                         </div>
                                     </div>
+                                    {quickMatches.length > 0 && (
+                                        <div className="bg-white border border-slate-100 rounded-2xl p-2 space-y-1">
+                                            {quickMatches.map((match) => (
+                                                <button
+                                                    key={`${match.type}-${match.id}`}
+                                                    onClick={() => setSearchTerm(match.label)}
+                                                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors"
+                                                >
+                                                    <p className="text-xs font-bold text-slate-900">{match.label}</p>
+                                                    <p className="text-[10px] uppercase tracking-wider text-slate-400">{match.type}</p>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={runQuickSearch}
+                                        disabled={!searchTerm.trim() || isSearchingQuick || quickSearchPending}
+                                        className="w-full bg-slate-900 hover:bg-black text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50"
+                                    >
+                                        {isSearchingQuick || quickSearchPending ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Buscar por texto"}
+                                    </button>
                                     <p className="text-xs text-slate-400 mt-2">Usá <strong>Filtros Avanzados</strong> para seleccionar especialidad, centro y horarios disponibles en tiempo real desde el HIS.</p>
+                                </div>
+                            ) : mode === "search" ? (
+                                <div className="space-y-6 animate-in slide-in-from-left-2 duration-500">
+                                    {loadingSelectores ? (
+                                        <div className="flex items-center gap-2 text-slate-400 text-xs font-bold">
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Cargando datos del HIS...
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">1. Centro</label>
+                                                <select
+                                                    value={selectedCenterSingle}
+                                                    onChange={(e) => setSelectedCenterSingle(e.target.value)}
+                                                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-4 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer"
+                                                >
+                                                    <option value="">Selecciona Centro</option>
+                                                    {(selectores?.centros ?? []).map((c) => (
+                                                        <option key={c.id} value={c.id}>{c.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">2. Servicio</label>
+                                                <select
+                                                    value={selectedServicioCascade}
+                                                    onChange={(e) => setSelectedServicioCascade(e.target.value)}
+                                                    disabled={!selectedCenterSingle}
+                                                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-4 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer disabled:opacity-50"
+                                                >
+                                                    <option value="">Selecciona Servicio</option>
+                                                    {serviciosPorCentro.map((s) => (
+                                                        <option key={s.id} value={s.id}>{s.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">3. Médico (opcional)</label>
+                                                <select
+                                                    value={selectedProfesionalCascade}
+                                                    onChange={(e) => setSelectedProfesionalCascade(e.target.value)}
+                                                    disabled={!selectedCenterSingle || !selectedServicioCascade}
+                                                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-4 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer disabled:opacity-50"
+                                                >
+                                                    <option value="">Todos</option>
+                                                    {profesionalesPorCentroServicio.map((p) => (
+                                                        <option key={p.id} value={p.id}>{p.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <button
+                                                onClick={runCascadeSearch}
+                                                disabled={!selectedCenterSingle || !selectedServicioCascade || isSearchingCascade}
+                                                className="w-full bg-slate-900 hover:bg-black text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50"
+                                            >
+                                                {isSearchingCascade ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Buscar turnos"}
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="space-y-6 animate-in slide-in-from-left-2 duration-500">
@@ -249,7 +506,7 @@ export function NewAppointmentFlow({ isOpen, onClose }: { isOpen: boolean, onClo
 
                                     <button 
                                         onClick={handleFilteredSearch}
-                                        disabled={!selectedServicio || selectedCenters.length === 0 || !selectedPractica || isSearching}
+                                        disabled={!selectedServicio || selectedCenters.length === 0 || isSearching}
                                         className="w-full bg-slate-900 hover:bg-black text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50"
                                     >
                                         {isSearching ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Buscar Agendas Disponibles"}
@@ -261,10 +518,10 @@ export function NewAppointmentFlow({ isOpen, onClose }: { isOpen: boolean, onClo
                         {/* Results Column */}
                         <div className="lg:col-span-7">
                             <div className="bg-slate-50/50 rounded-[2rem] p-8 h-full min-h-[400px] border border-slate-100 flex flex-col">
-                                {buscarEnabled && slots && slots.length > 0 ? (
+                                {buscarEnabled && displayedSlots && displayedSlots.length > 0 ? (
                                     <div className="space-y-6">
                                         {(() => {
-                                            const availableSlots = slots.filter((s) => s.status === "available");
+                                            const availableSlots = displayedSlots.filter((s) => s.status === "available");
                                             return (
                                                 <>
                                         <div className="flex items-center justify-between mb-4">
@@ -313,15 +570,15 @@ export function NewAppointmentFlow({ isOpen, onClose }: { isOpen: boolean, onClo
                                             );
                                         })()}
                                     </div>
-                                ) : buscarEnabled && !isSearching ? (
+                                ) : buscarEnabled && !searchingNow ? (
                                     <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
-                                        <p className="text-sm font-bold text-slate-500">No hay turnos disponibles para los filtros seleccionados.</p>
-                                        <p className="text-xs text-slate-400 mt-2">Intentá cambiar los filtros o seleccionar otro centro.</p>
+                                        <p className="text-sm font-bold text-slate-500">No hay turnos disponibles en agendas y bloques activos para esta búsqueda.</p>
+                                        <p className="text-xs text-slate-400 mt-2">Intentá cambiar centro, servicio o médico y buscá nuevamente.</p>
                                     </div>
                                 ) : (
                                     <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
                                         <div className="h-20 w-20 rounded-3xl bg-white shadow-xl flex items-center justify-center mb-6">
-                                            {isSearching ? <Loader2 className="h-10 w-10 text-blue-400 animate-spin" /> : <Stethoscope className="h-10 w-10 text-slate-200" />}
+                                            {searchingNow ? <Loader2 className="h-10 w-10 text-blue-400 animate-spin" /> : <Stethoscope className="h-10 w-10 text-slate-200" />}
                                         </div>
                                         <h4 className="text-lg font-black text-slate-900 uppercase italic tracking-tighter">Buscador de Turnos</h4>
                                         <p className="text-xs text-slate-400 font-medium max-w-[240px] mt-2">Completa los campos de la izquierda para ver las agendas disponibles en tiempo real desde el HIS.</p>

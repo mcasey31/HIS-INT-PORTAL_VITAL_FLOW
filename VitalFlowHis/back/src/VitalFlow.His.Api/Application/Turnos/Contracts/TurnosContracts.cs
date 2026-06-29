@@ -12,6 +12,15 @@ public sealed record FinanciadorPlanTurnoResponse(
     bool Vigente
 );
 
+public sealed record FinanciadorCatalogoTurnoResponse(
+    string FinanciadorId,
+    string FinanciadorCodigo,
+    string FinanciadorNombre,
+    string PlanId,
+    string PlanCodigo,
+    string PlanNombre
+);
+
 public sealed record PacienteIdentificadoTurnoResponse(
     string Id,
     string ApellidosNombres,
@@ -54,7 +63,6 @@ public sealed record SelectoresDisponibilidadTurnoResponse(
 
 public sealed record BuscarDisponibilidadTurnoRequest(
     string PacienteId,
-    string FinanciadorPlanId,
     IReadOnlyList<string> CentroIds,
     string ServicioId,
     string PracticaId,

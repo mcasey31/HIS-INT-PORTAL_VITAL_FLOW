@@ -57,6 +57,10 @@ export async function getRegistrosNodo(nodoId: string): Promise<RegistroNodo[]> 
   return httpClient.get<RegistroNodo[]>(`/api/v1/estructura-interna/${encodeURIComponent(nodoId)}/registros`);
 }
 
+export async function getPrestacionesFacturacionVitalflow(): Promise<RegistroNodo[]> {
+  return httpClient.get<RegistroNodo[]>(`/api/v1/estructura-interna/prestaciones-facturacion-vitalflow/registros`);
+}
+
 export async function saveRegistroNodo(
   nodoId: string,
   campos: Record<string, string>

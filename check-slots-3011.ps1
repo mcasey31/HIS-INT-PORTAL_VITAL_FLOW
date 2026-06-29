@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$loginBody = '{"username":"admin","password":"Admin123!"}'
+$loginBody = '{"username":"admin","password":"admin"}'
 $login = Invoke-RestMethod -UseBasicParsing -Method Post -Uri 'http://localhost:3011/api/v1/auth/login' -ContentType 'application/json' -Body $loginBody
 $auth = @{ Authorization = "Bearer $($login.accessToken)" }
 

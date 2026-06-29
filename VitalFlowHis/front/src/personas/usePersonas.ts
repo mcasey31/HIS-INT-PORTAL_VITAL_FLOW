@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   actualizarPersonaSetMinimo,
   buscarPersonasPorDocumento,
+  buscarPersonasPorApellidoNombre,
   buscarPersonasPorSetMinimo,
   empadronarPersonaConSetMinimo,
   PersonaCandidata
@@ -85,6 +86,9 @@ export function usePersonas() {
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumento[]>([]);
   const [tipoDocumento, setTipoDocumento] = useState("DNI");
   const [numeroDocumento, setNumeroDocumento] = useState("");
+  const [apellidoBusqueda, setApellidoBusqueda] = useState("");
+  const [nombreBusqueda, setNombreBusqueda] = useState("");
+  const [modoBusqueda, setModoBusqueda] = useState<"documento" | "nombre">("documento");
   const [candidatos, setCandidatos] = useState<PersonaCandidata[]>([]);
   const [consultado, setConsultado] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -247,7 +251,9 @@ export function usePersonas() {
 
   const puedeConsultar = mostrarSetMinimo
     ? puedeConsultarSetMinimo
-    : numeroDocumento.trim().length > 0 && tipoDocumento.trim().length > 0;
+    : modoBusqueda === "nombre"
+      ? apellidoBusqueda.trim().length > 0 && nombreBusqueda.trim().length > 0
+      : numeroDocumento.trim().length > 0 && tipoDocumento.trim().length > 0;
 
   const maxPorcentajeCoincidencia = useMemo(() => {
     if (candidatos.length === 0) {
@@ -506,35 +512,36 @@ export function usePersonas() {
       setError(null);
       setInfo(null);
 
-      const tipoDocumentoNormalizado = tipoDocumento.trim().toUpperCase();
-      const numeroDocumentoNormalizado = numeroDocumento.trim().toUpperCase();
-      const snapshotActual = setMinimoSnapshot;
-      let cambioDocumentoDesdeUltimoSet = false;
-      if (mostrarSetMinimo && snapshotActual) {
-        cambioDocumentoDesdeUltimoSet =
-          snapshotActual.tipoDocumento !== tipoDocumentoNormalizado ||
-          snapshotActual.numeroDocumento !== numeroDocumentoNormalizado;
-      }
-      const usarConsultaPorDocumento = !mostrarSetMinimo || cambioDocumentoDesdeUltimoSet;
+      let response: PersonaCandidata[];
 
-      const response = usarConsultaPorDocumento
-        ? await buscarPersonasPorDocumento(tipoDocumento, numeroDocumento.trim())
-        : await buscarPersonasPorSetMinimo(requestSetMinimo());
+      if (modoBusqueda === "nombre") {
+        response = await buscarPersonasPorApellidoNombre(apellidoBusqueda.trim(), nombreBusqueda.trim());
+      } else {
+        const tipoDocumentoNormalizado = tipoDocumento.trim().toUpperCase();
+        const numeroDocumentoNormalizado = numeroDocumento.trim().toUpperCase();
+        const snapshotActual = setMinimoSnapshot;
+        let cambioDocumentoDesdeUltimoSet = false;
+        if (mostrarSetMinimo && snapshotActual) {
+          cambioDocumentoDesdeUltimoSet =
+            snapshotActual.tipoDocumento !== tipoDocumentoNormalizado ||
+            snapshotActual.numeroDocumento !== numeroDocumentoNormalizado;
+        }
+        const usarConsultaPorDocumento = !mostrarSetMinimo || cambioDocumentoDesdeUltimoSet;
 
-      setCandidatos(response);
-      setSelectedCandidatoId(response[0]?.id ?? null);
-      setConsultado(true);
+        response = usarConsultaPorDocumento
+          ? await buscarPersonasPorDocumento(tipoDocumento, numeroDocumento.trim())
+          : await buscarPersonasPorSetMinimo(requestSetMinimo());
 
-      if (usarConsultaPorDocumento && response.length === 0) {
-        prepararSetMinimoParaNuevoEmpadronamiento();
-        setMostrarSetMinimo(true);
-      }
+        if (usarConsultaPorDocumento && response.length === 0) {
+          prepararSetMinimoParaNuevoEmpadronamiento();
+          setMostrarSetMinimo(true);
+        }
 
-      if (response.length > 0 && usarConsultaPorDocumento) {
-        const selected = response[0];
-        const parsed = parseApellidosNombres(selected.apellidosNombres);
-        applySetMinimoPrecargado(
-          {
+        if (response.length > 0 && usarConsultaPorDocumento) {
+          const selected = response[0];
+          const parsed = parseApellidosNombres(selected.apellidosNombres);
+          applySetMinimoPrecargado(
+            {
             numeroDocumento: selected.numeroDocumento,
             nombre: parsed.nombre,
             apellido: parsed.apellido,
@@ -544,6 +551,7 @@ export function usePersonas() {
           false
         );
         setMostrarSetMinimo(true);
+      }
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : "No se pudo consultar personas.";
@@ -557,6 +565,8 @@ export function usePersonas() {
 
   const onLimpiar = () => {
     setNumeroDocumento("");
+    setApellidoBusqueda("");
+    setNombreBusqueda("");
     setNombre("");
     setOtroNombre("");
     setApellido("");
@@ -969,6 +979,12 @@ export function usePersonas() {
     setTipoDocumento,
     numeroDocumento,
     setNumeroDocumento,
+    apellidoBusqueda,
+    setApellidoBusqueda,
+    nombreBusqueda,
+    setNombreBusqueda,
+    modoBusqueda,
+    setModoBusqueda,
     candidatos,
     setCandidatos,
     consultado,

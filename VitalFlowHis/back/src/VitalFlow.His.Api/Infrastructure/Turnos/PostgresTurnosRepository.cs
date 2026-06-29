@@ -7,6 +7,76 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
 {
     // ── paciente_financiador_plan ───────────────────────────────────────────
 
+    public IReadOnlyList<CentroServicioActivoRow> GetCentrosConServiciosActivos()
+    {
+        const string sql = """
+            select c.id,
+                   c.nombre,
+                   s.id,
+                   s.nombre
+            from sch_agenda.centro c
+            inner join sch_agenda.servicio s on s.centro_id = c.id
+            where c.activo = true
+              and s.activo = true
+            order by c.nombre, s.nombre;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        using var reader = cmd.ExecuteReader();
+
+        var result = new List<CentroServicioActivoRow>();
+        while (reader.Read())
+        {
+            result.Add(new CentroServicioActivoRow(
+                reader.GetGuid(0),
+                reader.GetString(1),
+                reader.GetGuid(2),
+                reader.GetString(3)
+            ));
+        }
+
+        return result;
+    }
+
+    public IReadOnlyList<FinanciadorPlanCatalogoRow> GetFinanciadoresCatalogo()
+    {
+        const string sql = """
+            select f.id,
+                   coalesce(f.codigo, '') as financiador_codigo,
+                   f.nombre as financiador_nombre,
+                   fp.id,
+                   coalesce(fp.codigo, '') as plan_codigo,
+                   fp.nombre as plan_nombre
+            from sch_persona.financiador_plan fp
+            inner join sch_persona.financiador f on f.id = fp.financiador_id
+            where f.activo = true
+              and fp.activo = true
+            order by f.nombre, fp.nombre;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        using var reader = cmd.ExecuteReader();
+
+        var result = new List<FinanciadorPlanCatalogoRow>();
+        while (reader.Read())
+        {
+            result.Add(new FinanciadorPlanCatalogoRow(
+                reader.GetGuid(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetGuid(3),
+                reader.GetString(4),
+                reader.GetString(5)
+            ));
+        }
+
+        return result;
+    }
+
     public IReadOnlyList<PacienteFinanciadorPlanRow> GetFinanciadoresVigentesPaciente(Guid pacienteId)
     {
         const string sql = """

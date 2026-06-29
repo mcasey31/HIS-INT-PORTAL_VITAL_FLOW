@@ -311,6 +311,7 @@ public sealed class PostgresAuthRepository(string connectionString) : IAuthRepos
             select 1
             from sch_agenda.centro
             where id = @centro_id
+              and activo = true
             limit 1;
             """;
 
@@ -329,6 +330,7 @@ public sealed class PostgresAuthRepository(string connectionString) : IAuthRepos
             from sch_agenda.servicio
             where id = @servicio_id
               and centro_id = @centro_id
+                            and activo = true
             limit 1;
             """;
 

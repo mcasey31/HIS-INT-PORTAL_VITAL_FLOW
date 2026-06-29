@@ -57,7 +57,7 @@ Get-Content db/migrations/014_feature_seguridad_auth.sql | docker exec -i vitalf
 
 ### 2) Usuario semilla inicial
 - Usuario: `admin`
-- Password temporal: `Admin12345!`
+- Password temporal: `admin`
 - Estado inicial: `DEBE_CAMBIAR_PASSWORD`
 
 Nota: esta contrasena es solo de arranque en desarrollo y debe rotarse en la primera implementacion de cambio de password.
@@ -72,7 +72,7 @@ Body de ejemplo para login:
 ```json
 {
 	"username": "admin",
-	"password": "Admin12345!"
+	"password": "admin"
 }
 ```
 

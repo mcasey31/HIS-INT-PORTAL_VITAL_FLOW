@@ -9,6 +9,11 @@ public sealed class EstructuraInternaService(
     IEstructuraInternaRepository repository,
     IAuthService authService) : IEstructuraInternaService
 {
+    private static readonly HashSet<string> NodosSoloLecturaInternos = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "prestaciones-facturacion-vitalflow"
+    };
+
     private static readonly IReadOnlyList<NodoEstructuraInternaResponse> Nodos =
     [
         new(
@@ -40,9 +45,11 @@ public sealed class EstructuraInternaService(
         new(
             "financiadores-planes",
             "Financiadores/Planes",
-            "sch_persona.financiador + sch_persona.financiador_plan",
-            "Catalogo de financiadores y planes para cobertura.",
+            "sch_persona.centro_financiador_plan + catalogos globales",
+            "Asociacion configurable Centro -> Financiador -> Plan para cobertura.",
             [
+                new("id", "uuid", false, null),
+                new("centro_id", "uuid", true, "sch_agenda.centro.id"),
                 new("financiador_id", "uuid", false, null),
                 new("financiador_codigo", "varchar(40)", true, null),
                 new("financiador_nombre", "varchar(140)", true, null),
@@ -65,6 +72,24 @@ public sealed class EstructuraInternaService(
                 new("duracion_minutos_sugerida", "int", false, null),
                 new("codigo_clinico", "varchar(40)", false, null),
                 new("activa", "boolean", false, null)
+            ]
+        ),
+        new(
+            "homologacion-facturacion",
+            "Homologacion Facturacion",
+            "sch_admision.homologacion_practica_catalogo_facturacion",
+            "Mapea practica clinica HIS hacia prestacion facturable VITALFLOW, con override opcional por financiador y plan.",
+            [
+                new("id", "uuid", false, null),
+                new("practica_origen_codigo", "varchar(80)", true, null),
+                new("practica_origen_nombre", "varchar(200)", false, null),
+                new("financiador_id", "uuid", false, "sch_persona.financiador.id"),
+                new("plan_id", "uuid", false, "sch_persona.financiador_plan.id"),
+                new("catalogo_codigo", "varchar(40)", true, null),
+                new("prestacion_destino_codigo", "varchar(80)", true, null),
+                new("prestacion_destino_nombre", "varchar(200)", false, null),
+                new("prioridad", "int", false, null),
+                new("activo", "boolean", false, null)
             ]
         ),
         new(
@@ -143,6 +168,18 @@ public sealed class EstructuraInternaService(
                 new("descripcion", "varchar(300)", false, null),
                 new("es_predefinido", "boolean", false, null)
             ]
+        ),
+        new(
+            "modulos-his",
+            "Módulos HIS",
+            "sch_admision.modulos_his",
+            "Activacion de modulos opcionales del HIS (p.ej. CONV_FACT - Convenios y Facturacion).",
+            [
+                new("id", "uuid", false, null),
+                new("codigo", "varchar(50)", false, null),
+                new("nombre", "varchar(140)", false, null),
+                new("activo", "boolean", true, null)
+            ]
         )
     ];
 
@@ -150,8 +187,9 @@ public sealed class EstructuraInternaService(
 
     public IReadOnlyList<RegistroNodoResponse> GetRegistros(string nodoId)
     {
-        ValidateNodo(nodoId);
-        var items = repository.GetRegistros(nodoId);
+        var canonicalNodoId = CanonicalizeNodoId(nodoId);
+        ValidateNodo(canonicalNodoId, allowInternalReadOnly: true);
+        var items = repository.GetRegistros(canonicalNodoId);
         return items
             .Select(item => new RegistroNodoResponse(nodoId, item["id"] ?? string.Empty, item))
             .ToArray();
@@ -159,14 +197,15 @@ public sealed class EstructuraInternaService(
 
     public RegistroNodoResponse SaveRegistro(string nodoId, SaveRegistroNodoRequest request)
     {
-        ValidateNodo(nodoId);
+        var canonicalNodoId = CanonicalizeNodoId(nodoId);
+        ValidateNodo(canonicalNodoId);
 
         if (request.Campos.Count == 0)
         {
             throw new ArgumentException("Debe enviar al menos un campo para guardar.");
         }
 
-        if (string.Equals(nodoId, "usuarios-sistema", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(canonicalNodoId, "usuarios-sistema", StringComparison.OrdinalIgnoreCase))
         {
             var userIdRaw = request.Campos.TryGetValue("id", out var userRaw)
                 ? (userRaw ?? string.Empty).Trim()
@@ -284,8 +323,15 @@ public sealed class EstructuraInternaService(
             return new RegistroNodoResponse(nodoId, created.UserId.ToString(), campos);
         }
 
-        var saved = repository.SaveRegistro(nodoId, request.Campos);
+        var saved = repository.SaveRegistro(canonicalNodoId, request.Campos);
         return new RegistroNodoResponse(nodoId, saved["id"] ?? string.Empty, saved);
+    }
+
+    private static string CanonicalizeNodoId(string nodoId)
+    {
+        return string.Equals(nodoId, "centros", StringComparison.OrdinalIgnoreCase)
+            ? "centro"
+            : nodoId;
     }
 
     private static string GetRequiredField(IReadOnlyDictionary<string, string?> campos, string key)
@@ -298,8 +344,13 @@ public sealed class EstructuraInternaService(
         return value.Trim();
     }
 
-    private static void ValidateNodo(string nodoId)
+    private static void ValidateNodo(string nodoId, bool allowInternalReadOnly = false)
     {
+        if (allowInternalReadOnly && NodosSoloLecturaInternos.Contains(nodoId))
+        {
+            return;
+        }
+
         if (!Nodos.Any(item => string.Equals(item.Id, nodoId, StringComparison.OrdinalIgnoreCase)))
         {
             throw new ArgumentException("Nodo de estructura interna no soportado.");

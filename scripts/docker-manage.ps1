@@ -91,9 +91,13 @@ function Invoke-SystemAction {
     switch ($TargetAction) {
         'up' {
             if ($services.Count -gt 0) {
-                Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs (@('up', '-d', '--no-deps') + $services) -Label $TargetSystem
+                Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs (@('up', '-d', '--no-deps', '--force-recreate') + $services) -Label $TargetSystem
             } else {
-                Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs @('up', '-d') -Label $TargetSystem
+                if ($TargetSystem -eq 'integration') {
+                    Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs @('up', '-d', '--force-recreate', '--remove-orphans') -Label $TargetSystem
+                } else {
+                    Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs @('up', '-d') -Label $TargetSystem
+                }
             }
         }
         'down' {
@@ -113,10 +117,14 @@ function Invoke-SystemAction {
         'rebuild' {
             if ($services.Count -gt 0) {
                 Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs (@('build') + $services) -Label $TargetSystem
-                Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs (@('up', '-d', '--no-deps') + $services) -Label $TargetSystem
+                Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs (@('up', '-d', '--no-deps', '--force-recreate') + $services) -Label $TargetSystem
             } else {
                 Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs @('build') -Label $TargetSystem
-                Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs @('up', '-d') -Label $TargetSystem
+                if ($TargetSystem -eq 'integration') {
+                    Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs @('up', '-d', '--force-recreate', '--remove-orphans') -Label $TargetSystem
+                } else {
+                    Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs @('up', '-d') -Label $TargetSystem
+                }
             }
         }
         'logs' {
@@ -140,6 +148,31 @@ function Invoke-SystemAction {
                 Invoke-Compose -ComposeFile $cfg.compose -EnvFile $cfg.env -SubArgs @('ps') -Label $TargetSystem
             }
         }
+    }
+}
+
+function Invoke-IntegrationConsistencyCheck {
+    param([string]$CurrentAction, [string]$CurrentScope)
+
+    if ($CurrentAction -notin @('up', 'restart', 'rebuild')) {
+        return
+    }
+
+    if ($CurrentScope -ne 'all') {
+        return
+    }
+
+    $checkScript = Join-Path $Root 'scripts/check-environment-consistency.ps1'
+    if (-not (Test-Path $checkScript)) {
+        Write-Warning "Consistency check script not found: $checkScript"
+        return
+    }
+
+    Write-Host 'Running post-action environment consistency check...' -ForegroundColor Cyan
+    & powershell -ExecutionPolicy Bypass -File $checkScript
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Environment consistency check failed after action '$CurrentAction'."
     }
 }
 
@@ -178,4 +211,8 @@ if ($System -eq 'all') {
 
     $effectiveScope = if ($System -eq 'integration') { $Scope } else { 'all' }
     Invoke-SystemAction -TargetSystem $System -TargetAction $Action -TargetScope $effectiveScope
+
+    if ($System -eq 'integration') {
+        Invoke-IntegrationConsistencyCheck -CurrentAction $Action -CurrentScope $effectiveScope
+    }
 }

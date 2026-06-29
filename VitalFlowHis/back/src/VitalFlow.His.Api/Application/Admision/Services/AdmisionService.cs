@@ -475,7 +475,7 @@ public sealed class AdmisionService(
             return new ConfirmarArriboTurnoResponse(
                 turnoId, EstadoPendientePago,
                 ahora.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture),
-                EstadoTurnoProgramado, null);
+                EstadoTurnoProgramado, null, null, null);
         }
 
         var practicaCienConvenida = request.PracticaCienPorcientoConvenida ?? true;
@@ -494,10 +494,162 @@ public sealed class AdmisionService(
         var rowActual = admisionRepository.GetTurnoAdmision(turnoId);
         var llegadaFinal = rowActual?.LlegadaEn ?? DateTimeOffset.UtcNow;
 
+        // ── Evento outbox CONV-FACT (solo si el módulo está activo; zero-impact si no) ──
+        TryPublicarEventoFacturacion(
+            turnoId, encuentroId, pacienteId,
+            request.Paciente.Trim(), request.Documento.Trim(), financiador,
+            request.FinanciadorId, request.PlanId,
+            request.ServicioNombre, request.CentroId,
+            llegadaFinal,
+            request.PracticaOrigenNombre, request.PracticaOrigenCodigo,
+            request.ProfesionalId, request.ProfesionalNombre,
+            request.TipoOrigen ?? "TURNO");
+
+        var eventoFacturacion = admisionRepository.GetEventoFacturacionByTurnoId(turnoId);
+
         return new ConfirmarArriboTurnoResponse(
             turnoId, EstadoEnSalaEspera,
             llegadaFinal.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture),
-            estadoTurnoFinal, encuentroId);
+            estadoTurnoFinal,
+            encuentroId,
+            eventoFacturacion?.Estado,
+            eventoFacturacion?.ErrorDetalle);
+    }
+
+    public EventoFacturacionTurnoResponse ObtenerEventoFacturacion(string turnoId)
+    {
+        if (string.IsNullOrWhiteSpace(turnoId))
+        {
+            throw new ArgumentException("turnoId es obligatorio.");
+        }
+
+        var row = admisionRepository.GetEventoFacturacionByTurnoId(turnoId)
+            ?? new EventoFacturacionEstadoRow(turnoId, "NO_GENERADO", null, DateTimeOffset.UtcNow, null);
+
+        return new EventoFacturacionTurnoResponse(
+            row.TurnoId,
+            row.Estado,
+            row.ErrorDetalle,
+            row.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture),
+            row.ProcessedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture));
+    }
+
+    private void TryPublicarEventoFacturacion(
+        string turnoId,
+        string? encuentroId,
+        string pacienteId,
+        string pacienteNombre,
+        string documento,
+        string financiador,
+        string? financiadorIdRaw,
+        string? planIdRaw,
+        string? servicioNombre,
+        string? centroIdRaw,
+        DateTimeOffset llegadaEn,
+        string? practicaOrigenNombre = null,
+        string? practicaOrigenCodigo = null,
+        string? profesionalIdRaw = null,
+        string? profesionalNombre = null,
+        string tipoOrigen = "TURNO")
+    {
+        if (!admisionRepository.IsModuloHisActivo("CONV_FACT"))
+        {
+            return;
+        }
+
+        Guid.TryParse(pacienteId, out var pacienteGuid);
+        if (pacienteGuid == Guid.Empty)
+        {
+            throw new ArgumentException("No se puede publicar a facturacion: pacienteId invalido.");
+        }
+
+        Guid? encuentroGuid = Guid.TryParse(encuentroId, out var eg) ? eg : null;
+        Guid? centroId = Guid.TryParse(centroIdRaw, out var cid) ? cid : null;
+        Guid? profesionalId = Guid.TryParse(profesionalIdRaw, out var pfid) ? pfid : null;
+
+        var cobertura = ResolveCoberturaContrato(pacienteGuid, financiadorIdRaw, planIdRaw);
+
+        var homologacion = admisionRepository.ResolveHomologacionPractica(
+            practicaOrigenCodigo ?? string.Empty,
+            cobertura.FinanciadorId,
+            cobertura.PlanId);
+        var homologacionEncontrada = homologacion is not null;
+
+        var payload = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            evento = "ADMISION_EN_SALA_ESPERA",
+            event_type = "ADMISION_EN_SALA_ESPERA",
+            tipo_origen = tipoOrigen,
+            turno_id = turnoId,
+            encuentro_id = encuentroId,
+            paciente_id = pacienteId,
+            paciente_nombre = pacienteNombre,
+            documento,
+            financiador,
+            financiador_id = cobertura.FinanciadorId.ToString(),
+            plan_id = cobertura.PlanId.ToString(),
+            servicio_nombre = servicioNombre,
+            centro_id = centroIdRaw,
+            llegada_en = llegadaEn.ToString("O", CultureInfo.InvariantCulture),
+            practica_origen_nombre = practicaOrigenNombre,
+            practica_origen_codigo = practicaOrigenCodigo,
+            homologacion_encontrada = homologacionEncontrada,
+            catalogo_destino_codigo = homologacion?.CatalogoCodigo,
+            practica_destino_codigo = homologacion?.PrestacionCodigo,
+            practica_destino_nombre = homologacion?.PrestacionNombre,
+            profesional_id = profesionalIdRaw,
+            profesional_nombre = profesionalNombre,
+            origen = "HIS"
+        });
+
+        admisionRepository.InsertEventoFacturacionOutbox(new EventoFacturacionOutboxRow(
+            Id: Guid.NewGuid(),
+            TurnoId: turnoId,
+            EncuentroId: encuentroGuid,
+            PacienteId: pacienteGuid,
+            PacienteNombre: pacienteNombre,
+            Documento: documento,
+            Financiador: financiador == "-" ? null : financiador,
+            FinanciadorId: cobertura.FinanciadorId,
+            PlanId: cobertura.PlanId,
+            ServicioNombre: servicioNombre,
+            CentroId: centroId,
+            LlegadaEn: llegadaEn,
+            Payload: payload,
+            PracticaOrigenNombre: practicaOrigenNombre,
+            PracticaOrigenCodigo: practicaOrigenCodigo,
+            HomologacionEncontrada: homologacionEncontrada,
+            CatalogoDestinoCodigo: homologacion?.CatalogoCodigo,
+            PrestacionDestinoCodigo: homologacion?.PrestacionCodigo,
+            PrestacionDestinoNombre: homologacion?.PrestacionNombre,
+            ProfesionalId: profesionalId,
+            ProfesionalNombre: profesionalNombre,
+            TipoOrigen: tipoOrigen,
+            EventType: "ADMISION_EN_SALA_ESPERA"));
+    }
+
+    private CoberturaPacienteRow ResolveCoberturaContrato(Guid pacienteId, string? financiadorIdRaw, string? planIdRaw)
+    {
+        var hasFinanciador = Guid.TryParse(financiadorIdRaw, out var financiadorId) && financiadorId != Guid.Empty;
+        var hasPlan = Guid.TryParse(planIdRaw, out var planId) && planId != Guid.Empty;
+
+        if (hasFinanciador && hasPlan)
+        {
+            return new CoberturaPacienteRow(financiadorId, planId, null, null);
+        }
+
+        if (hasFinanciador ^ hasPlan)
+        {
+            throw new ArgumentException("Cobertura incompleta para facturacion: se requieren financiadorId y planId juntos.");
+        }
+
+        var cobertura = admisionRepository.GetCoberturaVigentePaciente(pacienteId);
+        if (cobertura is null)
+        {
+            throw new ArgumentException("No se pudo resolver cobertura vigente del paciente para facturacion (financiadorId/planId). ");
+        }
+
+        return cobertura;
     }
 
     public ActualizarEstadoTurnoResponse ActualizarEstadoTurno(string turnoId, ActualizarEstadoTurnoRequest request)

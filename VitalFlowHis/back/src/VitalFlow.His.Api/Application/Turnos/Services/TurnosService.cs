@@ -34,6 +34,21 @@ public sealed class TurnosService(
 
     public IReadOnlyList<TipoDocumentoTurnoResponse> GetTiposDocumento() => TiposDocumento;
 
+    public IReadOnlyList<FinanciadorCatalogoTurnoResponse> GetFinanciadoresCatalogo()
+    {
+        return turnosRepository
+            .GetFinanciadoresCatalogo()
+            .Select(item => new FinanciadorCatalogoTurnoResponse(
+                item.FinanciadorId.ToString(),
+                item.FinanciadorCodigo,
+                item.FinanciadorNombre,
+                item.PlanId.ToString(),
+                item.PlanCodigo,
+                item.PlanNombre
+            ))
+            .ToArray();
+    }
+
     public IReadOnlyList<PacienteIdentificadoTurnoResponse> IdentificarPacientePorDocumento(string tipoDocumento, string numeroDocumento)
     {
         var tipo = (tipoDocumento ?? string.Empty).Trim().ToUpperInvariant();
@@ -107,15 +122,17 @@ public sealed class TurnosService(
 
     public SelectoresDisponibilidadTurnoResponse GetSelectoresDisponibilidad()
     {
-        var agendas = GetAgendasElegiblesConBloques();
+        var centrosServiciosActivos = turnosRepository.GetCentrosConServiciosActivos();
 
-        var centros = agendas
+        // Centros: siempre incluir los que tengan al menos un servicio activo.
+        var centros = centrosServiciosActivos
             .GroupBy(item => item.CentroId)
             .Select(group => new CentroTurnoResponse(group.Key.ToString(), group.First().CentroNombre))
             .OrderBy(item => item.Nombre, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        var servicios = agendas
+        // Servicios: siempre incluir los activos, aunque no exista agenda para buscar disponibilidad.
+        var servicios = centrosServiciosActivos
             .GroupBy(item => item.ServicioId)
             .Select(group => new ServicioTurnoResponse(
                 group.Key.ToString(),
@@ -125,6 +142,28 @@ public sealed class TurnosService(
             .OrderBy(item => item.Nombre, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
+        var centroIdsConServicioActivo = centrosServiciosActivos
+            .Select(item => item.CentroId.ToString())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var servicioIdsActivos = centrosServiciosActivos
+            .Select(item => item.ServicioId.ToString())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Obtener TODAS las agendas activas (sin filtrar por elegibilidad de bloques)
+        // Permitir que el Portal explore todos los centros, servicios, prácticas y profesionales
+        // El filtrado por disponibilidad real se hace en BuscarDisponibilidad()
+        var agendas = agendaRepository.GetAll()
+            .Where(resumen => resumen.Activa && resumen.VisibleContactCenter)
+            .Select(resumen => agendaRepository.GetById(resumen.Id))
+            .Where(agenda => agenda != null && agenda.Activa && agenda.VisibleContactCenter)
+            .Cast<AgendaAggregate>()
+            .Where(agenda =>
+                centroIdsConServicioActivo.Contains(agenda.CentroId.ToString())
+                && servicioIdsActivos.Contains(agenda.ServicioId.ToString()))
+            .ToList();
+
+        // Prácticas: extraer de todos los bloques (no solo elegibles)
         var practicasBuilder = new Dictionary<string, PracticaBuilder>(StringComparer.OrdinalIgnoreCase);
         foreach (var agenda in agendas)
         {
@@ -132,7 +171,8 @@ public sealed class TurnosService(
             var servicioId = agenda.ServicioId.ToString();
             var profesionalId = agenda.EfectorId.ToString();
 
-            foreach (var bloque in agenda.Bloques.Where(EsBloqueElegible))
+            // Incluir prácticas de TODOS los bloques, no solo los elegibles
+            foreach (var bloque in agenda.Bloques)
             {
                 foreach (var practica in bloque.Practicas.Where(item => !string.IsNullOrWhiteSpace(item.Nombre)))
                 {
@@ -162,6 +202,7 @@ public sealed class TurnosService(
             .OrderBy(item => item.Nombre, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
+        // Profesionales: de todas las agendas activas
         var practicaIds = practicas.Select(item => item.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var profesionalesBuilder = new Dictionary<string, ProfesionalBuilder>(StringComparer.OrdinalIgnoreCase);
 
@@ -177,7 +218,8 @@ public sealed class TurnosService(
             builder.CentroIds.Add(agenda.CentroId.ToString());
             builder.ServicioIds.Add(agenda.ServicioId.ToString());
 
-            foreach (var bloque in agenda.Bloques.Where(EsBloqueElegible))
+            // Incluir prácticas de TODOS los bloques
+            foreach (var bloque in agenda.Bloques)
             {
                 foreach (var practica in bloque.Practicas.Where(item => !string.IsNullOrWhiteSpace(item.Nombre)))
                 {
@@ -190,8 +232,8 @@ public sealed class TurnosService(
             }
         }
 
+        // Incluir profesionales incluso si no tienen prácticas configuradas (aún pueden tener agendas)
         var profesionales = profesionalesBuilder.Values
-            .Where(item => item.PracticaIds.Count > 0)
             .Select(item => new ProfesionalTurnoResponse(
                 item.Id,
                 item.Nombre,

@@ -12,6 +12,8 @@ type HomeAccessCard = {
 
 export function HomePage() {
   const navigate = useNavigate();
+  const conveniosLandingUrl = "http://localhost:8080/convenios/referencias";
+  const facturacionLandingUrl = "http://localhost:8080/facturacion/final";
   const { username, roles } = useAuth();
   const [now, setNow] = useState(() => new Date());
   const hasRole = (name: string) => roles.some((role) => role.toLowerCase() === name.toLowerCase());
@@ -36,6 +38,13 @@ export function HomePage() {
     || hasRole("Auditor");
   const canAccessEscritorioClinico = hasRole("Administrador") || hasRole("Medico") || hasRole("Auditor");
   const canAccessEstructuraInterna = hasRole("Administrador") || hasRole("Administrador Seguridad");
+  const canAccessConvenios = canAccessEstructuraInterna;
+  const canAccessFacturacion =
+    hasRole("Administrador")
+    || hasRole("Administrativo")
+    || hasRole("Cajero")
+    || hasRole("Auditor")
+    || hasRole("Medico");
 
   const displayName = username
     ? username.charAt(0).toUpperCase() + username.slice(1).toLowerCase()
@@ -97,6 +106,20 @@ export function HomePage() {
       onClick: () => navigate("/escritorio-clinico")
     },
     {
+      key: "convenios",
+      title: "Convenios",
+      description: "Configuracion funcional de financiadores y planes para CONV_FACT.",
+      icon: "CV",
+      onClick: () => window.location.assign(conveniosLandingUrl)
+    },
+    {
+      key: "facturacion",
+      title: "Facturacion",
+      description: "Ingreso operativo al circuito de facturacion HIS y trazabilidad de eventos.",
+      icon: "FC",
+      onClick: () => window.location.assign(facturacionLandingUrl)
+    },
+    {
       key: "estructura-interna",
       title: "Estructura Interna",
       description: "ABMs de estructura jerarquica y personal por DER.",
@@ -115,6 +138,10 @@ export function HomePage() {
         return canAccessAdmision;
       case "escritorio-clinico":
         return canAccessEscritorioClinico;
+      case "convenios":
+        return canAccessConvenios;
+      case "facturacion":
+        return canAccessFacturacion;
       case "estructura-interna":
         return canAccessEstructuraInterna;
       default:

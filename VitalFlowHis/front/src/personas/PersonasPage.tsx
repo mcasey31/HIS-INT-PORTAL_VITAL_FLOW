@@ -150,7 +150,13 @@ export function PersonasPage({}: PersonasPageProps) {
     onAbrirEscaneoDni,
     onCerrarEscaneoDni,
     onEjecutarEscaneoDni,
-    onCerrarPersonaCreadaModal
+    onCerrarPersonaCreadaModal,
+    modoBusqueda,
+    setModoBusqueda,
+    apellidoBusqueda,
+    setApellidoBusqueda,
+    nombreBusqueda,
+    setNombreBusqueda
   } = usePersonas();
 
   const handlePotentialEdit = (event: FormEvent<HTMLElement>) => {
@@ -229,26 +235,72 @@ export function PersonasPage({}: PersonasPageProps) {
         </div>
 
         <div className="personas-search-grid">
-          <label>
-            Tipo de documento*
-            <select value={tipoDocumento} onChange={(event) => setTipoDocumento(event.target.value)}>
-              {tiposDocumento.map((tipo) => (
-                <option key={tipo.codigo} value={tipo.codigo}>
-                  {tipo.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
+          <fieldset className="search-mode-selector">
+            <legend>Modo de búsqueda:</legend>
+            <label>
+              <input
+                type="radio"
+                value="documento"
+                checked={modoBusqueda === "documento"}
+                onChange={(e) => setModoBusqueda(e.target.value as "documento" | "nombre")}
+              />
+              Por DNI
+            </label>
+            <label>
+              <input
+                type="radio"
+                value="nombre"
+                checked={modoBusqueda === "nombre"}
+                onChange={(e) => setModoBusqueda(e.target.value as "documento" | "nombre")}
+              />
+              Por Nombre
+            </label>
+          </fieldset>
 
-          <label className="personas-doc-number-field">
-            N de Documento*
-            <input
-              ref={numeroInputRef}
-              value={numeroDocumento}
-              onChange={(event) => setNumeroDocumento(event.target.value.toUpperCase())}
-              placeholder="Escribir n"
-            />
-          </label>
+          {modoBusqueda === "documento" ? (
+            <>
+              <label>
+                Tipo de documento*
+                <select value={tipoDocumento} onChange={(event) => setTipoDocumento(event.target.value)}>
+                  {tiposDocumento.map((tipo) => (
+                    <option key={tipo.codigo} value={tipo.codigo}>
+                      {tipo.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="personas-doc-number-field">
+                N de Documento*
+                <input
+                  ref={numeroInputRef}
+                  value={numeroDocumento}
+                  onChange={(event) => setNumeroDocumento(event.target.value.toUpperCase())}
+                  placeholder="Escribir n"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label>
+                Apellido*
+                <input
+                  value={apellidoBusqueda}
+                  onChange={(event) => setApellidoBusqueda(event.target.value)}
+                  placeholder="Ej: Pérez, González"
+                />
+              </label>
+
+              <label>
+                Nombre*
+                <input
+                  value={nombreBusqueda}
+                  onChange={(event) => setNombreBusqueda(event.target.value)}
+                  placeholder="Ej: Juan, María"
+                />
+              </label>
+            </>
+          )}
 
           <div className="personas-search-actions">
             <button type="submit" className="personas-action-btn personas-action-btn--consultar" disabled={!puedeConsultar || loading}>

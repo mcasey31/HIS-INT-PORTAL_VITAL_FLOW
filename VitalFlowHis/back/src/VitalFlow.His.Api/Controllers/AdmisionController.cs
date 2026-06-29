@@ -64,6 +64,19 @@ public sealed class AdmisionController(IAdmisionService admisionService) : Contr
         }
     }
 
+    [HttpGet("turnos/{turnoId}/facturacion-evento")]
+    public ActionResult<EventoFacturacionTurnoResponse> ObtenerEventoFacturacion(string turnoId)
+    {
+        try
+        {
+            return Ok(admisionService.ObtenerEventoFacturacion(turnoId));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("turnos/{turnoId}/estado")]
     public ActionResult<ActualizarEstadoTurnoResponse> ActualizarEstado(
         string turnoId,

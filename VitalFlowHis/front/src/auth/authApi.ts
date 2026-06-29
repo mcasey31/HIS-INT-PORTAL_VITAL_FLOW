@@ -66,7 +66,7 @@ async function authRequest<T>(endpoint: string, body: unknown): Promise<T> {
 
 export const authApi = {
   getLoginCentros: async () => {
-    const url = `${apiBaseUrl}/api/v1/auth/centros`;
+    const url = `/api/v1/auth/centros`;
     const response = await fetch(url, { method: "GET" });
     return parseAuthResponse<LoginCentroOption[]>(response);
   },

@@ -5,6 +5,7 @@ namespace VitalFlow.His.Api.Application.Turnos.Services;
 public interface ITurnosService
 {
     IReadOnlyList<TipoDocumentoTurnoResponse> GetTiposDocumento();
+    IReadOnlyList<FinanciadorCatalogoTurnoResponse> GetFinanciadoresCatalogo();
     IReadOnlyList<PacienteIdentificadoTurnoResponse> IdentificarPacientePorDocumento(string tipoDocumento, string numeroDocumento);
     SelectoresDisponibilidadTurnoResponse GetSelectoresDisponibilidad();
     IReadOnlyList<DisponibilidadSlotTurnoResponse> BuscarDisponibilidad(BuscarDisponibilidadTurnoRequest request);

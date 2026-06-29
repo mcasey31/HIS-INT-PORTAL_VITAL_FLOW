@@ -58,7 +58,9 @@ public sealed record ConfirmarArriboTurnoResponse(
     string Estado,
     string Llegada,
     string EstadoTurno,
-    string? EncuentroId
+    string? EncuentroId,
+    string? FacturacionEventoEstado,
+    string? FacturacionEventoDetalle
 );
 
 public sealed record ConfirmarArriboTurnoRequest(
@@ -69,7 +71,20 @@ public sealed record ConfirmarArriboTurnoRequest(
     bool? DocumentacionValidada,
     bool? RequierePago,
     bool? PagoRegistrado,
-    bool? PracticaCienPorcientoConvenida
+    bool? PracticaCienPorcientoConvenida,
+    /// Si no se envian, el servicio intentara resolver cobertura vigente del paciente.
+    /// Si no puede resolver financiador + plan, rechaza el arribo para no publicar eventos incompletos.
+    string? FinanciadorId,
+    string? PlanId,
+    string? ServicioNombre,
+    string? CentroId,
+    /// Práctica asistencial del turno — obligatoria clínicamente, opcional en el contrato HTTP
+    /// para mantener retrocompatibilidad con llamadas que no la envíen aún.
+    string? PracticaOrigenNombre = null,
+    string? PracticaOrigenCodigo = null,
+    string? ProfesionalId = null,
+    string? ProfesionalNombre = null,
+    string? TipoOrigen = null
 );
 
 public sealed record ActualizarEstadoTurnoRequest(
@@ -110,4 +125,12 @@ public sealed record CerrarEncuentroResponse(
 public sealed record CerrarEncuentrosVencidosResponse(
     int Cerrados,
     int HorasMaximas
+);
+
+public sealed record EventoFacturacionTurnoResponse(
+    string TurnoId,
+    string Estado,
+    string? ErrorDetalle,
+    string? CreatedAt,
+    string? ProcessedAt
 );

@@ -96,8 +96,8 @@ values
         '50000000-0000-0000-0000-000000000100',
         null,
         'admin',
-        'pbkdf2-sha256$100000$pXjeHiuisXJdVu8G/CS3xw==$RRYvImdh0HHwAfBf5bcRohjNCsKUudu0808QNs77Ymw=',
-        'DEBE_CAMBIAR_PASSWORD',
+        'pbkdf2-sha256$100000$AAAAAAAAAAAAAAAAAAAAAA==$SKuMvgo1qvkaCrAitMDDT+SrfOPqgJS7cNPrf9dAW8s=',
+        'ACTIVO',
         null
     )
 on conflict (id) do update

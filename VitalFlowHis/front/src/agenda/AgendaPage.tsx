@@ -976,7 +976,7 @@ export function AgendaPage({
           {successMessage ? <p className="agenda-feedback agenda-feedback-success">{successMessage}</p> : null}
           {error ? <p className="agenda-feedback agenda-feedback-error">{error}</p> : null}
 
-          <div className="card-block vf-form">
+          <div className="card-block agenda-detail-card">
             {!selectedAgenda ? <p>Cargando detalle...</p> : (
               <div className="agenda-detail-grid" aria-label="Datos de la agenda">
                 <div className="agenda-detail-item">

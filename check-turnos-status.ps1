@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $hisBaseUrl = if ($env:HIS_BASE_URL) { $env:HIS_BASE_URL.TrimEnd('/') } else { 'http://localhost:3011/api' }
-$login = Invoke-RestMethod -Uri "$hisBaseUrl/v1/auth/login" -Method POST -ContentType 'application/json' -Body '{"username":"admin","password":"Admin123!"}'
+$login = Invoke-RestMethod -Uri "$hisBaseUrl/v1/auth/login" -Method POST -ContentType 'application/json' -Body '{"username":"admin","password":"admin"}'
 $token = $login.accessToken
 $hisId = '8376a007-e9e6-455c-818e-a4cc41f46db1'
 $headers = @{ Authorization = "Bearer $token" }

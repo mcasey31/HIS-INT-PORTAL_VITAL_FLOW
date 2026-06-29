@@ -122,10 +122,14 @@ public sealed class PostgresAdmisionRepository(string connectionString) : IAdmis
                    coalesce(nullif(trim(per.apellido || ', ' || per.nombre), ''), tp.paciente_id) as paciente_nombre,
                    coalesce(per.tipo_documento_codigo || ' ' || per.numero_documento, '-') as documento,
                    coalesce(f.nombre || ' | ' || fp.nombre, '-') as financiador,
-                   tp.servicio,
-                   tp.profesional,
+                   coalesce(s.nombre, '') as servicio,
+                   coalesce(e.nombre, '') as profesional,
                    tp.fecha_hora
             from sch_turno.turno_paciente tp
+            left join sch_agenda.servicio s
+                on s.id = tp.servicio_id
+            left join sch_agenda.efector e
+                on e.id = tp.efector_id
             left join sch_persona.persona per
                 on per.id::text = tp.paciente_id
             left join lateral (
@@ -141,7 +145,7 @@ public sealed class PostgresAdmisionRepository(string connectionString) : IAdmis
                 on f.id = cov.financiador_id
             left join sch_persona.financiador_plan fp
                 on fp.id = cov.plan_financiador_id
-            where upper(tp.estado) = 'AGENDADO'
+                        where upper(tp.estado) in ('AGENDADO', 'PROGRAMADO')
               and (tp.fecha_hora at time zone 'UTC')::date = @fecha
             order by tp.fecha_hora;
             """;
@@ -168,6 +172,43 @@ public sealed class PostgresAdmisionRepository(string connectionString) : IAdmis
         }
 
         return result;
+    }
+
+    public CoberturaPacienteRow? GetCoberturaVigentePaciente(Guid pacienteId)
+    {
+        const string sql = """
+            select pf.financiador_id,
+                   pf.plan_financiador_id,
+                   f.nombre as financiador_nombre,
+                   fp.nombre as plan_nombre
+            from sch_administracion.t_paciente_financiador_plan pf
+            left join sch_persona.financiador f
+                on f.id = pf.financiador_id
+            left join sch_persona.financiador_plan fp
+                on fp.id = pf.plan_financiador_id
+            where pf.paciente_id = @paciente_id
+              and pf.vigente = true
+              and (pf.fecha_hasta is null or pf.fecha_hasta >= current_date)
+            order by coalesce(pf.updated_at, pf.created_at) desc
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("paciente_id", pacienteId);
+        using var reader = cmd.ExecuteReader();
+
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return new CoberturaPacienteRow(
+            FinanciadorId: reader.GetGuid(0),
+            PlanId: reader.GetGuid(1),
+            FinanciadorNombre: reader.IsDBNull(2) ? null : reader.GetString(2),
+            PlanNombre: reader.IsDBNull(3) ? null : reader.GetString(3));
     }
 
     // ── encuentro ───────────────────────────────────────────────────────────
@@ -286,4 +327,144 @@ public sealed class PostgresAdmisionRepository(string connectionString) : IAdmis
         CerradoEn:    r.IsDBNull(5) ? null : r.GetFieldValue<DateTimeOffset>(5),
         MotivoCierre: r.IsDBNull(6) ? null : r.GetString(6)
     );
+
+    // ── Módulos HIS / outbox facturación ────────────────────────────────────
+
+    public bool IsModuloHisActivo(string codigo)
+    {
+        const string sql = """
+            select activo from sch_admision.modulos_his where codigo = @codigo limit 1;
+            """;
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("codigo", codigo);
+        var result = cmd.ExecuteScalar();
+        return result is true || result?.ToString()?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    public void InsertEventoFacturacionOutbox(EventoFacturacionOutboxRow row)
+    {
+        const string sql = """
+            insert into sch_admision.eventos_facturacion_outbox
+                (id, turno_id, encuentro_id, paciente_id, paciente_nombre, documento,
+                 financiador, financiador_id, plan_id, servicio_nombre, centro_id,
+                 llegada_en, payload, estado,
+                 practica_origen_nombre, practica_origen_codigo,
+                 homologacion_encontrada, catalogo_destino_codigo, practica_destino_codigo, practica_destino_nombre,
+                 profesional_id, profesional_nombre, tipo_origen, event_type)
+            values
+                (@id, @turno_id, @encuentro_id, @paciente_id, @paciente_nombre, @documento,
+                 @financiador, @financiador_id, @plan_id, @servicio_nombre, @centro_id,
+                 @llegada_en, @payload::jsonb, 'PENDIENTE',
+                 @practica_origen_nombre, @practica_origen_codigo,
+                 @homologacion_encontrada, @catalogo_destino_codigo, @practica_destino_codigo, @practica_destino_nombre,
+                 @profesional_id, @profesional_nombre, @tipo_origen, @event_type)
+            on conflict (turno_id) where estado = 'PENDIENTE' do nothing;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id",                     row.Id);
+        cmd.Parameters.AddWithValue("turno_id",               row.TurnoId);
+        cmd.Parameters.AddWithValue("encuentro_id",           (object?)row.EncuentroId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("paciente_id",            row.PacienteId);
+        cmd.Parameters.AddWithValue("paciente_nombre",        row.PacienteNombre);
+        cmd.Parameters.AddWithValue("documento",              row.Documento);
+        cmd.Parameters.AddWithValue("financiador",            (object?)row.Financiador ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("financiador_id",         (object?)row.FinanciadorId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("plan_id",                (object?)row.PlanId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("servicio_nombre",        (object?)row.ServicioNombre ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("centro_id",              (object?)row.CentroId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("llegada_en",             row.LlegadaEn);
+        cmd.Parameters.AddWithValue("payload",                row.Payload);
+        cmd.Parameters.AddWithValue("practica_origen_nombre", (object?)row.PracticaOrigenNombre ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("practica_origen_codigo", (object?)row.PracticaOrigenCodigo ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("homologacion_encontrada", row.HomologacionEncontrada);
+        cmd.Parameters.AddWithValue("catalogo_destino_codigo", (object?)row.CatalogoDestinoCodigo ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("practica_destino_codigo", (object?)row.PrestacionDestinoCodigo ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("practica_destino_nombre", (object?)row.PrestacionDestinoNombre ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("profesional_id",         (object?)row.ProfesionalId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("profesional_nombre",     (object?)row.ProfesionalNombre ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("tipo_origen",            row.TipoOrigen);
+        cmd.Parameters.AddWithValue("event_type",             row.EventType);
+        cmd.ExecuteNonQuery();
+    }
+
+    public HomologacionPracticaFacturacionRow? ResolveHomologacionPractica(string practicaOrigenCodigo, Guid? financiadorId, Guid? planId)
+    {
+        if (string.IsNullOrWhiteSpace(practicaOrigenCodigo))
+        {
+            return null;
+        }
+
+        const string sql = """
+            select h.catalogo_codigo,
+                   h.prestacion_destino_codigo,
+                   h.prestacion_destino_nombre
+            from sch_admision.homologacion_practica_catalogo_facturacion h
+            where h.activo = true
+              and upper(h.practica_origen_codigo) = upper(@practica_origen_codigo)
+              and (h.financiador_id is null or h.financiador_id = @financiador_id)
+              and (h.plan_id is null or h.plan_id = @plan_id)
+            order by
+              case when h.plan_id is not null then 2 else 0 end +
+              case when h.financiador_id is not null then 1 else 0 end desc,
+              h.prioridad asc,
+              h.updated_at desc
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("practica_origen_codigo", practicaOrigenCodigo.Trim());
+        cmd.Parameters.AddWithValue("financiador_id", (object?)financiadorId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("plan_id", (object?)planId ?? DBNull.Value);
+
+        using var reader = cmd.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return new HomologacionPracticaFacturacionRow(
+            CatalogoCodigo: reader.GetString(0),
+            PrestacionCodigo: reader.GetString(1),
+            PrestacionNombre: reader.IsDBNull(2) ? null : reader.GetString(2));
+    }
+
+    public EventoFacturacionEstadoRow? GetEventoFacturacionByTurnoId(string turnoId)
+    {
+        const string sql = """
+            select turno_id,
+                   estado,
+                   error_detalle,
+                   created_at,
+                   processed_at
+            from sch_admision.eventos_facturacion_outbox
+            where turno_id = @turno_id
+            order by created_at desc
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("turno_id", turnoId);
+        using var reader = cmd.ExecuteReader();
+
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return new EventoFacturacionEstadoRow(
+            reader.GetString(0),
+            reader.GetString(1),
+            reader.IsDBNull(2) ? null : reader.GetString(2),
+            reader.GetFieldValue<DateTimeOffset>(3),
+            reader.IsDBNull(4) ? null : reader.GetFieldValue<DateTimeOffset>(4));
+    }
 }

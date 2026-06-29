@@ -1,7 +1,6 @@
 "use client";
 
 import { 
-  Plus, 
   Search, 
   UserPlus, 
   MoreVertical, 
@@ -64,20 +63,6 @@ export default function StaffManagementPage() {
     "Nutrición"
   ];
 
-  const handleCreateTestUser = async () => {
-    setIsCreating(true);
-    await createStaff.mutateAsync({
-      firstName: "Test",
-      lastName: "Test",
-      licenseNumber: "1234",
-      specialty: "Clínica Médica",
-      username: "Test",
-      password: "1234",
-      phone: "1122334455",
-      address: "Sede Virtual Digital"
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsCreating(true);
@@ -97,14 +82,6 @@ export default function StaffManagementPage() {
           <p className="text-slate-500 font-medium">Gestión de profesionales 100% Digital para Telemedicina.</p>
         </div>
         <div className="flex gap-3">
-            <button 
-                onClick={handleCreateTestUser}
-                disabled={isCreating}
-                className="flex items-center gap-2 px-6 py-3 bg-indigo-50 text-indigo-600 rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all border border-indigo-100"
-            >
-                {isCreating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                Auto-Crear Test/1234
-            </button>
             <button 
                 onClick={() => setShowAddModal(true)}
                 className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-[1.2rem] text-sm font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl shadow-indigo-600/10"

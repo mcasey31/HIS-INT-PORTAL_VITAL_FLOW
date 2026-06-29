@@ -176,6 +176,10 @@
   font-size: 0.9rem;
 }
 
+.agenda-detail-card {
+  display: block;
+}
+
 .agenda-block-context {
   margin: 0 0 0.8rem;
   color: #2d4f73;
@@ -183,7 +187,7 @@
 
 .agenda-detail-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 0.7rem;
 }
 
@@ -486,6 +490,12 @@
 
 .agenda-bloque-view-item-wide {
   grid-column: 1 / -1;
+}
+
+@media (min-width: 1440px) {
+  .agenda-detail-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
 }
 
 @media (max-width: 800px) {

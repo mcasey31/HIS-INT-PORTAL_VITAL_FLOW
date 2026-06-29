@@ -54,6 +54,16 @@ export type ConfirmarArriboTurnoResponse = {
   llegada: string;
   estadoTurno?: string;
   encuentroId?: string | null;
+  facturacionEventoEstado?: string | null;
+  facturacionEventoDetalle?: string | null;
+};
+
+export type EventoFacturacionTurnoResponse = {
+  turnoId: string;
+  estado: string;
+  errorDetalle?: string | null;
+  createdAt?: string | null;
+  processedAt?: string | null;
 };
 
 
@@ -88,6 +98,16 @@ export type ConfirmarArriboTurnoRequest = {
   requierePago?: boolean;
   pagoRegistrado?: boolean;
   practicaCienPorcientoConvenida?: boolean;
+  financiadorId?: string;
+  planId?: string;
+  servicioNombre?: string;
+  centroId?: string;
+  /** Práctica asistencial del turno — propagada al outbox de facturación. */
+  practicaOrigenNombre?: string;
+  practicaOrigenCodigo?: string;
+  profesionalId?: string;
+  profesionalNombre?: string;
+  tipoOrigen?: string;
 };
 
 export type ActualizarEstadoTurnoRequest = {
@@ -170,4 +190,10 @@ export async function cerrarEncuentroTurno(
   request: CerrarEncuentroRequest
 ): Promise<CerrarEncuentroResponse> {
   return httpClient.post<CerrarEncuentroResponse>(`/api/v1/admision/turnos/${encodeURIComponent(turnoId)}/encuentro/cerrar`, request);
+}
+
+export async function obtenerEventoFacturacionTurno(
+  turnoId: string
+): Promise<EventoFacturacionTurnoResponse> {
+  return httpClient.get<EventoFacturacionTurnoResponse>(`/api/v1/admision/turnos/${encodeURIComponent(turnoId)}/facturacion-evento`);
 }

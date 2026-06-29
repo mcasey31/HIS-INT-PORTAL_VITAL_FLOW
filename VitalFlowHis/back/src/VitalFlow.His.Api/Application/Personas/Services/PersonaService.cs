@@ -15,6 +15,11 @@ public sealed class PersonaService(IPersonaRepository repository) : IPersonaServ
         return repository.BuscarPorTipoYNumeroDocumento(tipoDocumento, numeroDocumento);
     }
 
+    public IReadOnlyList<PersonaCandidataResponse> BuscarPorApellidoNombre(string apellido, string nombre)
+    {
+        return repository.BuscarPorApellidoNombre(apellido, nombre);
+    }
+
     public IReadOnlyList<PersonaCandidataResponse> BuscarPorSetDatosMinimos(BuscarPersonaSetMinimoRequest request)
     {
         return repository.BuscarPorSetDatosMinimos(request);

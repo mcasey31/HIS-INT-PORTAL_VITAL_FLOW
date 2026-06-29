@@ -8,6 +8,8 @@ import { useAuth } from "./auth/AuthContext";
 import { authApi } from "./auth/authApi";
 import { EstructuraInternaPage } from "./abms/EstructuraInternaPage";
 import { EscritorioClinicoPage } from "./escritorioClinico/EscritorioClinicoPage";
+import { ConveniosPage } from "./home/ConveniosPage";
+import { FacturacionPage } from "./home/FacturacionPage";
 import { HomePage } from "./home/HomePage";
 import { useUnsavedChanges } from "./navigation/UnsavedChangesContext";
 import { PersonasPage } from "./personas/PersonasPage";
@@ -216,12 +218,21 @@ export function App() {
     || hasRole("Auditor");
   const canAccessEscritorioClinico = hasRole("Administrador") || hasRole("Medico") || hasRole("Auditor");
   const canAccessEstructuraInterna = hasRole("Administrador") || hasRole("Administrador Seguridad");
+  const canAccessConvenios = canAccessEstructuraInterna;
+  const canAccessFacturacion =
+    hasRole("Administrador")
+    || hasRole("Administrativo")
+    || hasRole("Cajero")
+    || hasRole("Auditor")
+    || hasRole("Medico");
 
   const isAgenda = path.startsWith("/agenda");
   const isPersonas = path.startsWith("/personas");
   const isTurnos = path.startsWith("/turnos");
   const isAdmision = path.startsWith("/admision");
   const isEscritorioClinico = path.startsWith("/escritorio-clinico");
+  const isConvenios = path.startsWith("/convenios");
+  const isFacturacion = path.startsWith("/facturacion");
   const isEstructuraInterna = canAccessEstructuraInterna && path.startsWith("/estructura-interna");
 
   const breadcrumbItems: BreadcrumbItem[] = isAgenda
@@ -234,6 +245,10 @@ export function App() {
           ? [{ label: "Admision", path: "/admision" }, { label: "Landing" }]
           : isEscritorioClinico
             ? [{ label: "Historia clinica", path: "/escritorio-clinico" }, { label: hcaVistaActual === "panoramica" ? "Panoramica" : "Agenda asistencial" }]
+            : isConvenios
+              ? [{ label: "Convenios", path: "/convenios" }, { label: "Seteo del modulo" }]
+              : isFacturacion
+                ? [{ label: "Facturacion", path: "/facturacion" }, { label: "Acciones disponibles" }]
             : isEstructuraInterna
               ? [{ label: "ABMs", path: "/estructura-interna" }, { label: "Estructura Interna" }]
               : [{ label: "Inicio", path: "/" }, { label: "Accesos directos" }];
@@ -275,6 +290,10 @@ export function App() {
           ? "Admision"
           : isEscritorioClinico
             ? "Escritorio clinico"
+          : isConvenios
+            ? "Convenios"
+            : isFacturacion
+              ? "Facturacion"
         : isEstructuraInterna
           ? "Estructura Interna"
           : "Home";
@@ -345,6 +364,8 @@ export function App() {
         <Route path="/turnos" element={canAccessTurnos ? <TurnosPage /> : <HomePage />} />
         <Route path="/admision" element={canAccessAdmision ? <AdmisionPage /> : <HomePage />} />
         <Route path="/escritorio-clinico" element={canAccessEscritorioClinico ? <EscritorioClinicoPage /> : <HomePage />} />
+        <Route path="/convenios" element={canAccessConvenios ? <ConveniosPage /> : <HomePage />} />
+        <Route path="/facturacion" element={canAccessFacturacion ? <FacturacionPage /> : <HomePage />} />
         <Route path="/estructura-interna" element={canAccessEstructuraInterna ? <EstructuraInternaPage /> : <HomePage />} />
       </Routes>
     </XdWorkspace>

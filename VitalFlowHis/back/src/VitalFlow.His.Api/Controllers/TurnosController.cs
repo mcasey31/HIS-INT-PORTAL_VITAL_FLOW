@@ -16,6 +16,12 @@ public sealed class TurnosController(ITurnosService turnosService) : ControllerB
         return Ok(turnosService.GetTiposDocumento());
     }
 
+    [HttpGet("financiadores/catalogo")]
+    public ActionResult<IReadOnlyList<FinanciadorCatalogoTurnoResponse>> GetFinanciadoresCatalogo()
+    {
+        return Ok(turnosService.GetFinanciadoresCatalogo());
+    }
+
     [HttpGet("identificacion/paciente")]
     public ActionResult<IReadOnlyList<PacienteIdentificadoTurnoResponse>> IdentificarPaciente(
         [FromQuery] string tipoDocumento,
@@ -39,12 +45,11 @@ public sealed class TurnosController(ITurnosService turnosService) : ControllerB
     public ActionResult<IReadOnlyList<DisponibilidadSlotTurnoResponse>> BuscarDisponibilidad([FromBody] BuscarDisponibilidadTurnoRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.PacienteId)
-            || string.IsNullOrWhiteSpace(request.FinanciadorPlanId)
             || request.CentroIds.Count == 0
             || string.IsNullOrWhiteSpace(request.ServicioId)
             || string.IsNullOrWhiteSpace(request.PracticaId))
         {
-            return BadRequest(new { message = "pacienteId, financiadorPlanId, centroIds, servicioId y practicaId son obligatorios." });
+            return BadRequest(new { message = "pacienteId, centroIds, servicioId y practicaId son obligatorios." });
         }
 
         return Ok(turnosService.BuscarDisponibilidad(request));

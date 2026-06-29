@@ -1,7 +1,8 @@
 import { getTiposDocumento, TipoDocumento } from "../shared/catalogosApi";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AgendaDetail, AgendaSummary, getAgendaById, getAgendas } from "../agenda/agendaApi";
-import { actualizarEstadoTurno, buscarTurnosAdmision, confirmarArriboTurno, FinanciadorPlanAdmision, getSelectoresAdmision, identificarPacienteAdmision, PacienteIdentificadoAdmision, SelectoresAdmision, TurnoAdmision } from "./admisionApi";
+import { actualizarEstadoTurno, buscarTurnosAdmision, confirmarArriboTurno, FinanciadorPlanAdmision, getSelectoresAdmision, identificarPacienteAdmision, obtenerEventoFacturacionTurno, PacienteIdentificadoAdmision, SelectoresAdmision, TurnoAdmision } from "./admisionApi";
+import { useAuth } from "../auth/AuthContext";
 type AdmisionPageProps = {};
 type FinanciadorCatalogoItem = {
   id: string;
@@ -159,6 +160,7 @@ function mapFinanciadoresPaciente(financiadores: FinanciadorPlanAdmision[]): Fin
   });
 }
 export function useAdmision() {
+  const { centroId } = useAuth();
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumento[]>([]);
   const [tipoDocumento, setTipoDocumento] = useState("DNI");
   const [numeroDocumento, setNumeroDocumento] = useState("");
@@ -640,12 +642,26 @@ export function useAdmision() {
         setError("Debe verificar manualmente la elegibilidad en todos los financiadores activos no privados.");
         return;
       }
+      // Práctica asistencial: fuente primaria = prácticas explícitamente asociadas al turno.
+      // Si el turno aún no tiene práctica registrada en estado (flujo sin confirmar práctica),
+      // se envía como undefined — el backend acepta el campo como opcional.
+      const practicaNombreOrigen = practicasTurnoSeleccionado[0] ?? undefined;
+
       const data = await confirmarArriboTurno(turnoId, {
         pacienteId: pacienteSeleccionado.id,
         paciente: pacienteSeleccionado.apellidosNombres,
         documento: `${pacienteSeleccionado.tipoDocumento} ${pacienteSeleccionado.numeroDocumento}`,
-        financiador: `${financiadorSeleccionado.financiador} | ${financiadorSeleccionado.plan}`
+        financiador: `${financiadorSeleccionado.financiador} | ${financiadorSeleccionado.plan}`,
+        financiadorId: financiadorSeleccionado.financiadorId || undefined,
+        planId: financiadorSeleccionado.planId || undefined,
+        servicioNombre: turnoSeleccionado?.servicio || undefined,
+        centroId: centroId && centroId !== "global" ? centroId : undefined,
+        practicaOrigenNombre: practicaNombreOrigen,
+        profesionalNombre: turnoSeleccionado?.efector || undefined,
+        tipoOrigen: "TURNO",
       });
+
+      const eventoFacturacion = await obtenerEventoFacturacionTurno(turnoId).catch(() => null);
 
       // Refleja el nuevo estado en pantalla de forma inmediata.
       setTurnos((prev) =>
@@ -684,6 +700,11 @@ export function useAdmision() {
       setFinanciadorPlanId("");
       setElegibilidadManual({});
       setAdmissionSuccessMessage("Paciente Admitido OK");
+      if (eventoFacturacion) {
+        setInfo(`Facturacion: ${eventoFacturacion.estado}${eventoFacturacion.processedAt ? ` (${eventoFacturacion.processedAt})` : ""}${eventoFacturacion.errorDetalle ? ` - ${eventoFacturacion.errorDetalle}` : ""}`);
+      } else if (data.facturacionEventoEstado) {
+        setInfo(`Facturacion: ${data.facturacionEventoEstado}${data.facturacionEventoDetalle ? ` - ${data.facturacionEventoDetalle}` : ""}`);
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : "No se pudo confirmar arribo.";
       setError(message);

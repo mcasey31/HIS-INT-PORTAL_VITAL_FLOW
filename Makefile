@@ -38,15 +38,16 @@ help:
 
 up:
 	@echo "$(BLUE)Starting VitalFlow Docker Stack...$(NC)"
-	@$(DC) up -d
+	@powershell -ExecutionPolicy Bypass -File scripts/docker-manage.ps1 up integration all
 	@echo "$(GREEN)✓ Stack started!$(NC)"
 	@echo ""
 	@echo "$(GREEN)Services available at:$(NC)"
-	@echo "  $(BLUE)Portal:$(NC)       http://localhost:3000"
-	@echo "  $(BLUE)HIS Backend:$(NC)   http://localhost:3001/api"
+	@echo "  $(BLUE)Portal:$(NC)       http://localhost:3010"
+	@echo "  $(BLUE)HIS Backend:$(NC)  http://localhost:3011/api"
+	@echo "  $(BLUE)HIS Frontend:$(NC) http://localhost:5175"
 	@echo "  $(BLUE)Nginx:$(NC)         http://localhost:80"
-	@echo "  $(BLUE)PostgreSQL:$(NC)    localhost:5432"
-	@echo "  $(BLUE)Redis:$(NC)         localhost:6379"
+	@echo "  $(BLUE)PostgreSQL:$(NC)    localhost:5433"
+	@echo "  $(BLUE)Redis:$(NC)         localhost:6380"
 	@sleep 5
 	@$(DC) ps
 
@@ -102,13 +103,13 @@ shell-portal:
 test:
 	@echo "$(BLUE)Running health checks...$(NC)"
 	@echo "$(YELLOW)Checking PostgreSQL...$(NC)"
-	@$(DC) exec -T postgres pg_isready -U vitalflow_user && echo "$(GREEN)✓ PostgreSQL OK$(NC)" || echo "$(RED)✗ PostgreSQL FAILED$(NC)"
+	@$(DC) exec -T postgres pg_isready -U vitalflow_user -d vitalflow_his && echo "$(GREEN)✓ PostgreSQL OK$(NC)" || echo "$(RED)✗ PostgreSQL FAILED$(NC)"
 	@echo "$(YELLOW)Checking Redis...$(NC)"
 	@$(DC) exec -T redis redis-cli -a redis_secure_password ping && echo "$(GREEN)✓ Redis OK$(NC)" || echo "$(RED)✗ Redis FAILED$(NC)"
 	@echo "$(YELLOW)Checking HIS Backend...$(NC)"
-	@curl -s http://localhost:3001/api/health > /dev/null && echo "$(GREEN)✓ HIS Backend OK$(NC)" || echo "$(RED)✗ HIS Backend FAILED$(NC)"
+	@curl -s http://localhost:3011/api/health > /dev/null && echo "$(GREEN)✓ HIS Backend OK$(NC)" || echo "$(RED)✗ HIS Backend FAILED$(NC)"
 	@echo "$(YELLOW)Checking Portal...$(NC)"
-	@curl -s http://localhost:3000/api/health > /dev/null && echo "$(GREEN)✓ Portal OK$(NC)" || echo "$(RED)✗ Portal FAILED$(NC)"
+	@curl -s http://localhost:3010/api/health > /dev/null && echo "$(GREEN)✓ Portal OK$(NC)" || echo "$(RED)✗ Portal FAILED$(NC)"
 
 debug-on:
 	@echo "$(BLUE)Enabling debug services...$(NC)"
@@ -116,7 +117,7 @@ debug-on:
 	@echo "$(GREEN)✓ Debug services started$(NC)"
 	@echo ""
 	@echo "$(GREEN)Available at:$(NC)"
-	@echo "  $(BLUE)pgAdmin:$(NC)           http://localhost:5050"
+	@echo "  $(BLUE)pgAdmin:$(NC)           http://localhost:5051"
 	@echo "  $(BLUE)Redis Commander:$(NC)   http://localhost:8081"
 
 debug-off:

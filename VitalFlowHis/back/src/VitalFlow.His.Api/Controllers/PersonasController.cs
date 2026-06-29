@@ -29,6 +29,18 @@ public sealed class PersonasController(IPersonaService personaService) : Control
         return Ok(candidatos);
     }
 
+    [HttpGet("busqueda-por-nombre")]
+    public IActionResult BuscarPorApellidoNombre([FromQuery] string apellido, [FromQuery] string nombre)
+    {
+        if (string.IsNullOrWhiteSpace(apellido) || string.IsNullOrWhiteSpace(nombre))
+        {
+            return BadRequest(new { message = "apellido y nombre son obligatorios." });
+        }
+
+        var candidatos = personaService.BuscarPorApellidoNombre(apellido, nombre);
+        return Ok(candidatos);
+    }
+
     [HttpGet("busqueda-set-minimo")]
     public IActionResult BuscarPorSetMinimo(
         [FromQuery] string tipoDocumento,

@@ -36,6 +36,14 @@ export async function buscarPersonasPorDocumento(
   return httpClient.get<PersonaCandidata[]>(`/api/v1/personas/busqueda?${query}`);
 }
 
+export async function buscarPersonasPorApellidoNombre(
+  apellido: string,
+  nombre: string
+): Promise<PersonaCandidata[]> {
+  const query = new URLSearchParams({ apellido, nombre }).toString();
+  return httpClient.get<PersonaCandidata[]>(`/api/v1/personas/busqueda-por-nombre?${query}`);
+}
+
 export async function empadronarPersonaConSetMinimo(
   request: BuscarSetMinimoRequest
 ): Promise<PersonaCandidata> {

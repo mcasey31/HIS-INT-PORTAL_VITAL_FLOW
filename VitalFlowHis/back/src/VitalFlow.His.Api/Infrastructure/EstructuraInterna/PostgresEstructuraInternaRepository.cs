@@ -17,11 +17,14 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
             "servicio" => GetServicios(),
             "financiadores-planes" => GetFinanciadoresPlanes(),
             "practicas" => GetPracticas(),
+            "homologacion-facturacion" => GetHomologacionesFacturacion(),
+            "prestaciones-facturacion-vitalflow" => GetPrestacionesFacturacionVitalflow(),
             "dispositivos" => GetDispositivos(),
             "profesionales" => GetProfesionales(),
             "grupo-profesionales" => GetGruposProfesionales(),
             "usuarios-sistema" => GetUsuariosSistema(),
             "roles-seguridad" => GetRolesSeguridad(),
+            "modulos-his" => GetModulosHis(),
             _ => throw new ArgumentException("Nodo de estructura interna no soportado.")
         };
     }
@@ -34,11 +37,13 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
             "servicio" => SaveServicio(campos),
             "financiadores-planes" => SaveFinanciadorPlan(campos),
             "practicas" => SavePractica(campos),
+            "homologacion-facturacion" => SaveHomologacionFacturacion(campos),
             "dispositivos" => SaveDispositivo(campos),
             "profesionales" => SaveProfesional(campos),
             "grupo-profesionales" => SaveGrupoProfesional(campos),
             "usuarios-sistema" => throw new ArgumentException("Este nodo se guarda desde el flujo de seguridad."),
             "roles-seguridad" => SaveRolSeguridad(campos),
+            "modulos-his" => SaveModuloHis(campos),
             _ => throw new ArgumentException("Nodo de estructura interna no soportado.")
         };
     }
@@ -118,17 +123,21 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
     private IReadOnlyList<IReadOnlyDictionary<string, string?>> GetFinanciadoresPlanes()
     {
         const string sql = """
-            select p.id::text,
+            select cfp.id::text as id,
+                   c.id::text as centro_id,
+                   c.nombre as centro_nombre,
                    p.id::text as plan_id,
                    p.codigo as plan_codigo,
                    p.nombre as plan_nombre,
-                   p.activo::text,
+                   cfp.activo::text as activo,
                    f.id::text as financiador_id,
                    f.codigo as financiador_codigo,
                    f.nombre as financiador_nombre
-            from sch_persona.financiador_plan p
+            from sch_persona.centro_financiador_plan cfp
+            join sch_agenda.centro c on c.id = cfp.centro_id
+            join sch_persona.financiador_plan p on p.id = cfp.plan_financiador_id
             join sch_persona.financiador f on f.id = p.financiador_id
-            order by f.nombre, p.nombre;
+            order by c.nombre, f.nombre, p.nombre;
             """;
         return Query(sql);
     }
@@ -147,6 +156,67 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
             join sch_agenda.servicio s on s.id = p.servicio_id
             order by p.nombre;
             """;
+        return Query(sql);
+    }
+
+    private IReadOnlyList<IReadOnlyDictionary<string, string?>> GetHomologacionesFacturacion()
+    {
+        const string sql = """
+            select h.id::text,
+                   coalesce(p.id::text, '') as practica_id,
+                   coalesce(c.id::text, '') as centro_id,
+                   coalesce(c.nombre, '') as centro_nombre,
+                   coalesce(s.id::text, '') as servicio_id,
+                   coalesce(s.nombre, '') as servicio_nombre,
+                   h.practica_origen_codigo,
+                   coalesce(h.practica_origen_nombre, p.nombre, '') as practica_origen_nombre,
+                   coalesce(f.id::text, '') as financiador_id,
+                   coalesce(f.codigo, '') as financiador_codigo,
+                   coalesce(f.nombre, '') as financiador_nombre,
+                   coalesce(fp.id::text, '') as plan_id,
+                   coalesce(fp.codigo, '') as plan_codigo,
+                   coalesce(fp.nombre, '') as plan_nombre,
+                   h.catalogo_codigo,
+                   h.prestacion_destino_codigo,
+                   coalesce(h.prestacion_destino_nombre, '') as prestacion_destino_nombre,
+                   h.prioridad::text,
+                   h.activo::text
+            from sch_admision.homologacion_practica_catalogo_facturacion h
+            left join lateral (
+                select p1.id, p1.servicio_id, p1.nombre
+                from sch_agenda.practica p1
+                where upper(coalesce(p1.codigo_clinico, '')) = upper(h.practica_origen_codigo)
+                order by p1.updated_at desc, p1.created_at desc
+                limit 1
+            ) p on true
+            left join sch_agenda.servicio s on s.id = p.servicio_id
+            left join sch_agenda.centro c on c.id = s.centro_id
+            left join sch_persona.financiador_plan fp on fp.id = h.plan_id
+            left join sch_persona.financiador f on f.id = coalesce(h.financiador_id, fp.financiador_id)
+            order by coalesce(c.nombre, ''),
+                     coalesce(s.nombre, ''),
+                     coalesce(h.practica_origen_nombre, p.nombre, ''),
+                     h.prioridad asc,
+                     h.updated_at desc;
+            """;
+
+        return Query(sql);
+    }
+
+    private IReadOnlyList<IReadOnlyDictionary<string, string?>> GetPrestacionesFacturacionVitalflow()
+    {
+        const string sql = """
+            select p.id::text,
+                   p.codigo,
+                   p.descripcion,
+                   coalesce(p.modulo::text, 'false') as modulo
+            from sch_convenios.t_prestaciones_catalogos p
+            join sch_convenios.t_catalogos c on c.id = p.id_catalogo
+            where upper(c.codigo) = 'VITALFLOW'
+              and lower(coalesce(p.estado, 'activo')) = 'activo'
+            order by p.codigo, p.descripcion;
+            """;
+
         return Query(sql);
     }
 
@@ -209,6 +279,8 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
         var mail = GetRequired(campos, "mail");
         var activo = ParseBool(campos, "activo", true);
 
+        EnsureCentroNombreNoDuplicado(id, nombre);
+
         const string sql = """
             insert into sch_agenda.centro (id, nombre, direccion, telefono, mail, activo, created_at, updated_at)
             values (@id, @nombre, @direccion, @telefono, @mail, @activo, now(), now())
@@ -242,6 +314,50 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
         };
     }
 
+    private void EnsureCentroNombreNoDuplicado(Guid currentId, string nombre)
+    {
+        var canonicalNuevo = NormalizeCentroNombre(nombre);
+        if (string.IsNullOrWhiteSpace(canonicalNuevo))
+        {
+            throw new ArgumentException("El nombre del centro no puede quedar vacio luego de normalizarlo.");
+        }
+
+        const string sql = """
+            select id::text, nombre
+            from sch_agenda.centro
+            where id <> @id;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", currentId);
+
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            if (reader.IsDBNull(1))
+            {
+                continue;
+            }
+
+            var nombreExistente = reader.GetString(1);
+            if (string.Equals(NormalizeCentroNombre(nombreExistente), canonicalNuevo, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("Ya existe un centro con el mismo nombre.");
+            }
+        }
+    }
+
+    private static string NormalizeCentroNombre(string nombre)
+    {
+        return string.Join(' ', nombre
+            .Trim()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            .ToUpperInvariant();
+    }
+
     private IReadOnlyDictionary<string, string?> SaveServicio(IReadOnlyDictionary<string, string?> campos)
     {
         var id = TryParseGuid(campos, "id") ?? Guid.NewGuid();
@@ -268,6 +384,27 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
             cmd.Parameters.AddWithValue("nombre", nombre);
             cmd.Parameters.AddWithValue("activo", activo);
         });
+
+        if (!activo)
+        {
+            // Regla de negocio: al inactivar una asociacion Centro-Servicio,
+            // las agendas activas relacionadas deben dejar de estar operativas.
+            const string sqlInactivarAgendas = """
+                update sch_agenda.agenda
+                set estado = 'INACTIVA',
+                    visible_contact_center = false,
+                    updated_at = now()
+                where centro_id = @centro_id
+                  and servicio_id = @servicio_id
+                  and upper(estado) = 'ACTIVA';
+                """;
+
+            Execute(sqlInactivarAgendas, cmd =>
+            {
+                cmd.Parameters.AddWithValue("centro_id", centroId);
+                cmd.Parameters.AddWithValue("servicio_id", id);
+            });
+        }
 
         return new Dictionary<string, string?>
         {
@@ -369,8 +506,10 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
 
     private IReadOnlyDictionary<string, string?> SaveFinanciadorPlan(IReadOnlyDictionary<string, string?> campos)
     {
+        var asociacionId = TryParseGuid(campos, "id") ?? Guid.NewGuid();
+        var centroId = GetRequiredGuid(campos, "centro_id");
         var requestedFinanciadorId = TryParseGuid(campos, "financiador_id");
-        var planId = TryParseGuid(campos, "plan_id") ?? Guid.NewGuid();
+        var requestedPlanId = TryParseGuid(campos, "plan_id");
 
         var financiadorCodigoInput = GetOptional(campos, "financiador_codigo");
         var financiadorNombreInput = GetOptional(campos, "financiador_nombre");
@@ -381,6 +520,7 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
         Guid financiadorId;
         string financiadorCodigo;
         string financiadorNombre;
+        Guid planId;
 
         if (requestedFinanciadorId.HasValue)
         {
@@ -418,6 +558,40 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
             throw new ArgumentException("Debe informar codigo y nombre del plan.");
         }
 
+        string planCodigoCanonico;
+        string planNombreCanonico;
+
+        if (requestedPlanId.HasValue)
+        {
+            var existingPlanById = GetFinanciadorPlanById(requestedPlanId.Value)
+                ?? throw new InvalidOperationException("El plan seleccionado no existe.");
+
+            if (existingPlanById.FinanciadorId != financiadorId)
+            {
+                throw new InvalidOperationException("El plan seleccionado no pertenece al financiador indicado.");
+            }
+
+            planId = existingPlanById.Id;
+            planCodigoCanonico = existingPlanById.Codigo;
+            planNombreCanonico = existingPlanById.Nombre;
+        }
+        else
+        {
+            var existingPlan = GetFinanciadorPlanByCodigoOrNombre(financiadorId, planCodigo, planNombre);
+            if (existingPlan is not null)
+            {
+                planId = existingPlan.Id;
+                planCodigoCanonico = existingPlan.Codigo;
+                planNombreCanonico = existingPlan.Nombre;
+            }
+            else
+            {
+                planId = Guid.NewGuid();
+                planCodigoCanonico = planCodigo;
+                planNombreCanonico = planNombre;
+            }
+        }
+
         const string sqlFinanciador = """
             insert into sch_persona.financiador (id, codigo, nombre, activo, created_at, updated_at)
             values (@id, @codigo, @nombre, @activo, now(), now())
@@ -439,32 +613,53 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
                 updated_at = now();
             """;
 
+        const string sqlAsociacion = """
+            insert into sch_persona.centro_financiador_plan (id, centro_id, financiador_id, plan_financiador_id, activo, created_at, updated_at)
+            values (@id, @centro_id, @financiador_id, @plan_financiador_id, @activo, now(), now())
+            on conflict (id) do update
+            set centro_id = excluded.centro_id,
+                financiador_id = excluded.financiador_id,
+                plan_financiador_id = excluded.plan_financiador_id,
+                activo = excluded.activo,
+                updated_at = now();
+            """;
+
         Execute(sqlFinanciador, cmd =>
         {
             cmd.Parameters.AddWithValue("id", financiadorId);
             cmd.Parameters.AddWithValue("codigo", financiadorCodigo);
             cmd.Parameters.AddWithValue("nombre", financiadorNombre);
-            cmd.Parameters.AddWithValue("activo", activo);
+            cmd.Parameters.AddWithValue("activo", true);
         });
 
         Execute(sqlPlan, cmd =>
         {
             cmd.Parameters.AddWithValue("id", planId);
             cmd.Parameters.AddWithValue("financiador_id", financiadorId);
-            cmd.Parameters.AddWithValue("codigo", planCodigo);
-            cmd.Parameters.AddWithValue("nombre", planNombre);
+            cmd.Parameters.AddWithValue("codigo", planCodigoCanonico);
+            cmd.Parameters.AddWithValue("nombre", planNombreCanonico);
+            cmd.Parameters.AddWithValue("activo", true);
+        });
+
+        Execute(sqlAsociacion, cmd =>
+        {
+            cmd.Parameters.AddWithValue("id", asociacionId);
+            cmd.Parameters.AddWithValue("centro_id", centroId);
+            cmd.Parameters.AddWithValue("financiador_id", financiadorId);
+            cmd.Parameters.AddWithValue("plan_financiador_id", planId);
             cmd.Parameters.AddWithValue("activo", activo);
         });
 
         return new Dictionary<string, string?>
         {
-            ["id"] = planId.ToString(),
+            ["id"] = asociacionId.ToString(),
+            ["centro_id"] = centroId.ToString(),
             ["financiador_id"] = financiadorId.ToString(),
             ["financiador_codigo"] = financiadorCodigo,
             ["financiador_nombre"] = financiadorNombre,
             ["plan_id"] = planId.ToString(),
-            ["plan_codigo"] = planCodigo,
-            ["plan_nombre"] = planNombre,
+            ["plan_codigo"] = planCodigoCanonico,
+            ["plan_nombre"] = planNombreCanonico,
             ["activo"] = activo.ToString()
         };
     }
@@ -520,7 +715,64 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
         return new FinanciadorData(reader.GetGuid(0), reader.GetString(1), reader.GetString(2));
     }
 
+    private FinanciadorPlanData? GetFinanciadorPlanById(Guid planId)
+    {
+        const string sql = """
+            select id, financiador_id, codigo, nombre
+            from sch_persona.financiador_plan
+            where id = @id
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", planId);
+
+        using var reader = cmd.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return new FinanciadorPlanData(reader.GetGuid(0), reader.GetGuid(1), reader.GetString(2), reader.GetString(3));
+    }
+
+    private FinanciadorPlanData? GetFinanciadorPlanByCodigoOrNombre(Guid financiadorId, string codigo, string nombre)
+    {
+        const string sql = """
+            select id, financiador_id, codigo, nombre
+            from sch_persona.financiador_plan
+            where financiador_id = @financiador_id
+              and (
+                    upper(codigo) = upper(@codigo)
+                 or upper(nombre) = upper(@nombre)
+              )
+            order by updated_at desc
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("financiador_id", financiadorId);
+        cmd.Parameters.AddWithValue("codigo", codigo);
+        cmd.Parameters.AddWithValue("nombre", nombre);
+
+        using var reader = cmd.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return new FinanciadorPlanData(reader.GetGuid(0), reader.GetGuid(1), reader.GetString(2), reader.GetString(3));
+    }
+
     private sealed record FinanciadorData(Guid Id, string Codigo, string Nombre);
+
+    private sealed record FinanciadorPlanData(Guid Id, Guid FinanciadorId, string Codigo, string Nombre);
 
     private IReadOnlyDictionary<string, string?> SavePractica(IReadOnlyDictionary<string, string?> campos)
     {
@@ -566,6 +818,251 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
             ["codigo_clinico"] = codigoClinico,
             ["activa"] = activa.ToString()
         };
+    }
+
+    private IReadOnlyDictionary<string, string?> SaveHomologacionFacturacion(IReadOnlyDictionary<string, string?> campos)
+    {
+        var practicaOrigenCodigo = GetRequired(campos, "practica_origen_codigo").ToUpperInvariant();
+        var practicaOrigenNombre = GetOptional(campos, "practica_origen_nombre") ?? ResolvePracticaNombre(practicaOrigenCodigo);
+        var planId = TryParseGuid(campos, "plan_id");
+        var financiadorId = TryParseGuid(campos, "financiador_id");
+        var catalogoCodigo = (GetOptional(campos, "catalogo_codigo") ?? "VITALFLOW").ToUpperInvariant();
+        var prestacionDestinoCodigo = GetRequired(campos, "prestacion_destino_codigo");
+        var prestacionDestinoNombre = GetOptional(campos, "prestacion_destino_nombre") ?? ResolvePrestacionVitalflowNombre(catalogoCodigo, prestacionDestinoCodigo);
+        var prioridad = ParseNullableInt(campos, "prioridad") ?? 100;
+        var activo = ParseBool(campos, "activo", true);
+
+        if (planId.HasValue)
+        {
+            financiadorId = EnsurePlanYObtenerFinanciador(planId.Value, financiadorId);
+        }
+
+        EnsurePracticaClinicaExiste(practicaOrigenCodigo);
+        EnsurePrestacionVitalflowExiste(catalogoCodigo, prestacionDestinoCodigo);
+
+        var id = TryParseGuid(campos, "id")
+            ?? FindExistingHomologacionId(practicaOrigenCodigo, financiadorId, planId, catalogoCodigo)
+            ?? Guid.NewGuid();
+
+        const string sql = """
+            insert into sch_admision.homologacion_practica_catalogo_facturacion (
+                id,
+                practica_origen_codigo,
+                practica_origen_nombre,
+                financiador_id,
+                plan_id,
+                catalogo_codigo,
+                prestacion_destino_codigo,
+                prestacion_destino_nombre,
+                prioridad,
+                activo,
+                created_at,
+                updated_at)
+            values (
+                @id,
+                @practica_origen_codigo,
+                @practica_origen_nombre,
+                @financiador_id,
+                @plan_id,
+                @catalogo_codigo,
+                @prestacion_destino_codigo,
+                @prestacion_destino_nombre,
+                @prioridad,
+                @activo,
+                now(),
+                now())
+            on conflict (id) do update
+            set practica_origen_codigo = excluded.practica_origen_codigo,
+                practica_origen_nombre = excluded.practica_origen_nombre,
+                financiador_id = excluded.financiador_id,
+                plan_id = excluded.plan_id,
+                catalogo_codigo = excluded.catalogo_codigo,
+                prestacion_destino_codigo = excluded.prestacion_destino_codigo,
+                prestacion_destino_nombre = excluded.prestacion_destino_nombre,
+                prioridad = excluded.prioridad,
+                activo = excluded.activo,
+                updated_at = now();
+            """;
+
+        Execute(sql, cmd =>
+        {
+            cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("practica_origen_codigo", practicaOrigenCodigo);
+            cmd.Parameters.AddWithValue("practica_origen_nombre", (object?)practicaOrigenNombre ?? DBNull.Value);
+
+            var financiadorParam = cmd.Parameters.Add("financiador_id", NpgsqlDbType.Uuid);
+            financiadorParam.Value = (object?)financiadorId ?? DBNull.Value;
+
+            var planParam = cmd.Parameters.Add("plan_id", NpgsqlDbType.Uuid);
+            planParam.Value = (object?)planId ?? DBNull.Value;
+
+            cmd.Parameters.AddWithValue("catalogo_codigo", catalogoCodigo);
+            cmd.Parameters.AddWithValue("prestacion_destino_codigo", prestacionDestinoCodigo);
+            cmd.Parameters.AddWithValue("prestacion_destino_nombre", (object?)prestacionDestinoNombre ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("prioridad", prioridad);
+            cmd.Parameters.AddWithValue("activo", activo);
+        });
+
+        return new Dictionary<string, string?>
+        {
+            ["id"] = id.ToString(),
+            ["practica_origen_codigo"] = practicaOrigenCodigo,
+            ["practica_origen_nombre"] = practicaOrigenNombre,
+            ["financiador_id"] = financiadorId?.ToString(),
+            ["plan_id"] = planId?.ToString(),
+            ["catalogo_codigo"] = catalogoCodigo,
+            ["prestacion_destino_codigo"] = prestacionDestinoCodigo,
+            ["prestacion_destino_nombre"] = prestacionDestinoNombre,
+            ["prioridad"] = prioridad.ToString(CultureInfo.InvariantCulture),
+            ["activo"] = activo.ToString()
+        };
+    }
+
+    private Guid? FindExistingHomologacionId(string practicaOrigenCodigo, Guid? financiadorId, Guid? planId, string catalogoCodigo)
+    {
+        const string sql = """
+            select id
+            from sch_admision.homologacion_practica_catalogo_facturacion
+            where upper(practica_origen_codigo) = upper(@practica_origen_codigo)
+              and coalesce(financiador_id::text, '') = coalesce(@financiador_id::text, '')
+              and coalesce(plan_id::text, '') = coalesce(@plan_id::text, '')
+              and upper(catalogo_codigo) = upper(@catalogo_codigo)
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("practica_origen_codigo", practicaOrigenCodigo);
+
+        var financiadorParam = cmd.Parameters.Add("financiador_id", NpgsqlDbType.Uuid);
+        financiadorParam.Value = (object?)financiadorId ?? DBNull.Value;
+
+        var planParam = cmd.Parameters.Add("plan_id", NpgsqlDbType.Uuid);
+        planParam.Value = (object?)planId ?? DBNull.Value;
+
+        cmd.Parameters.AddWithValue("catalogo_codigo", catalogoCodigo);
+
+        var scalar = cmd.ExecuteScalar();
+        return scalar is Guid value ? value : scalar is string text && Guid.TryParse(text, out var parsed) ? parsed : null;
+    }
+
+    private void EnsurePracticaClinicaExiste(string practicaOrigenCodigo)
+    {
+        const string sql = """
+            select 1
+            from sch_agenda.practica
+            where upper(coalesce(codigo_clinico, '')) = upper(@codigo)
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("codigo", practicaOrigenCodigo);
+
+        if (cmd.ExecuteScalar() is null)
+        {
+            throw new InvalidOperationException("La practica clinica seleccionada no existe en el maestro HIS.");
+        }
+    }
+
+    private string? ResolvePracticaNombre(string practicaOrigenCodigo)
+    {
+        const string sql = """
+            select nombre
+            from sch_agenda.practica
+            where upper(coalesce(codigo_clinico, '')) = upper(@codigo)
+            order by updated_at desc, created_at desc
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("codigo", practicaOrigenCodigo);
+
+        return cmd.ExecuteScalar() as string;
+    }
+
+    private Guid? EnsurePlanYObtenerFinanciador(Guid planId, Guid? financiadorId)
+    {
+        const string sql = """
+            select financiador_id
+            from sch_persona.financiador_plan
+            where id = @plan_id
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("plan_id", planId);
+
+        var scalar = cmd.ExecuteScalar();
+        if (scalar is null)
+        {
+            throw new InvalidOperationException("El plan seleccionado no existe.");
+        }
+
+        var financiadorPlan = scalar is Guid guid ? guid : Guid.Parse(scalar.ToString()!);
+        if (financiadorId.HasValue && financiadorId.Value != financiadorPlan)
+        {
+            throw new InvalidOperationException("El plan seleccionado no pertenece al financiador indicado.");
+        }
+
+        return financiadorPlan;
+    }
+
+    private void EnsurePrestacionVitalflowExiste(string catalogoCodigo, string prestacionDestinoCodigo)
+    {
+        const string sql = """
+            select 1
+            from sch_convenios.t_prestaciones_catalogos p
+            join sch_convenios.t_catalogos c on c.id = p.id_catalogo
+            where upper(c.codigo) = upper(@catalogo_codigo)
+              and upper(p.codigo) = upper(@prestacion_destino_codigo)
+              and lower(coalesce(p.estado, 'activo')) = 'activo'
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("catalogo_codigo", catalogoCodigo);
+        cmd.Parameters.AddWithValue("prestacion_destino_codigo", prestacionDestinoCodigo);
+
+        if (cmd.ExecuteScalar() is null)
+        {
+            throw new InvalidOperationException("La prestacion destino no existe en el catalogo VITALFLOW.");
+        }
+    }
+
+    private string? ResolvePrestacionVitalflowNombre(string catalogoCodigo, string prestacionDestinoCodigo)
+    {
+        const string sql = """
+            select descripcion
+            from sch_convenios.t_prestaciones_catalogos p
+            join sch_convenios.t_catalogos c on c.id = p.id_catalogo
+            where upper(c.codigo) = upper(@catalogo_codigo)
+              and upper(p.codigo) = upper(@prestacion_destino_codigo)
+            order by p.descripcion
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("catalogo_codigo", catalogoCodigo);
+        cmd.Parameters.AddWithValue("prestacion_destino_codigo", prestacionDestinoCodigo);
+
+        return cmd.ExecuteScalar() as string;
     }
 
     private void EnsureServicioPerteneceACentro(Guid servicioId, Guid centroId)
@@ -644,16 +1141,18 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
         var servicioId = GetRequiredGuid(campos, "servicio_id");
         var nombre = GetRequired(campos, "nombre");
         var activo = ParseBool(campos, "activo", true);
+        var usuarioId = ResolveUsuarioIdProfesional(id, campos);
 
         const string sql = """
-            insert into sch_agenda.efector (id, centro_id, servicio_id, tipo_efector, nombre, activo, created_at, updated_at)
-            values (@id, @centro_id, @servicio_id, 'PROFESIONAL', @nombre, @activo, now(), now())
+            insert into sch_agenda.efector (id, centro_id, servicio_id, tipo_efector, nombre, activo, usuario_id, created_at, updated_at)
+            values (@id, @centro_id, @servicio_id, 'PROFESIONAL', @nombre, @activo, @usuario_id, now(), now())
             on conflict (id) do update
             set centro_id = excluded.centro_id,
                 servicio_id = excluded.servicio_id,
                 tipo_efector = excluded.tipo_efector,
                 nombre = excluded.nombre,
                 activo = excluded.activo,
+                usuario_id = excluded.usuario_id,
                 updated_at = now();
             """;
 
@@ -664,6 +1163,7 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
             cmd.Parameters.AddWithValue("servicio_id", servicioId);
             cmd.Parameters.AddWithValue("nombre", nombre);
             cmd.Parameters.AddWithValue("activo", activo);
+            cmd.Parameters.AddWithValue("usuario_id", usuarioId);
         });
 
         return new Dictionary<string, string?>
@@ -672,8 +1172,57 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
             ["centro_id"] = centroId.ToString(),
             ["servicio_id"] = servicioId.ToString(),
             ["nombre"] = nombre,
+            ["usuario_id"] = usuarioId.ToString(),
             ["activo"] = activo.ToString()
         };
+    }
+
+    private Guid ResolveUsuarioIdProfesional(Guid profesionalId, IReadOnlyDictionary<string, string?> campos)
+    {
+        var usuarioId = TryParseGuid(campos, "usuario_id") ?? GetUsuarioIdProfesionalExistente(profesionalId);
+        if (usuarioId is null)
+        {
+            throw new InvalidOperationException("Los profesionales deben estar vinculados a un usuario del sistema con persona asociada. Cree o edite el medico desde Usuarios del Sistema.");
+        }
+
+        const string sql = """
+            select count(*)
+            from sch_seguridad.usuario_sistema
+            where id = @usuario_id
+              and persona_id is not null;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("usuario_id", usuarioId.Value);
+        var count = Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
+        if (count == 0)
+        {
+            throw new InvalidOperationException("El usuario asociado al profesional debe existir y tener una persona vinculada.");
+        }
+
+        return usuarioId.Value;
+    }
+
+    private Guid? GetUsuarioIdProfesionalExistente(Guid profesionalId)
+    {
+        const string sql = """
+            select usuario_id
+            from sch_agenda.efector
+            where id = @id
+              and upper(tipo_efector) = 'PROFESIONAL'
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", profesionalId);
+        var value = cmd.ExecuteScalar();
+        return value is Guid guid ? guid : value is DBNull or null ? null : Guid.Parse(value.ToString()!);
     }
 
     private IReadOnlyDictionary<string, string?> SaveGrupoProfesional(IReadOnlyDictionary<string, string?> campos)
@@ -888,4 +1437,55 @@ public sealed class PostgresEstructuraInternaRepository(string connectionString)
 
         return int.TryParse(value, out var parsed) ? parsed : null;
     }
+
+    // ── Módulos HIS ──────────────────────────────────────────────────────────
+
+    private IReadOnlyList<IReadOnlyDictionary<string, string?>> GetModulosHis()
+    {
+        const string sql = """
+            select id::text, codigo, nombre, activo::text
+            from sch_admision.modulos_his
+            order by nombre;
+            """;
+        return Query(sql);
+    }
+
+    private IReadOnlyDictionary<string, string?> SaveModuloHis(IReadOnlyDictionary<string, string?> campos)
+    {
+        var id = GetRequiredGuid(campos, "id");
+        var activo = ParseBool(campos, "activo", false);
+
+        const string sql = """
+            update sch_admision.modulos_his
+            set activo     = @activo,
+                updated_at = now()
+            where id = @id
+            returning id::text, codigo, nombre, activo::text;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", id);
+        cmd.Parameters.AddWithValue("activo", activo);
+
+        using var reader = cmd.ExecuteReader();
+        if (!reader.Read())
+        {
+            throw new InvalidOperationException("Modulo HIS no encontrado.");
+        }
+
+        return new Dictionary<string, string?>
+        {
+            ["id"]     = reader.IsDBNull(0) ? null : reader.GetString(0),
+            ["codigo"] = reader.IsDBNull(1) ? null : reader.GetString(1),
+            ["nombre"] = reader.IsDBNull(2) ? null : reader.GetString(2),
+            ["activo"] = reader.IsDBNull(3) ? null : reader.GetString(3)
+        };
+    }
+
+    // ── Outbox Facturación ────────────────────────────────────────────────────
+    // Los métodos IsModuloHisActivo e InsertEventoFacturacionOutbox
+    // viven en PostgresAdmisionRepository (IAdmisionRepository).
+    // Este repositorio solo expone el ABM del nodo modulos-his para la UI.
 }

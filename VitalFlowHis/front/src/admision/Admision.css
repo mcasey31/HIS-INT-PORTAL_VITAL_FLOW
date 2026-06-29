@@ -386,9 +386,19 @@
 
 .admision-filtros-main {
   display: grid;
-  grid-template-columns: repeat(6, minmax(150px, 1fr)) auto;
+  grid-template-columns: repeat(6, minmax(150px, 1fr));
   gap: 0.6rem;
   align-items: end;
+}
+
+.admision-filtros-main > label {
+  min-width: 0;
+}
+
+.admision-filtros-main input,
+.admision-filtros-main select {
+  width: 100%;
+  min-width: 0;
 }
 
 .admision-filtros-avanzados {
@@ -406,7 +416,8 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   align-self: end;
-  padding-top: 1.55rem;
+  grid-column: 1 / -1;
+  padding-top: 0;
 }
 
 .admision-actions button {

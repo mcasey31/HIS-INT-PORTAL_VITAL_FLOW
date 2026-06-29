@@ -4,6 +4,12 @@ public interface ITurnosRepository
 {
     // ── paciente_financiador_plan ───────────────────────────────────────────
 
+    /// Devuelve pares centro-servicio activos para construir selectores sin depender de agendas.
+    IReadOnlyList<CentroServicioActivoRow> GetCentrosConServiciosActivos();
+
+    /// Devuelve catalogo activo de financiadores y planes.
+    IReadOnlyList<FinanciadorPlanCatalogoRow> GetFinanciadoresCatalogo();
+
     /// Devuelve financiadores/planes vigentes asociados al paciente.
     IReadOnlyList<PacienteFinanciadorPlanRow> GetFinanciadoresVigentesPaciente(Guid pacienteId);
 
@@ -56,6 +62,22 @@ public sealed record PacienteFinanciadorPlanRow(
     string Plan,
     string? NumeroAfiliado,
     bool Vigente
+);
+
+public sealed record FinanciadorPlanCatalogoRow(
+    Guid FinanciadorId,
+    string FinanciadorCodigo,
+    string FinanciadorNombre,
+    Guid PlanId,
+    string PlanCodigo,
+    string PlanNombre
+);
+
+public sealed record CentroServicioActivoRow(
+    Guid CentroId,
+    string CentroNombre,
+    Guid ServicioId,
+    string ServicioNombre
 );
 
 /// Fila de la tabla sch_turno.turno_paciente.
