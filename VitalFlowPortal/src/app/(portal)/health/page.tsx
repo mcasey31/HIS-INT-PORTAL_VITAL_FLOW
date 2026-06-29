@@ -22,6 +22,16 @@ import {
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
+type MedicalStudy = {
+    id: string;
+    modality: "LAB" | "IMG" | string;
+    description: string;
+    externalId: string;
+    date: string | Date;
+    reportUrl?: string | null;
+    pacsLink?: string | null;
+};
+
 export default function Health360Page() {
     const [selectedType, setSelectedType] = useState<'ALL' | 'LAB' | 'IMG'>('ALL');
     const [days, setDays] = useState<number | undefined>(30);
@@ -40,7 +50,7 @@ export default function Health360Page() {
     }
 
     // Limitamos a 5 resultados para no saturar la vista si no hay filtros activos
-    const displayStudies = studies?.slice(0, 5) ?? [];
+    const displayStudies: MedicalStudy[] = (studies ?? []).slice(0, 5) as MedicalStudy[];
 
     return (
         <div className="space-y-10 animate-in slide-in-from-bottom-2 duration-700">

@@ -32,7 +32,10 @@ export const patientRouter = createTRPCRouter({
             }
           }
           // Verificar nuevamente con el realUserId antes de crear
-          const existingByRealId = await ctx.db.patient.findUnique({ where: { userId: realUserId } });
+          const existingByRealId = await ctx.db.patient.findUnique({
+            where: { userId: realUserId },
+            include: { insurance: true, plan: true }
+          });
           if (existingByRealId) {
             patient = existingByRealId;
           } else {
