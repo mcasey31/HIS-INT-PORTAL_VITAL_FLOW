@@ -13,11 +13,19 @@ public sealed class InMemoryAgendaRepository : IAgendaRepository
     private readonly List<AgendaSlot> _slots = [];
     private readonly Dictionary<string, FhirAppointmentRecord> _appointmentsByIdempotency = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, FhirAppointmentRecord> _appointmentsById = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<PracticaInMemory> _practicas = [];
+
+    private sealed record PracticaInMemory(Guid ServicioId, string Nombre, int? DuracionMinutosSugerida);
 
     public InMemoryAgendaRepository()
     {
         var centroId = Guid.Parse("00000000-0000-0000-0000-000000000001");
         var servicioId = Guid.Parse("00000000-0000-0000-0000-000000000101");
+        _practicas.Add(new PracticaInMemory(servicioId, "Consulta general", 15));
+        _practicas.Add(new PracticaInMemory(servicioId, "Control clinico", 20));
+        _practicas.Add(new PracticaInMemory(servicioId, "Electrocardiograma", 25));
+        _practicas.Add(new PracticaInMemory(servicioId, "Espirometria", 30));
+        _practicas.Add(new PracticaInMemory(servicioId, "Curaciones", null));
         var efectorId = Guid.Parse("00000000-0000-0000-0000-000000000201");
         var lugarId = Guid.Parse("00000000-0000-0000-0000-000000000301");
 
@@ -413,6 +421,14 @@ public sealed class InMemoryAgendaRepository : IAgendaRepository
 
         agenda.Bloqueos.Add(bloqueo);
         return true;
+    }
+
+    public IReadOnlyList<PracticaAgenda> GetPracticas(Guid? servicioId)
+    {
+        return _practicas
+            .Where(p => !servicioId.HasValue || p.ServicioId == servicioId.Value)
+            .Select(p => new PracticaAgenda(p.Nombre, p.DuracionMinutosSugerida))
+            .ToList();
     }
 }
 

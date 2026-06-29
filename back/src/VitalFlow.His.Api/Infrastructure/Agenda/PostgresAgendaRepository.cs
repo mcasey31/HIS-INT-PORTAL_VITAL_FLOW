@@ -1813,5 +1813,34 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
             return false;
         }
     }
+
+    public IReadOnlyList<PracticaAgenda> GetPracticas(Guid? servicioId)
+    {
+        const string sql = """
+            select p.nombre,
+                   p.duracion_minutos_sugerida
+            from sch_agenda.practica p
+            where p.activa = true
+              and (@servicioId is null or p.servicio_id = @servicioId)
+            order by p.nombre
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("servicioId", (object?)servicioId ?? DBNull.Value);
+        using var reader = cmd.ExecuteReader();
+
+        var result = new List<PracticaAgenda>();
+        while (reader.Read())
+        {
+            result.Add(new PracticaAgenda(
+                reader.GetString(0),
+                reader.IsDBNull(1) ? null : reader.GetInt32(1)
+            ));
+        }
+
+        return result;
+    }
 }
 

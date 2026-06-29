@@ -30,4 +30,5 @@ public interface IAgendaRepository
     bool UpdateBloque(Guid agendaId, BloqueProgramacion bloque);
     bool UpdateBloquePracticas(Guid agendaId, Guid bloqueId, IReadOnlyList<BloquePractica> practicas);
     bool AddBloqueo(Guid agendaId, BloqueoAgenda bloqueo);
+    IReadOnlyList<PracticaAgenda> GetPracticas(Guid? servicioId);
 }

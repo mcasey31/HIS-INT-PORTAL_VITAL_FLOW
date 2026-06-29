@@ -138,6 +138,7 @@ public sealed record CentroAgenda(Guid Id, string Nombre);
 public sealed record ServicioAgenda(Guid Id, Guid CentroId, string Nombre);
 public sealed record EfectorAgenda(Guid Id, Guid CentroId, Guid ServicioId, string TipoEfector, string Nombre);
 public sealed record LugarAtencionAgenda(Guid Id, string Nombre);
+public sealed record PracticaAgenda(string Nombre, int? DuracionMinutosSugerida);
 
 public sealed class GrupoProfesionalAggregate
 {

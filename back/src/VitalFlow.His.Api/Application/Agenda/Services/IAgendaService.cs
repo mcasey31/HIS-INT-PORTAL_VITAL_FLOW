@@ -9,7 +9,7 @@ public interface IAgendaService
     IReadOnlyList<EfectorOptionResponse> GetEfectores(Guid centroId, Guid servicioId, string tipoEfector, string? query);
     IReadOnlyList<SelectorOptionResponse> GetLugaresAtencion(string? query);
     IReadOnlyList<DiaSemanaOptionResponse> GetDiasSemana();
-    IReadOnlyList<PracticaOptionResponse> GetPracticas(string? query);
+    IReadOnlyList<PracticaOptionResponse> GetPracticas(string? query, Guid? servicioId);
     IReadOnlyList<string> GetFrecuenciasBloque();
     IReadOnlyList<string> GetTiposEfector();
     IReadOnlyList<string> GetTiposAgenda();

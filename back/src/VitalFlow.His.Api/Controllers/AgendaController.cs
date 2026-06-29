@@ -62,9 +62,9 @@ public sealed class AgendaController(IAgendaService agendaService) : ControllerB
     }
 
     [HttpGet("selectores/practicas")]
-    public ActionResult<IReadOnlyList<PracticaOptionResponse>> GetPracticas([FromQuery] string? query)
+    public ActionResult<IReadOnlyList<PracticaOptionResponse>> GetPracticas([FromQuery] string? query, [FromQuery] Guid? servicioId)
     {
-        return Ok(agendaService.GetPracticas(query));
+        return Ok(agendaService.GetPracticas(query, servicioId));
     }
 
     [HttpGet("selectores/frecuencias-bloque")]

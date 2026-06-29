@@ -54,9 +54,12 @@ export async function getFrecuenciasBloque(): Promise<string[]> {
   return httpClient.get<string[]>(`/api/v1/agendas/selectores/frecuencias-bloque`);
 }
 
-export async function getPracticas(query?: string): Promise<PracticaOption[]> {
-  const suffix = query?.trim() ? `?query=${encodeURIComponent(query.trim())}` : "";
-  return httpClient.get<PracticaOption[]>(`/api/v1/agendas/selectores/practicas${suffix}`);
+export async function getPracticas(query?: string, servicioId?: string): Promise<PracticaOption[]> {
+  const params = new URLSearchParams();
+  if (query?.trim()) params.set("query", query.trim());
+  if (servicioId) params.set("servicioId", servicioId);
+  const qs = params.toString();
+  return httpClient.get<PracticaOption[]>(`/api/v1/agendas/selectores/practicas${qs ? `?${qs}` : ""}`);
 }
 
 export async function createAgenda(payload: CreateAgendaRequest): Promise<AgendaSummary> {

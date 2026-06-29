@@ -13,7 +13,7 @@ public sealed class AgendaService(IAgendaRepository repository, ITurnosRepositor
     private static readonly string[] FrecuenciasBloque = ["SEMANAL", "QUINCENAL", "ORDEN_MENSUAL"];
     private static readonly string[] DiasSemana = ["L", "M", "X", "J", "V", "S", "D"];
     private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
-    private static readonly PracticaOptionResponse[] PracticasCatalogo =
+    private static readonly PracticaOptionResponse[] PracticasCatalogoFallback =
     [
         new("Consulta general", 15),
         new("Control clinico", 20),
@@ -80,16 +80,25 @@ public sealed class AgendaService(IAgendaRepository repository, ITurnosRepositor
         return DiasSemana.Select(d => new DiaSemanaOptionResponse(d, d)).ToList();
     }
 
-    public IReadOnlyList<PracticaOptionResponse> GetPracticas(string? query)
+    public IReadOnlyList<PracticaOptionResponse> GetPracticas(string? query, Guid? servicioId)
     {
-        var practicas = PracticasCatalogo.AsEnumerable();
-        if (!string.IsNullOrWhiteSpace(query))
+        var practicas = repository.GetPracticas(servicioId);
+        if (practicas.Count == 0)
         {
-            var q = query.Trim();
-            practicas = practicas.Where(p => p.Nombre.Contains(q, StringComparison.OrdinalIgnoreCase));
+            practicas = repository.GetPracticas(null);
         }
 
-        return practicas.ToList();
+        if (practicas.Count == 0)
+        {
+            return PracticasCatalogoFallback
+                .Where(p => string.IsNullOrWhiteSpace(query) || p.Nombre.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        return practicas
+            .Where(p => string.IsNullOrWhiteSpace(query) || p.Nombre.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase))
+            .Select(p => new PracticaOptionResponse(p.Nombre, p.DuracionMinutosSugerida))
+            .ToList();
     }
 
     public IReadOnlyList<string> GetFrecuenciasBloque() => FrecuenciasBloque;
