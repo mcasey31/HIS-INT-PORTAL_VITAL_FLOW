@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { actualizarPersonaSetMinimo, buscarPersonasPorDocumento, buscarPersonasPorSetMinimo, createContacto, deleteContactos, empadronarPersonaConSetMinimo, getContactos, getDomicilio, upsertDomicilio } from "./personasApi";
+import { actualizarPersonaSetMinimo, buscarPersonasPorDocumento, buscarPersonasPorSetMinimo, createContacto, deleteContactos, empadronarPersonaConSetMinimo, getContactos, getDomicilio, updateContacto, upsertDomicilio } from "./personasApi";
 import type { PersonaCandidata } from "./personasApi";
 import { getTiposDocumento } from "../shared/catalogosApi";
 import type { TipoDocumento } from "../shared/catalogosApi";
@@ -55,6 +55,7 @@ export function usePersonasController() {
   const [direccionComentario, setDireccionComentario] = useState("");
   const [personaContactos, setPersonaContactos] = useState<PersonaContactoVinculada[]>([]);
   const [empadronarContactoModalOpen, setEmpadronarContactoModalOpen] = useState(false);
+  const [contactoEditandoId, setContactoEditandoId] = useState<string | null>(null);
   const [contactoNombre, setContactoNombre] = useState("");
   const [contactoApellido, setContactoApellido] = useState("");
   const [contactoTipoDocumento, setContactoTipoDocumento] = useState("DNI");
@@ -231,22 +232,30 @@ export function usePersonasController() {
       }
       setDeletedContactosServerIds([]);
     }
-    const toCreate = personaContactos.filter(c => !c.serverId);
-    for (const c of toCreate) {
-      try {
-        const created = await createContacto(personaId, {
-          nombre: c.nombre,
-          apellido: c.apellido,
-          tipoDocumento: c.tipoDocumento,
-          numeroDocumento: c.numeroDocumento,
-          fechaNacimiento: c.fechaNacimiento,
-          sexoBiologico: c.sexoBiologico,
-          telefono: c.telefonos.length > 0 ? c.telefonos[0] : undefined,
-          email: c.email || undefined
-        });
-        setPersonaContactos(prev => prev.map(pc => pc.id === c.id ? { ...pc, serverId: created.id } : pc));
-      } catch {
-        // no bloqueante por contacto individual
+    for (const c of personaContactos) {
+      const request = {
+        nombre: c.nombre,
+        apellido: c.apellido,
+        tipoDocumento: c.tipoDocumento,
+        numeroDocumento: c.numeroDocumento,
+        fechaNacimiento: c.fechaNacimiento,
+        sexoBiologico: c.sexoBiologico,
+        telefono: c.telefonos.length > 0 ? c.telefonos[0] : undefined,
+        email: c.email || undefined
+      };
+      if (c.serverId) {
+        try {
+          await updateContacto(personaId, c.serverId, request);
+        } catch {
+          // no bloqueante por contacto individual
+        }
+      } else {
+        try {
+          const created = await createContacto(personaId, request);
+          setPersonaContactos(prev => prev.map(pc => pc.id === c.id ? { ...pc, serverId: created.id } : pc));
+        } catch {
+          // no bloqueante por contacto individual
+        }
       }
     }
   };
@@ -371,7 +380,7 @@ export function usePersonasController() {
     setDireccionPais(DIRECCION_PAIS_DEFAULT); setDireccionProvincia("");
     setDireccionCalle(""); setDireccionNumero(""); setDireccionLocalidad(""); setDireccionBarrio("");
     setDireccionCodigoPostal(""); setDireccionPiso(""); setDireccionDepartamento(""); setDireccionComentario("");
-    setPersonaContactos([]); setEmpadronarContactoModalOpen(false);
+    setPersonaContactos([]); setEmpadronarContactoModalOpen(false); setContactoEditandoId(null);
     setContactoNombre(""); setContactoApellido(""); setContactoTipoDocumento("DNI"); setContactoNumeroDocumento("");
     setContactoFechaNacimiento(""); setContactoSexoBiologico("");
     setContactoDatosContacto(CONTACTOS_PERSONA_CONTACTO_INICIALES);
@@ -520,16 +529,40 @@ export function usePersonasController() {
     }));
   };
 
-  const resetEmpadronarContactoForm = () => {
-    setContactoNombre(""); setContactoApellido(""); setContactoTipoDocumento("DNI"); setContactoNumeroDocumento("");
-    setContactoFechaNacimiento(""); setContactoSexoBiologico("");
-    setContactoDatosContacto(CONTACTOS_PERSONA_CONTACTO_INICIALES);
+  const resetEmpadronarContactoForm = (contacto?: PersonaContactoVinculada) => {
+    if (contacto) {
+      setContactoNombre(contacto.nombre);
+      setContactoApellido(contacto.apellido);
+      setContactoTipoDocumento(contacto.tipoDocumento);
+      setContactoNumeroDocumento(contacto.numeroDocumento);
+      setContactoFechaNacimiento(contacto.fechaNacimiento);
+      setContactoSexoBiologico(contacto.sexoBiologico);
+      setContactoDatosContacto([
+        { id: "persona-contacto-1", tipo: "TELEFONO", valor: contacto.telefonos[0] ?? "", uso: "PERSONAL" },
+        { id: "persona-contacto-2", tipo: "CORREO_ELECTRONICO", valor: contacto.email || "", uso: "PERSONAL" }
+      ]);
+    } else {
+      setContactoNombre(""); setContactoApellido(""); setContactoTipoDocumento("DNI"); setContactoNumeroDocumento("");
+      setContactoFechaNacimiento(""); setContactoSexoBiologico("");
+      setContactoDatosContacto(CONTACTOS_PERSONA_CONTACTO_INICIALES);
+    }
     setContactoScanRawData(""); setContactoScanMessage(null);
     nextDatoContactoPersonaIdRef.current = 1;
   };
 
-  const onAbrirEmpadronarContacto = () => { resetEmpadronarContactoForm(); setEmpadronarContactoModalOpen(true); };
-  const onCerrarEmpadronarContacto = () => { setEmpadronarContactoModalOpen(false); setContactoScanMessage(null); };
+  const onAbrirEmpadronarContacto = (contactoId?: string) => {
+    if (contactoId) {
+      const contacto = personaContactos.find(c => c.id === contactoId);
+      if (!contacto) return;
+      setContactoEditandoId(contactoId);
+      resetEmpadronarContactoForm(contacto);
+    } else {
+      setContactoEditandoId(null);
+      resetEmpadronarContactoForm();
+    }
+    setEmpadronarContactoModalOpen(true);
+  };
+  const onCerrarEmpadronarContacto = () => { setEmpadronarContactoModalOpen(false); setContactoScanMessage(null); setContactoEditandoId(null); };
 
   const onAgregarDatoContactoPersona = () => {
     const next = `persona-contacto-extra-${nextDatoContactoPersonaIdRef.current}`;
@@ -574,15 +607,36 @@ export function usePersonasController() {
     const edad = calcularEdad(contactoFechaNacimiento);
     const sexoLabel = contactoSexoBiologico.trim().toUpperCase().startsWith("F") ? "F" : "M";
     const apellidosNombres = `${contactoApellido.trim()}, ${contactoNombre.trim()}`;
-    const nuevaPersonaContacto: PersonaContactoVinculada = {
-      id: `persona-contacto-vinculada-${nextPersonaContactoIdRef.current++}`,
-      tipoDocumento: contactoTipoDocumento, numeroDocumento: contactoNumeroDocumento.trim(),
-      apellidosNombres, nombre: contactoNombre.trim(), apellido: contactoApellido.trim(),
-      fechaNacimiento: contactoFechaNacimiento, sexoBiologico: contactoSexoBiologico,
-      sexoEdad: `${sexoLabel}(${edad})`, telefonos, email, estado: "TEMPORAL"
-    };
-    setPersonaContactos(prev => [...prev, nuevaPersonaContacto]);
-    setInfo(`Se agrego a ${apellidosNombres} como persona de contacto.`);
+
+    if (contactoEditandoId) {
+      setPersonaContactos(prev => prev.map(item => {
+        if (item.id !== contactoEditandoId) return item;
+        return {
+          ...item,
+          nombre: contactoNombre.trim(),
+          apellido: contactoApellido.trim(),
+          tipoDocumento: contactoTipoDocumento,
+          numeroDocumento: contactoNumeroDocumento.trim(),
+          fechaNacimiento: contactoFechaNacimiento,
+          sexoBiologico: contactoSexoBiologico,
+          apellidosNombres,
+          sexoEdad: `${sexoLabel}(${edad})`,
+          telefonos,
+          email
+        };
+      }));
+      setInfo(`Se actualizo a ${apellidosNombres} como persona de contacto.`);
+    } else {
+      const nuevaPersonaContacto: PersonaContactoVinculada = {
+        id: `persona-contacto-vinculada-${nextPersonaContactoIdRef.current++}`,
+        tipoDocumento: contactoTipoDocumento, numeroDocumento: contactoNumeroDocumento.trim(),
+        apellidosNombres, nombre: contactoNombre.trim(), apellido: contactoApellido.trim(),
+        fechaNacimiento: contactoFechaNacimiento, sexoBiologico: contactoSexoBiologico,
+        sexoEdad: `${sexoLabel}(${edad})`, telefonos, email, estado: "TEMPORAL"
+      };
+      setPersonaContactos(prev => [...prev, nuevaPersonaContacto]);
+      setInfo(`Se agrego a ${apellidosNombres} como persona de contacto.`);
+    }
     onCerrarEmpadronarContacto();
   };
 
@@ -665,7 +719,7 @@ export function usePersonasController() {
     direccionLocalidad, setDireccionLocalidad, direccionBarrio, setDireccionBarrio,
     direccionCodigoPostal, setDireccionCodigoPostal, direccionPiso, setDireccionPiso,
     direccionDepartamento, setDireccionDepartamento, direccionComentario, setDireccionComentario,
-    personaContactos, empadronarContactoModalOpen,
+    personaContactos, empadronarContactoModalOpen, contactoEditandoId,
     contactoNombre, setContactoNombre, contactoApellido, setContactoApellido,
     contactoTipoDocumento, setContactoTipoDocumento, contactoNumeroDocumento, setContactoNumeroDocumento,
     contactoFechaNacimiento, setContactoFechaNacimiento, contactoSexoBiologico, setContactoSexoBiologico,

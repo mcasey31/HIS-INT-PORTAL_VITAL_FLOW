@@ -120,6 +120,14 @@ export async function createContacto(
   return httpClient.post<PersonaContactoResponse>(`/api/v1/personas/${personaId}/contactos`, request);
 }
 
+export async function updateContacto(
+  personaId: string,
+  contactoId: string,
+  request: PersonaContactoRequest
+): Promise<PersonaContactoResponse> {
+  return httpClient.put<PersonaContactoResponse>(`/api/v1/personas/${personaId}/contactos/${contactoId}`, request);
+}
+
 export async function deleteContactos(
   personaId: string,
   contactoIds: string[]
