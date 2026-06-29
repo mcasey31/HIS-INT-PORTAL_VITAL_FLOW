@@ -28,8 +28,11 @@ using VitalFlow.His.Api.Infrastructure.HistoriaClinica;
 using VitalFlow.His.Api.Infrastructure.Personas;
 using VitalFlow.His.Api.Infrastructure.Turnos;
 using VitalFlow.His.Api.Infrastructure.Medicamento;
+using VitalFlow.His.Api.Infrastructure.Ubicacion;
 using VitalFlow.His.Api.Application.Medicamento.Repositories;
 using VitalFlow.His.Api.Application.Medicamento.Services;
+using VitalFlow.His.Api.Application.Ubicacion.Repositories;
+using VitalFlow.His.Api.Application.Ubicacion.Services;
 using VitalFlow.His.Api.Infrastructure.Prescripcion;
 using VitalFlow.His.Api.Application.Prescripcion.Services;
 using VitalFlow.His.Api.Infrastructure.BackgroundServices;
@@ -138,6 +141,12 @@ builder.Services.AddScoped<IMedicamentoRepository>(_ =>
         ?? throw new InvalidOperationException("ConnectionStrings:VitalFlowHisDb is required.");
     return new PostgresMedicamentoRepository(cs);
 });
+builder.Services.AddScoped<IUbicacionRepository>(_ =>
+{
+    var cs = builder.Configuration.GetConnectionString("VitalFlowHisDb")
+        ?? throw new InvalidOperationException("ConnectionStrings:VitalFlowHisDb is required.");
+    return new PostgresUbicacionRepository(cs);
+});
 builder.Services.AddScoped<IAgendaService, AgendaService>();
 builder.Services.AddScoped<IAdmisionService, AdmisionService>();
 builder.Services.AddScoped<IEstructuraInternaService, EstructuraInternaService>();
@@ -157,6 +166,7 @@ builder.Services.AddScoped<PostgresPrescripcionRepository>(_ =>
     return new PostgresPrescripcionRepository(cs);
 });
 builder.Services.AddScoped<IPrescripcionService, PrescripcionService>();
+builder.Services.AddScoped<IUbicacionService, UbicacionService>();
 builder.Services.AddScoped<IFhirService, FhirService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHostedService<ClearingDiarioBackgroundService>();

@@ -35,11 +35,6 @@ export type PersonaContactoVinculada = {
   estado: "TEMPORAL";
 };
 
-export type ProvinciaDireccion = {
-  nombre: string;
-  localidades: string[];
-};
-
 export type SetMinimoSnapshot = {
   tipoDocumento: string;
   numeroDocumento: string;
@@ -61,15 +56,7 @@ export const CONTACTOS_PERSONA_CONTACTO_INICIALES: ContactoDato[] = [
 
 export const DIRECCION_PAISES = ["Argentina", "Uruguay", "Chile", "Paraguay"];
 
-export const DIRECCION_PROVINCIAS: ProvinciaDireccion[] = [
-  { nombre: "Buenos Aires", localidades: ["La Plata", "Mar del Plata", "Bahia Blanca", "Quilmes", "San Isidro"] },
-  { nombre: "Ciudad Autonoma de Buenos Aires", localidades: ["Comuna 1", "Comuna 2", "Comuna 3", "Comuna 4", "Comuna 5"] },
-  { nombre: "Cordoba", localidades: ["Cordoba Capital", "Villa Carlos Paz", "Rio Cuarto", "Villa Maria"] },
-  { nombre: "Mendoza", localidades: ["Ciudad de Mendoza", "Godoy Cruz", "Guaymallen", "San Rafael"] }
-];
-
 export const DIRECCION_PAIS_DEFAULT = "Argentina";
-export const DIRECCION_PROVINCIA_DEFAULT = "Ciudad Autonoma de Buenos Aires";
 
 export function parseApellidosNombres(value: string): { apellido: string; nombre: string } {
   const split = value.split(",", 2);

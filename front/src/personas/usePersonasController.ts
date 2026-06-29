@@ -3,10 +3,12 @@ import { actualizarPersonaSetMinimo, buscarPersonasPorDocumento, buscarPersonasP
 import type { PersonaCandidata } from "./personasApi";
 import { getTiposDocumento } from "../shared/catalogosApi";
 import type { TipoDocumento } from "../shared/catalogosApi";
+import { getProvincias, getLocalidades } from "../shared/ubicacionApi";
+import type { ProvinciaDto, LocalidadDto } from "../shared/ubicacionApi";
 import type { ScanFlowState, DniScanData, ContactoTipo, ContactoDato, PersonaContactoVinculada, SetMinimoSnapshot } from "./personasTypes";
 import {
   CONTACTOS_INICIALES, CONTACTOS_PERSONA_CONTACTO_INICIALES,
-  DIRECCION_PAIS_DEFAULT, DIRECCION_PROVINCIA_DEFAULT, DIRECCION_PROVINCIAS,
+  DIRECCION_PAIS_DEFAULT,
   parseApellidosNombres, normalizarFechaParaInput, normalizarSexoEscaneo,
   parseQrData, normalizarValorContacto, calcularEdad
 } from "./personasTypes";
@@ -40,7 +42,9 @@ export function usePersonasController() {
   const [contactos, setContactos] = useState<ContactoDato[]>(CONTACTOS_INICIALES);
   const [advertenciaContactoModalOpen, setAdvertenciaContactoModalOpen] = useState(false);
   const [direccionPais, setDireccionPais] = useState(DIRECCION_PAIS_DEFAULT);
-  const [direccionProvincia, setDireccionProvincia] = useState(DIRECCION_PROVINCIA_DEFAULT);
+  const [direccionProvincia, setDireccionProvincia] = useState("");
+  const [provincias, setProvincias] = useState<ProvinciaDto[]>([]);
+  const [localidades, setLocalidades] = useState<LocalidadDto[]>([]);
   const [direccionCalle, setDireccionCalle] = useState("");
   const [direccionNumero, setDireccionNumero] = useState("");
   const [direccionLocalidad, setDireccionLocalidad] = useState("");
@@ -78,12 +82,20 @@ export function usePersonasController() {
   useEffect(() => {
     const run = async () => {
       try {
-        const tipos = await getTiposDocumento();
+        const [tipos, provinciasData] = await Promise.all([
+          getTiposDocumento(),
+          getProvincias()
+        ]);
         setTiposDocumento(tipos);
+        setProvincias(provinciasData);
         if (tipos.some(t => t.codigo === "DNI")) {
           setTipoDocumento("DNI");
         } else if (tipos.length > 0) {
           setTipoDocumento(tipos[0].codigo);
+        }
+        if (provinciasData.length > 0) {
+          const defaultProv = provinciasData.find(p => p.id === "CABA") ?? provinciasData[0];
+          setDireccionProvincia(defaultProv.nombre);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudieron cargar tipos de documento.");
@@ -95,12 +107,29 @@ export function usePersonasController() {
   useEffect(() => { numeroInputRef.current?.focus(); }, []);
   useEffect(() => () => { if (scanTimerRef.current) window.clearTimeout(scanTimerRef.current); }, []);
 
-  const direccionLocalidadesFiltradas = useMemo(() => {
-    const provincia = DIRECCION_PROVINCIAS.find(item => item.nombre === direccionProvincia);
-    return provincia?.localidades ?? [];
-  }, [direccionProvincia]);
   const direccionPaises = [DIRECCION_PAIS_DEFAULT];
-  const direccionProvincias = DIRECCION_PROVINCIAS;
+  const direccionProvincias = provincias;
+  const direccionLocalidadesFiltradas = useMemo(() =>
+    localidades.map(l => l.nombre),
+    [localidades]
+  );
+
+  const provinciaActual = useMemo(() =>
+    provincias.find(p => p.nombre === direccionProvincia),
+    [provincias, direccionProvincia]
+  );
+
+  useEffect(() => {
+    if (!provinciaActual) {
+      setLocalidades([]);
+      return;
+    }
+    let cancelled = false;
+    getLocalidades(provinciaActual.id).then(locs => {
+      if (!cancelled) setLocalidades(locs);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [provinciaActual]);
 
   useEffect(() => {
     if (direccionLocalidad && !direccionLocalidadesFiltradas.includes(direccionLocalidad)) {
@@ -278,7 +307,7 @@ export function usePersonasController() {
     setModoEdicionEmpadronamiento(false);
     lastRebusquedaSignatureRef.current = "";
     setContactos(CONTACTOS_INICIALES); nextContactoIdRef.current = 3; setAdvertenciaContactoModalOpen(false);
-    setDireccionPais(DIRECCION_PAIS_DEFAULT); setDireccionProvincia(DIRECCION_PROVINCIA_DEFAULT);
+    setDireccionPais(DIRECCION_PAIS_DEFAULT); setDireccionProvincia("");
     setDireccionCalle(""); setDireccionNumero(""); setDireccionLocalidad(""); setDireccionBarrio("");
     setDireccionCodigoPostal(""); setDireccionPiso(""); setDireccionDepartamento(""); setDireccionComentario("");
     setPersonaContactos([]); setEmpadronarContactoModalOpen(false);
