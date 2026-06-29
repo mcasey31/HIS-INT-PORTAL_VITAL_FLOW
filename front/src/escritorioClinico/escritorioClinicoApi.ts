@@ -1,5 +1,5 @@
 import { httpClient } from "../shared/httpClient";
-import type { AnularRecetaDigitalResponse, AsignarProblemaRequest, AsignarProblemaResponse, BuscarMedicamentosResponse, CrearPrescripcionRequest, CrearPrescripcionResponse, CrearEvolucionAmbulatoriaRequest, CrearEvolucionAmbulatoriaResponse, EvolucionAmbulatoriaResponse, GuardarSolicitudesEstudiosRequest, GuardarSolicitudesEstudiosResponse, PersonaCandidataBusqueda, ProblemaCronicoResponse, RecetaDigitalDetalleResponse, RecetaDigitalResumenResponse, SolicitudEstudioRecord } from "./escritorioClinicoTypes";
+import type { AnularRecetaDigitalResponse, AsignarProblemaRequest, AsignarProblemaResponse, BuscarMedicamentosResponse, CrearPrescripcionRequest, CrearPrescripcionResponse, CrearEvolucionAmbulatoriaRequest, CrearEvolucionAmbulatoriaResponse, EvolucionAmbulatoriaResponse, FinanciadorActivoResponse, GuardarSolicitudesEstudiosRequest, GuardarSolicitudesEstudiosResponse, PersonaCandidataBusqueda, ProblemaCronicoResponse, RecetaDigitalDetalleResponse, RecetaDigitalResumenResponse, SolicitudEstudioRecord } from "./escritorioClinicoTypes";
 
 export async function obtenerEvolucionesAmbulatoriasPaciente(
   pacienteId: string,
@@ -85,10 +85,17 @@ export async function anularRecetaDigital(
   return httpClient.post<AnularRecetaDigitalResponse>(`/api/v1/recetas/${encodeURIComponent(recetaId)}/anular`, { motivo });
 }
 
+export async function obtenerFinanciadorActivo(
+  personaId: string
+): Promise<FinanciadorActivoResponse> {
+  return httpClient.get<FinanciadorActivoResponse>(`/api/v1/personas/${encodeURIComponent(personaId)}/financiador-activo`);
+}
+
 export async function buscarMedicamentos(
   q?: string,
   generico?: string,
   laboratorio?: string,
+  soloGenerico?: boolean,
   pagina = 1,
   paginaSize = 20
 ): Promise<BuscarMedicamentosResponse> {
@@ -96,6 +103,7 @@ export async function buscarMedicamentos(
   if (q) params.set("q", q);
   if (generico) params.set("generico", generico);
   if (laboratorio) params.set("laboratorio", laboratorio);
+  if (soloGenerico) params.set("soloGenerico", "true");
   params.set("pagina", String(pagina));
   params.set("paginaSize", String(paginaSize));
   return httpClient.get<BuscarMedicamentosResponse>(`/api/v1/medicamentos/buscar?${params.toString()}`);

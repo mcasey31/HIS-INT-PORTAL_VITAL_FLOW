@@ -751,6 +751,15 @@
   box-shadow: 0 2px 6px rgba(30, 79, 131, 0.12);
 }
 
+.hc-icon-button:disabled {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 .hc-empty-panoramica {
   border: 1px dashed #bfd1e6;
   border-radius: 12px;
@@ -829,13 +838,31 @@
 .hc-panoramica-header {
   display: flex;
   justify-content: space-between;
-  gap: 0.7rem;
+  gap: 0.5rem;
   border: 1px solid #d0e0f2;
-  border-radius: 12px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #f4f9ff 0%, #e8f1fc 40%, #f0f7ff 100%);
-  padding: 0.85rem;
-  margin-bottom: 0.85rem;
-  box-shadow: 0 2px 8px rgba(31, 63, 99, 0.05);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.65rem;
+  box-shadow: 0 1px 4px rgba(31, 63, 99, 0.04);
+}
+
+.hc-panoramica-info-compact h4 {
+  margin: 0 0 0.15rem;
+  font-size: 0.82rem;
+  color: #1f4068;
+  font-weight: 600;
+}
+
+.hc-panoramica-info-compact p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #3a5d80;
+  line-height: 1.35;
+}
+
+.hc-panoramica-info-compact strong {
+  color: #1d4a7a;
 }
 
 .hc-panoramica-header h3 {
@@ -844,8 +871,8 @@
 }
 
 .hc-panoramica-header p {
-  margin: 0.18rem 0 0;
-  font-size: 0.86rem;
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
 }
 
 .hc-panoramica-header strong {
@@ -890,77 +917,75 @@
 
 /* Specific variants */
 .btn-panoramica-evoluciones {
-  background: linear-gradient(135deg, #f0f7ff 0%, #e1efff 100%);
-  border-color: #b8d4f4;
-  color: #1d4f80;
+  background: #ffffff;
+  border-color: #d1dbe5;
+  color: #2c4d6f;
 }
 .btn-panoramica-evoluciones:hover:not(:disabled) {
-  background: linear-gradient(135deg, #e1efff 0%, #d4e7fe 100%);
-  border-color: #9fc6f0;
+  background: #f0f4f8;
+  border-color: #b0c4de;
 }
 
 .btn-panoramica-estudios {
-  background: linear-gradient(135deg, #f0f7ff 0%, #e1efff 100%);
-  border-color: #b8d4f4;
-  color: #1d4f80;
+  background: #ffffff;
+  border-color: #d1dbe5;
+  color: #2c4d6f;
 }
 .btn-panoramica-estudios:hover:not(:disabled) {
-  background: linear-gradient(135deg, #e1efff 0%, #d4e7fe 100%);
-  border-color: #9fc6f0;
+  background: #f0f4f8;
+  border-color: #b0c4de;
 }
 
 .btn-panoramica-receta {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  border-color: #7c3aed;
+  background: #0f6cab;
+  border-color: #0f6cab;
   color: #ffffff;
 }
 .btn-panoramica-receta:hover:not(:disabled) {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
-  border-color: #6d28d9;
-  box-shadow: 0 4px 12px rgba(124, 92, 246, 0.25);
+  background: #0d5d93;
+  border-color: #0d5d93;
 }
 
 .btn-panoramica-sistemas {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-color: #cbd5e1;
-  color: #475569;
+  background: #ffffff;
+  border-color: #d1dbe5;
+  color: #4a5568;
 }
 .btn-panoramica-sistemas:hover:not(:disabled) {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  border-color: #94a3b8;
+  background: #f7fafc;
+  border-color: #cbd5e0;
 }
 
 .btn-panoramica-llamar {
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-  border-color: #fde68a;
-  color: #b45309;
+  background: #fef8e7;
+  border-color: #f8e3a3;
+  color: #8c5c00;
 }
 .btn-panoramica-llamar:hover:not(:disabled) {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border-color: #f59e0b;
+  background: #fdf0cb;
+  border-color: #f4d47d;
 }
 
 .btn-panoramica-cerrar {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-  border-color: #b91c1c;
-  color: #ffffff;
+  background: #fff5f5;
+  border-color: #fbc4c4;
+  color: #c53030;
   grid-column: span 2;
 }
 .btn-panoramica-cerrar:hover:not(:disabled) {
-  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
-  border-color: #991b1b;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+  background: #fff0f0;
+  border-color: #feb2b2;
 }
 
 .btn-panoramica-volver {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-color: #cbd5e1;
-  color: #475569;
+  background: #ffffff;
+  border-color: #d1dbe5;
+  color: #4a5568;
   grid-column: span 2;
 }
 .btn-panoramica-volver:hover:not(:disabled) {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  border-color: #94a3b8;
+  background: #f7fafc;
+  border-color: #cbd5e0;
 }
 
 .btn-panoramica:disabled {
@@ -1068,6 +1093,10 @@
 .hc-row-meta {
   color: #556f8d;
   font-size: 0.82rem;
+}
+
+.hc-card-recetas {
+  max-height: 400px;
 }
 
 .hc-card-empty {
@@ -1634,21 +1663,53 @@
 }
 
 /* Medication search modal */
-.hc-medicamento-modal {
-  max-width: 800px;
-  width: 90%;
+.confirm-modal.hc-medicamento-modal {
+  width: min(850px, calc(100vw - 2rem)) !important;
+  max-width: 850px !important;
+  height: 580px !important;
+  max-height: calc(100vh - 2rem) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 1.25rem !important;
+}
+
+.confirm-modal.hc-medicamento-modal .modal-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.hc-medicamentos-resultados-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-top: 0.25rem;
+}
+
+.hc-medicamentos-resultados-scroll {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
 }
 
 .hc-medicamento-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 0.5rem;
   font-size: 0.85rem;
 }
 
 .hc-medicamento-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   text-align: left;
-  padding: 0.4rem 0.5rem;
+  padding: 0.5rem;
   background: #eaf1f9;
   border-bottom: 2px solid #c8d8ea;
   color: #1f3f63;
@@ -1657,7 +1718,7 @@
 }
 
 .hc-medicamento-table td {
-  padding: 0.4rem 0.5rem;
+  padding: 0.5rem;
   border-bottom: 1px solid #e3eaf2;
 }
 
@@ -1675,4 +1736,20 @@
   padding: 2rem 1rem;
   color: #7a92ab;
   font-style: italic;
+}
+
+.hc-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  margin-left: 0.3rem;
+  vertical-align: middle;
+}
+
+.hc-badge-generico {
+  background: #dff0d8;
+  color: #3c763d;
+  border: 1px solid #b8d9ac;
 }

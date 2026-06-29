@@ -10,7 +10,8 @@ namespace VitalFlow.His.Api.Controllers;
 [Authorize(Roles = "Medico,Auditor")]
 public sealed class PrescripcionController(
     IPrescripcionService prescripcionService,
-    IHttpContextAccessor httpContextAccessor
+    IHttpContextAccessor httpContextAccessor,
+    ILogger<PrescripcionController> logger
 ) : ControllerBase
 {
     [HttpPost]
@@ -21,13 +22,19 @@ public sealed class PrescripcionController(
             var usuarioId = httpContextAccessor.HttpContext?.User.FindFirst("userId")?.Value
                 ?? throw new UnauthorizedAccessException("Usuario no autenticado.");
             var username = httpContextAccessor.HttpContext?.User.Identity?.Name;
+            var matricula = httpContextAccessor.HttpContext?.User.FindFirst("matricula")?.Value;
 
-            var result = prescripcionService.Crear(request, usuarioId, username);
+            var result = prescripcionService.Crear(request, usuarioId, username, matricula);
             return Ok(result);
         }
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+
     }
 }

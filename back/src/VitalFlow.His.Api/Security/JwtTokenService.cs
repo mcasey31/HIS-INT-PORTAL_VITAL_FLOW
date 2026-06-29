@@ -53,6 +53,11 @@ public sealed class JwtTokenService : IJwtTokenService
             claims.Add(new Claim("personaId", user.PersonaId.Value.ToString()));
         }
 
+        if (!string.IsNullOrWhiteSpace(user.Matricula))
+        {
+            claims.Add(new Claim("matricula", user.Matricula));
+        }
+
         claims.AddRange(user.Roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
         var jwt = new JwtSecurityToken(

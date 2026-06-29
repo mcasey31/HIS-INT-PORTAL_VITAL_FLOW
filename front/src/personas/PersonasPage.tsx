@@ -73,6 +73,7 @@ export function PersonasPage({}: PersonasPageProps) {
     setDireccionComentario,
     personaContactos,
     empadronarContactoModalOpen,
+    contactoEditandoId,
     contactoNombre,
     setContactoNombre,
     contactoApellido,
@@ -616,7 +617,7 @@ export function PersonasPage({}: PersonasPageProps) {
         <article className="empadronamiento-section">
           <h3>Persona de contacto</h3>
           <div className="persona-contacto-head-actions">
-            <button type="button" className="btn-outline" onClick={onAbrirEmpadronarContacto}>
+            <button type="button" className="btn-outline" onClick={() => onAbrirEmpadronarContacto()}>
               + Agregar persona de contacto
             </button>
             <button
@@ -643,6 +644,7 @@ export function PersonasPage({}: PersonasPageProps) {
                     <th>Telefonos</th>
                     <th>Email</th>
                     <th>Estado</th>
+                    <th>Accion</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -671,7 +673,23 @@ export function PersonasPage({}: PersonasPageProps) {
                         )}
                       </td>
                       <td>{contacto.email || "-"}</td>
-                      <td>{contacto.estado}</td>
+                      <td>
+                        {contacto.serverId ? (
+                          <span className="persona-contacto-persisted-badge" title="Persistido">S</span>
+                        ) : (
+                          <span>{contacto.estado}</span>
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="contacto-icon-btn"
+                          onClick={() => onAbrirEmpadronarContacto(contacto.id)}
+                          aria-label={`Editar ${contacto.apellidosNombres}`}
+                        >
+                          ✏
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -831,8 +849,8 @@ export function PersonasPage({}: PersonasPageProps) {
       {empadronarContactoModalOpen ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Empadronar persona de contacto">
           <div className="scan-dni-modal persona-contacto-modal">
-            <h3>Empadronar persona de contacto</h3>
-            <p>Complete set minimo y datos de contacto para agregar la persona como contacto.</p>
+            <h3>{contactoEditandoId ? "Editar persona de contacto" : "Empadronar persona de contacto"}</h3>
+            <p>{contactoEditandoId ? "Modifique los datos de la persona de contacto." : "Complete set minimo y datos de contacto para agregar la persona como contacto."}</p>
 
             <div className="set-minimo-grid persona-contacto-set-grid">
               <label>
