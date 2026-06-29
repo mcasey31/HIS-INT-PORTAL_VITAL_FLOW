@@ -4,5 +4,5 @@ namespace VitalFlow.His.Api.Application.Prescripcion.Services;
 
 public interface IPrescripcionService
 {
-    CrearPrescripcionResponse Crear(CrearPrescripcionRequest request, string usuarioId, string? username);
+    CrearPrescripcionResponse Crear(CrearPrescripcionRequest request, string usuarioId, string? username, string? matricula);
 }

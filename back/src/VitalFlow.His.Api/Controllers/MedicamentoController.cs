@@ -15,10 +15,11 @@ public sealed class MedicamentoController(IMedicamentoService medicamentoService
         [FromQuery] string? q,
         [FromQuery] string? generico,
         [FromQuery] string? laboratorio,
+        [FromQuery] bool soloGenerico = false,
         [FromQuery] int pagina = 1,
         [FromQuery] int paginaSize = 20)
     {
-        var request = new BuscarMedicamentosRequest(q, generico, laboratorio, pagina, paginaSize);
+        var request = new BuscarMedicamentosRequest(q, generico, laboratorio, soloGenerico, pagina, paginaSize);
         var (items, totalCount) = medicamentoService.Buscar(request);
         return Ok(new { items, totalCount, pagina, paginaSize });
     }

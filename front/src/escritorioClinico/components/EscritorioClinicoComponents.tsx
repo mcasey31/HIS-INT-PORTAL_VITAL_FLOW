@@ -191,10 +191,10 @@ export function EscritorioClinicoListado({ state }: { state: useEscritorioClinic
                     <button type="button" className="hc-icon-button" title="Ver datos del turno" aria-label="Ver datos del turno" onClick={() => verTurno(turno)}>
                       <span aria-hidden="true">👁</span>
                     </button>
-                    <button type="button" className="hc-icon-button" title="Abrir historia clinica" aria-label="Abrir historia clinica" onClick={() => void abrirHistoriaClinica(turno)}>
+                    <button type="button" className="hc-icon-button" title={turno.llegada ? "Abrir historia clinica" : "El paciente no ha registrado ingreso (sin arribo)"} aria-label="Abrir historia clinica" onClick={() => void abrirHistoriaClinica(turno)} disabled={!turno.llegada}>
                       <span aria-hidden="true">📋</span>
                     </button>
-                    <button type="button" className="hc-icon-button" title="Llamar por megafono" aria-label="Llamar por megafono" onClick={() => void abrirDesdeMegafono(turno)} disabled={!estadoEsLlamable(turno.estado) || working || !esDiaActual}>
+                    <button type="button" className="hc-icon-button" title={turno.llegada ? "Llamar por megafono" : "El paciente no ha registrado ingreso (sin arribo)"} aria-label="Llamar por megafono" onClick={() => void abrirDesdeMegafono(turno)} disabled={!turno.llegada || !estadoEsLlamable(turno.estado) || working || !esDiaActual}>
                       <span aria-hidden="true">📣</span>
                     </button>
                   </div>
@@ -218,7 +218,8 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
     setEvolucionesFiltroProfesional, setEvolucionesFiltroServicio, setShowEvolucionesListado,
     showAsignarProblemaModal, setShowAsignarProblemaModal,
     abrirSistemasClinicos, canIntegrarSistemasClinicos,
-    solicitudesEstudiosPorTurno
+    solicitudesEstudiosPorTurno,
+    prescripcionModuleRecetas, recetasDetalle, imprimirReceta
   } = state;
 
   const pacienteEnAtencion = selectedTurno?.estado === "EN_ATENCION";
@@ -232,21 +233,12 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
         <p>Selecciona un paciente desde Plantilla HC o Megafono para abrir la historia clinica.</p>
       </div> : <>
         <header className="hc-panoramica-header">
-          <div>
-            <h3>Panoramica de Historia Clinica</h3>
+           <div className="hc-panoramica-info-compact">
+            <h4>Panoramica de Historia Clinica</h4>
             <p>
-              Paciente: <strong>{selectedTurno.paciente}</strong> | Estado: <strong>{estadoLabel(selectedTurno.estado)}</strong>
-            </p>
-            <p>
-              Documento: <strong>{selectedTurno.documento}</strong>
-              {" | "}
-              Financiador: <strong>{selectedTurno.financiador}</strong>
-            </p>
-            <p>
-              Ingreso por <strong>{modoIngreso === "megafono" ? "Megafono" : "Plantilla HC"}</strong>
-              {" | "}
-              Encuentro: <strong>{estadoLabel(encuentroEstado)}</strong>
-              {encuentroEstado === "ABIERTO" && encuentroCreadoEn ? <> | <TemporizadorAtencion creadoEn={encuentroCreadoEn} /></> : null}
+              <strong>{selectedTurno.paciente}</strong> — {selectedTurno.documento} — {selectedTurno.financiador} — Estado: {estadoLabel(selectedTurno.estado)}
+              {" — "}Encuentro: {estadoLabel(encuentroEstado)}
+              {encuentroEstado === "ABIERTO" && encuentroCreadoEn ? <> — <TemporizadorAtencion creadoEn={encuentroCreadoEn} /></> : null}
             </p>
           </div>
 
@@ -270,10 +262,10 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
             <button type="button" className="btn-panoramica btn-panoramica-estudios" onClick={abrirSolicitudEstudios} disabled={!puedeSolicitarEstudios}>
               🔬 Estudios ({totalEstudiosSolicitadosTurno})
             </button>
-            <button type="button" className="btn-panoramica btn-panoramica-receta" onClick={abrirRecetaDigital} disabled={!selectedTurno || selectedTurno.paciente === "Por identificar"}>
+            <button type="button" className="btn-panoramica btn-panoramica-receta" onClick={abrirRecetaDigital} disabled={!selectedTurno || !selectedTurno.llegada || selectedTurno.paciente === "Por identificar"}>
               💊 Prescribir
             </button>
-            <button type="button" className="btn-panoramica btn-panoramica-sistemas" onClick={abrirSistemasClinicos} disabled={!canIntegrarSistemasClinicos(selectedTurno)}>
+            <button type="button" className="btn-panoramica btn-panoramica-sistemas" onClick={abrirSistemasClinicos} disabled={!canIntegrarSistemasClinicos(selectedTurno) || !selectedTurno?.llegada}>
               💻 Sist. Clínicos
             </button>
             <button type="button" className="btn-panoramica btn-panoramica-llamar" onClick={() => void abrirDesdeMegafono(selectedTurno)} disabled={!canLlamar || working || !esDiaActual}>
@@ -305,6 +297,32 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
               )}
             </ul>}
           </article>
+          <article className="hc-card hc-card-recetas">
+            <h4>Recetas activas ({prescripcionModuleRecetas.filter(r => r.estado === "ACTIVA").length})</h4>
+            {prescripcionModuleRecetas.filter(r => r.estado === "ACTIVA").length === 0
+              ? <p className="hc-card-empty">Sin recetas activas</p>
+              : <ul>{prescripcionModuleRecetas.filter(r => r.estado === "ACTIVA").map(receta => {
+                const detalle = recetasDetalle[receta.recetaId];
+                return <li key={receta.recetaId}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <p className="hc-row-title">{new Date(receta.creadoEn).toLocaleDateString("es-AR")}</p>
+                      {detalle ? detalle.items.map(item => (
+                        <p key={item.itemId} className="hc-row-meta" style={{ marginLeft: "0.5rem" }}>
+                          {item.medicamentoDisplay}{item.dosisTexto ? ` — ${item.dosisTexto}` : ""}{item.frecuenciaTexto ? ` c/ ${item.frecuenciaTexto}` : ""}{item.duracionDias ? ` × ${item.duracionDias}d` : ""}
+                        </p>
+                      )) : <p className="hc-row-meta">{receta.cantidadItems} ítem(s)</p>}
+                    </div>
+                    <div style={{ display: "flex", gap: "0.35rem", flexShrink: 0 }}>
+                      <button type="button" className="btn-panoramica btn-panoramica-receta" style={{ padding: "0.25rem 0.6rem", fontSize: "0.8rem" }} onClick={() => imprimirReceta(receta)} title="Imprimir receta">
+                        🖨
+                      </button>
+                      <span style={{ fontSize: "1.1rem", color: "#9aaec2", cursor: "not-allowed", opacity: 0.6, lineHeight: "1.6" }} title="Enviar por correo electrónico (próximamente)">✉️</span>
+                    </div>
+                  </div>
+                </li>;
+              })}</ul>}
+          </article>
           {panoramica?.map(seccion => {
             const isProblemas = seccion.key === "problemas-cronicos";
             return <article key={seccion.key} className={`hc-card${isProblemas ? " hc-card-problemas" : ""}`}>
@@ -314,24 +332,29 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
               {seccion.registros.length === 0 ? <p className="hc-card-empty">No dispone datos</p> : <ul>
                 {seccion.registros.map(registro => {
                   const { fecha, hora } = formatDateTime(registro.fechaHora);
-                  const isUltimaAtencion = seccion.key === "ultima-atencion";
+                  const isClickable = seccion.key === "ultima-atencion" || seccion.key === "historia-clinica";
                   return <li key={registro.id}>
-                    {isUltimaAtencion ? <button type="button" className="hc-evolucion-link" disabled={!puedeAbrirEvoluciones} onClick={() => {
+                    {isClickable ? <button type="button" className="hc-evolucion-link" disabled={!puedeAbrirEvoluciones} onClick={() => {
                       if (!puedeAbrirEvoluciones) {
                         return;
                       }
-                      setEvolucionesFiltroProfesional("");
-                      setEvolucionesFiltroServicio("");
+                      if (seccion.key === "historia-clinica") {
+                        setEvolucionesFiltroProfesional(registro.titulo.split(" — ")[1] ?? "");
+                        setEvolucionesFiltroServicio(registro.titulo.split(" — ")[0] ?? "");
+                      } else {
+                        setEvolucionesFiltroProfesional("");
+                        setEvolucionesFiltroServicio("");
+                      }
                       setShowEvolucionesListado(true);
                     }}>
-                      {fecha} | {registro.detalle}
+                      {seccion.key === "historia-clinica" ? <><p className="hc-row-title">{registro.titulo}</p><p>{fecha} | {registro.detalle}</p></> : <>{fecha} | {registro.detalle}</>}
                     </button> : <>
                       <p className="hc-row-title">{registro.titulo}</p>
                       <p>{registro.detalle}</p>
                     </>}
 
-                    {isUltimaAtencion ? <p>
-                      Problemas asociados: {registro.problemasAsociados?.length ? registro.problemasAsociados.join(", ") : "Sin datos"}
+                    {registro.problemasAsociados?.length ? <p className="hc-row-meta">
+                      Problemas asociados: {registro.problemasAsociados.join(", ")}
                     </p> : null}
 
                     <p className="hc-row-meta">Fecha: {fecha} | Hora: {hora}</p>

@@ -459,6 +459,25 @@
   color: #264a72;
 }
 
+.btn-icon-receta {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.2rem 0.4rem;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  line-height: 1;
+}
+.btn-icon-receta:hover {
+  background: #eef3fa;
+  border-color: #c8d6e8;
+}
+.btn-icon-receta:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .admision-row-select-btn {
   min-width: 92px;
   background: #fff;

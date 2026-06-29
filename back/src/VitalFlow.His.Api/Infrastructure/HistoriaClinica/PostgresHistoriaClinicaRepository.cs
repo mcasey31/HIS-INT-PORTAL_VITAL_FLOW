@@ -357,10 +357,10 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
             PacienteId = recetaReader.GetGuid(recetaReader.GetOrdinal("paciente_id")).ToString(),
             EncuentroId = recetaReader.IsDBNull(recetaReader.GetOrdinal("encuentro_id"))
                 ? null
-                : recetaReader.GetGuid(recetaReader.GetOrdinal("encuentro_id")).ToString(),
+                : recetaReader.GetString(recetaReader.GetOrdinal("encuentro_id")),
             TurnoId = recetaReader.IsDBNull(recetaReader.GetOrdinal("turno_id"))
                 ? null
-                : recetaReader.GetGuid(recetaReader.GetOrdinal("turno_id")).ToString(),
+                : recetaReader.GetString(recetaReader.GetOrdinal("turno_id")),
             PrescriptorUsuarioId = recetaReader.GetGuid(recetaReader.GetOrdinal("prescriptor_usuario_id")).ToString(),
             PrescriptorMatricula = recetaReader.GetString(recetaReader.GetOrdinal("prescriptor_matricula")),
             OrganizacionOid = recetaReader.GetString(recetaReader.GetOrdinal("organizacion_oid")),

@@ -44,6 +44,7 @@ public sealed record TurnoAdmisionResponse(
     string Id,
     string Turno,
     string? Llegada,
+    string? PacienteId,
     string Paciente,
     string Documento,
     string Financiador,

@@ -337,9 +337,9 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         const string sql = """
             select tp.id,
                    tp.paciente_id,
-                   coalesce(e.nombre, '') as profesional,
-                   coalesce(s.nombre, '') as servicio,
-                   coalesce(c.nombre, '') as centro,
+                   coalesce(e.nombre, tp.profesional, '') as profesional,
+                   coalesce(s.nombre, tp.servicio, '') as servicio,
+                   coalesce(c.nombre, tp.centro, '') as centro,
                    tp.fecha_hora,
                    tp.estado,
                    tp.motivo,
@@ -375,9 +375,9 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         const string sql = """
             select tp.id,
                    tp.paciente_id,
-                   coalesce(e.nombre, '') as profesional,
-                   coalesce(s.nombre, '') as servicio,
-                   coalesce(c.nombre, '') as centro,
+                   coalesce(e.nombre, tp.profesional, '') as profesional,
+                   coalesce(s.nombre, tp.servicio, '') as servicio,
+                   coalesce(c.nombre, tp.centro, '') as centro,
                    tp.fecha_hora,
                    tp.estado,
                    tp.motivo,
@@ -409,13 +409,35 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         return result;
     }
 
+    public bool ExisteTurnoActivoDuplicado(string pacienteId, string servicio, DateOnly fecha)
+    {
+        const string sql = """
+            select 1
+            from sch_turno.turno_paciente
+            where paciente_id = @pacienteId
+              and upper(servicio) = upper(@servicio)
+              and (fecha_hora at time zone 'UTC')::date = @fecha
+              and upper(estado) in ('AGENDADO', 'PROGRAMADO')
+            limit 1
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("pacienteId", pacienteId);
+        cmd.Parameters.AddWithValue("servicio", servicio);
+        cmd.Parameters.AddWithValue("fecha", fecha);
+        using var reader = cmd.ExecuteReader();
+        return reader.Read();
+    }
+
     public void InsertTurnos(IEnumerable<TurnoPacienteRow> turnos)
     {
         const string sql = """
             insert into sch_turno.turno_paciente
-                (id, paciente_id, centro_id, servicio_id, efector_id, cupo_id, fecha_hora, estado, motivo, updated_at)
+                (id, paciente_id, profesional, servicio, centro, centro_id, servicio_id, efector_id, cupo_id, fecha_hora, estado, motivo, updated_at)
             values
-                (@id, @pacienteId, @centroId, @servicioId, @efectorId, @cupoId, @fechaHora, @estado, @motivo, now())
+                (@id, @pacienteId, @profesional, @servicio, @centro, @centroId, @servicioId, @efectorId, @cupoId, @fechaHora, @estado, @motivo, now())
             on conflict (id) do nothing
             """;
 
@@ -434,9 +456,9 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
     {
         const string sql = """
             insert into sch_turno.turno_paciente
-                (id, paciente_id, centro_id, servicio_id, efector_id, cupo_id, fecha_hora, estado, motivo, updated_at)
+                (id, paciente_id, profesional, servicio, centro, centro_id, servicio_id, efector_id, cupo_id, fecha_hora, estado, motivo, updated_at)
             values
-                (@id, @pacienteId, @centroId, @servicioId, @efectorId, @cupoId, @fechaHora, @estado, @motivo, now())
+                (@id, @pacienteId, @profesional, @servicio, @centro, @centroId, @servicioId, @efectorId, @cupoId, @fechaHora, @estado, @motivo, now())
             on conflict (id) do nothing
             """;
 
@@ -469,8 +491,8 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
     public Guid UpsertCupoAndGetId(Guid bloqueId, DateTimeOffset horaInicio, DateTimeOffset horaFin)
     {
         const string sql = """
-            insert into sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, updated_at)
-            values (@bloqueId, @horaInicio, @horaFin, 'libre', 1, false, now())
+            insert into sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
+            values (@bloqueId, @horaInicio, @horaFin, 'libre', 1, false, 'SYSTEM', 'SYSTEM', now())
             on conflict (bloque_id, hora_inicio)
             do update set hora_fin = excluded.hora_fin, updated_at = now()
             returning id
@@ -483,6 +505,27 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         cmd.Parameters.AddWithValue("horaInicio", horaInicio);
         cmd.Parameters.AddWithValue("horaFin", horaFin);
         return (Guid)cmd.ExecuteScalar()!;
+    }
+
+    public Guid? TryReservarCupo(Guid bloqueId, DateTimeOffset horaInicio, DateTimeOffset horaFin)
+    {
+        const string sql = """
+            insert into sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
+            values (@bloqueId, @horaInicio, @horaFin, 'reservado', 1, false, 'SYSTEM', 'SYSTEM', now())
+            on conflict (bloque_id, hora_inicio)
+            do update set estado = 'reservado', hora_fin = excluded.hora_fin, updated_at = now()
+            where sch_agenda.cupo.estado = 'libre'
+            returning id
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("bloqueId", bloqueId);
+        cmd.Parameters.AddWithValue("horaInicio", horaInicio);
+        cmd.Parameters.AddWithValue("horaFin", horaFin);
+        var result = cmd.ExecuteScalar();
+        return result is Guid g ? g : null;
     }
 
     // ── sobreturno_disponibilidad ────────────────────────────────────────────
@@ -509,9 +552,10 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
     {
         const string sql = """
             update sch_turno.sobreturno_disponibilidad
-            set disponibles = greatest(disponibles - 1, 0),
+            set disponibles = disponibles - 1,
                 updated_at  = now()
             where st_key = @stKey
+              and disponibles > 0
             returning disponibles
             """;
 
@@ -520,7 +564,7 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("stKey", stKey);
         var result = cmd.ExecuteScalar();
-        return result is int i ? i : 0;
+        return result is int i ? i : -1;
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
@@ -549,6 +593,9 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
 
         cmd.Parameters.AddWithValue("id", t.Id);
         cmd.Parameters.AddWithValue("pacienteId", t.PacienteId);
+        cmd.Parameters.AddWithValue("profesional", t.Profesional);
+        cmd.Parameters.AddWithValue("servicio", t.Servicio);
+        cmd.Parameters.AddWithValue("centro", t.Centro);
         cmd.Parameters.AddWithValue("centroId", t.CentroId);
         cmd.Parameters.AddWithValue("servicioId", t.ServicioId);
         cmd.Parameters.AddWithValue("efectorId", t.EfectorId);
