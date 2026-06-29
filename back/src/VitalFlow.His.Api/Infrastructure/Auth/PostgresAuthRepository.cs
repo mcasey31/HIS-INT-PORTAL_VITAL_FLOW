@@ -42,12 +42,13 @@ public sealed class PostgresAuthRepository(string connectionString) : IAuthRepos
                        when bool_or(lower(r.nombre) = 'administrador') then 'global'
                        when count(distinct ur.centro_id) > 1 then 'global'
                        else coalesce(min(ur.centro_id::text), 'global')
-                   end as centro_id
+                   end as centro_id,
+                   u.matricula
             from sch_seguridad.usuario_sistema u
             left join sch_seguridad.usuario_rol ur on ur.usuario_id = u.id
             left join sch_seguridad.rol r on r.id = ur.rol_id
             where lower(u.username) = lower(@username)
-            group by u.id, u.username, u.password_hash, u.estado;
+            group by u.id, u.username, u.password_hash, u.estado, u.matricula;
             """;
 
         using var conn = new NpgsqlConnection(connectionString);
@@ -71,7 +72,8 @@ public sealed class PostgresAuthRepository(string connectionString) : IAuthRepos
             reader.GetString(3),
             reader.GetString(4),
             roles,
-            reader.IsDBNull(6) ? null : reader.GetString(6));
+            reader.IsDBNull(6) ? null : reader.GetString(6),
+            reader.IsDBNull(7) ? null : reader.GetString(7));
     }
 
     public AuthUserRow? GetUserById(Guid userId)
@@ -87,12 +89,13 @@ public sealed class PostgresAuthRepository(string connectionString) : IAuthRepos
                        when bool_or(lower(r.nombre) = 'administrador') then 'global'
                        when count(distinct ur.centro_id) > 1 then 'global'
                        else coalesce(min(ur.centro_id::text), 'global')
-                   end as centro_id
+                   end as centro_id,
+                   u.matricula
             from sch_seguridad.usuario_sistema u
             left join sch_seguridad.usuario_rol ur on ur.usuario_id = u.id
             left join sch_seguridad.rol r on r.id = ur.rol_id
             where u.id = @user_id
-            group by u.id, u.username, u.password_hash, u.estado;
+            group by u.id, u.username, u.password_hash, u.estado, u.matricula;
             """;
 
         using var conn = new NpgsqlConnection(connectionString);
@@ -116,7 +119,8 @@ public sealed class PostgresAuthRepository(string connectionString) : IAuthRepos
                         reader.GetString(3),
                         reader.GetString(4),
             roles,
-                        reader.IsDBNull(6) ? null : reader.GetString(6));
+                        reader.IsDBNull(6) ? null : reader.GetString(6),
+            reader.IsDBNull(7) ? null : reader.GetString(7));
         }
 
         public bool UserHasCentro(Guid userId, Guid centroId)

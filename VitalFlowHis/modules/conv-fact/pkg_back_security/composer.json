@@ -1,0 +1,14 @@
+{
+  "name": "pkg_back_security/tools",
+  "description": "Local minimal security tools package for conv-fact runtime",
+  "type": "library",
+  "version": "dev-main",
+  "autoload": {
+    "psr-4": {
+      "pkg_back_security\\tools\\": "src/"
+    }
+  },
+  "require": {
+    "php": "^8.3"
+  }
+}

@@ -1,0 +1,143 @@
+﻿{
+  "config": {
+    "configFile": "C:\\Users\\marti\\OneDrive\\Desktop Laptop Samsung\\VITALFLOW HIS\\VitalFlow His\\front\\playwright.config.ts",
+    "rootDir": "C:/Users/marti/OneDrive/Desktop Laptop Samsung/VITALFLOW HIS/VitalFlow His/front/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/marti/OneDrive/Desktop Laptop Samsung/VITALFLOW HIS/VitalFlow His/front/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/marti/OneDrive/Desktop Laptop Samsung/VITALFLOW HIS/VitalFlow His/front/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.60.0",
+    "workers": 8,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "escritorio-clinico-cierre-encuentro.spec.ts",
+      "file": "escritorio-clinico-cierre-encuentro.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "HU 11775: no permite cerrar encuentro sin evolucion y permite cerrar luego de guardarla",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "timedOut",
+                  "duration": 90450,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 90000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 90000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 90000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\marti\\OneDrive\\Desktop Laptop Samsung\\VITALFLOW HIS\\VitalFlow His\\front\\e2e\\escritorio-clinico-cierre-encuentro.spec.ts",
+                        "column": 66,
+                        "line": 168
+                      },
+                      "message": "Error: locator.click: Test timeout of 90000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Escritorio clinico' })\u001b[22m\n\n\n  166 |\n  167 |   await page.locator(\".home-access-link:not([disabled])\").first().click();\n> 168 |   await page.getByRole(\"button\", { name: \"Escritorio clinico\" }).click();\n      |                                                                  ^\n  169 |\n  170 |   await expect(page.getByRole(\"heading\", { name: \"Seleccionar servicio\" })).toBeVisible();\n  171 |   await page.locator(\"section.confirm-modal select\").first().selectOption({ index: 1 });\n    at C:\\Users\\marti\\OneDrive\\Desktop Laptop Samsung\\VITALFLOW HIS\\VitalFlow His\\front\\e2e\\escritorio-clinico-cierre-encuentro.spec.ts:168:66"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-31T07:06:21.943Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\marti\\OneDrive\\Desktop Laptop Samsung\\VITALFLOW HIS\\VitalFlow His\\front\\test-results\\escritorio-clinico-cierre--a7347-e-cerrar-luego-de-guardarla-chromium\\test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\marti\\OneDrive\\Desktop Laptop Samsung\\VITALFLOW HIS\\VitalFlow His\\front\\test-results\\escritorio-clinico-cierre--a7347-e-cerrar-luego-de-guardarla-chromium\\video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\marti\\OneDrive\\Desktop Laptop Samsung\\VITALFLOW HIS\\VitalFlow His\\front\\test-results\\escritorio-clinico-cierre--a7347-e-cerrar-luego-de-guardarla-chromium\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\marti\\OneDrive\\Desktop Laptop Samsung\\VITALFLOW HIS\\VitalFlow His\\front\\test-results\\escritorio-clinico-cierre--a7347-e-cerrar-luego-de-guardarla-chromium\\trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "7ff192688bb49eb7a5bf-878c565fb460b4d4e0dc",
+          "file": "escritorio-clinico-cierre-encuentro.spec.ts",
+          "line": 161,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-05-31T07:06:20.633Z",
+    "duration": 92465.55900000001,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

@@ -31,8 +31,9 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
     serviceSelectionError, setServiceSelectionError, confirmarServicioIngreso, cancelarServicioIngreso,
     showLugarAtencionModal, setShowLugarAtencionModal, lugarAtencionPendienteId, setLugarAtencionPendienteId,
     efectoresDisponibles, lugarAtencionError, setLugarAtencionError, confirmarCambioLugarAtencion,
-    showMedicamentoModal, setShowMedicamentoModal, medicamentoSearchQuery, setMedicamentoSearchQuery,
+    showMedicamentoModal, setShowMedicamentoModal, medicamentoSearchQuery, setMedicamentoSearchQuery, medicamentoSearchTimer,
     medicamentoResultados, medicamentoLoading, medicamentoTotalCount, medicamentoPagina, medicamentoError,
+    medicamentoSoloGenerico, setMedicamentoSoloGenerico,
     ejecutarBusquedaMedicamento, seleccionarMedicamento,
     showPrescripcionFormModal, setShowPrescripcionFormModal, medicamentoSeleccionado,
     prescripcionDosis, setPrescripcionDosis, prescripcionFrecuencia, setPrescripcionFrecuencia,
@@ -393,48 +394,76 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
             <button type="button" className="modal-close" onClick={() => setShowMedicamentoModal(false)}>&times;</button>
           </div>
           <div className="modal-body">
-            <input
-              value={medicamentoSearchQuery}
-              onChange={event => setMedicamentoSearchQuery(event.target.value)}
-              placeholder="Buscar por nombre comercial, principio activo o laboratorio..."
-              className="hc-solicitudes-search"
-              autoFocus
-            />
+            <form
+              onSubmit={event => {
+                event.preventDefault();
+                if (medicamentoSearchTimer?.current) clearTimeout(medicamentoSearchTimer.current);
+                void ejecutarBusquedaMedicamento(medicamentoSearchQuery, 1);
+              }}
+              style={{ display: "flex", gap: "0.5rem", width: "100%", marginBottom: "0.25rem" }}
+            >
+              <input
+                value={medicamentoSearchQuery}
+                onChange={event => setMedicamentoSearchQuery(event.target.value)}
+                placeholder="Buscar por nombre comercial, principio activo o laboratorio..."
+                className="hc-solicitudes-search"
+                style={{ flex: 1, marginBottom: 0 }}
+                autoFocus
+              />
+              <button type="submit" className="btn-primary" style={{ padding: "0.5rem 1.25rem", height: "38px", minWidth: "90px" }}>
+                Buscar
+              </button>
+            </form>
+
+            <label className="hc-checkbox-label" style={{ display: "flex", alignItems: "center", gap: "0.35rem", marginBottom: "0.5rem", fontSize: "0.85rem", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={medicamentoSoloGenerico}
+                onChange={event => setMedicamentoSoloGenerico(event.target.checked)}
+              />
+              Solo genéricos
+            </label>
+
             {medicamentoLoading ? <p style={{ textAlign: "center", padding: "1rem" }}>Buscando...</p> : null}
             {medicamentoError ? <p className="hc-error">{medicamentoError}</p> : null}
             {!medicamentoLoading && medicamentoSearchQuery && medicamentoResultados.length === 0 ? <p className="hc-empty">No se encontraron medicamentos.</p> : null}
-            {medicamentoResultados.length > 0 ? <>
-              <p className="hc-solicitudes-help">{medicamentoTotalCount} resultado(s)</p>
-              <table className="hc-medicamento-table">
-                <thead>
-                  <tr>
-                    <th>Producto</th>
-                    <th>Presentación</th>
-                    <th>Laboratorio</th>
-                    <th>Principio activo</th>
-                    <th>Familia</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {medicamentoResultados.map(m => (
-                    <tr key={m.id} className="hc-medicamento-row" onClick={() => {
-                      seleccionarMedicamento(m);
-                    }}>
-                      <td>{m.producto}</td>
-                      <td>{m.presentacion}</td>
-                      <td>{m.laboratorio}</td>
-                      <td>{m.principioActivo}</td>
-                      <td>{m.familia}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {medicamentoTotalCount > 20 ? <div className="confirm-actions" style={{ marginTop: "0.5rem" }}>
-                <button type="button" className="btn-outline" disabled={medicamentoPagina <= 1} onClick={() => void ejecutarBusquedaMedicamento(medicamentoSearchQuery, medicamentoPagina - 1)}>Anterior</button>
-                <span style={{ padding: "0 0.5rem" }}>Pág. {medicamentoPagina}</span>
-                <button type="button" className="btn-outline" disabled={medicamentoResultados.length < 20} onClick={() => void ejecutarBusquedaMedicamento(medicamentoSearchQuery, medicamentoPagina + 1)}>Siguiente</button>
-              </div> : null}
-            </> : null}
+            
+            {!medicamentoLoading && medicamentoResultados.length > 0 ? (
+              <div className="hc-medicamentos-resultados-container">
+                <p className="hc-solicitudes-help" style={{ marginBottom: "0.35rem" }}>{medicamentoTotalCount} resultado(s)</p>
+                <div className="hc-medicamentos-resultados-scroll">
+                  <table className="hc-medicamento-table">
+                    <thead>
+                      <tr>
+                        <th>Producto</th>
+                        <th>Presentación</th>
+                        <th>Laboratorio</th>
+                        <th>Principio activo</th>
+                        <th>Familia</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {medicamentoResultados.map(m => (
+                        <tr key={m.id} className="hc-medicamento-row" onClick={() => seleccionarMedicamento(m)}>
+                          <td>{m.producto} {m.esGenerico ? <span className="hc-badge hc-badge-generico">Gen</span> : null}</td>
+                          <td>{m.presentacion}</td>
+                          <td>{m.laboratorio}</td>
+                          <td>{m.principioActivo}</td>
+                          <td>{m.familia}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {medicamentoTotalCount > 20 ? (
+                  <div className="confirm-actions" style={{ marginTop: "auto", paddingTop: "0.5rem" }}>
+                    <button type="button" className="btn-outline" disabled={medicamentoPagina <= 1} onClick={() => void ejecutarBusquedaMedicamento(medicamentoSearchQuery, medicamentoPagina - 1)}>Anterior</button>
+                    <span style={{ padding: "0 0.5rem", alignSelf: "center" }}>Pág. {medicamentoPagina}</span>
+                    <button type="button" className="btn-outline" disabled={medicamentoResultados.length < 20} onClick={() => void ejecutarBusquedaMedicamento(medicamentoSearchQuery, medicamentoPagina + 1)}>Siguiente</button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </section>
       </div> : null}
@@ -443,7 +472,15 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
         <section className="confirm-modal hc-medicamento-modal" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}>
           <div className="modal-header">
             <h3>Prescribir medicamento</h3>
-            <button type="button" className="modal-close" onClick={() => { if (!prescripcionGuardando) setShowPrescripcionFormModal(false); }}>&times;</button>
+            <div className="hc-prescripcion-header-actions">
+              {!prescripcionExitosa ? <>
+                <button type="button" className="btn-outline" onClick={() => setShowPrescripcionFormModal(false)} disabled={prescripcionGuardando}>Cancelar</button>
+                <button type="button" onClick={() => void guardarPrescripcion()} disabled={prescripcionGuardando}>
+                  {prescripcionGuardando ? "Guardando..." : "Guardar"}
+                </button>
+              </> : null}
+              <button type="button" className="modal-close" onClick={() => { if (!prescripcionGuardando) setShowPrescripcionFormModal(false); }}>&times;</button>
+            </div>
           </div>
           <div className="modal-body">
             {prescripcionExitosa ? <>
@@ -480,13 +517,6 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
               </label>
 
               {prescripcionError ? <p className="hc-error">{prescripcionError}</p> : null}
-
-              <div className="confirm-actions">
-                <button type="button" className="btn-outline" onClick={() => setShowPrescripcionFormModal(false)} disabled={prescripcionGuardando}>Cancelar</button>
-                <button type="button" onClick={() => void guardarPrescripcion()} disabled={prescripcionGuardando}>
-                  {prescripcionGuardando ? "Guardando..." : "Guardar prescripción"}
-                </button>
-              </div>
             </>}
           </div>
         </section>

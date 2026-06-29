@@ -25,3 +25,57 @@ public sealed record PersonaCandidataResponse(
     string? Email,
     string? Telefono
 );
+
+public sealed record DomicilioRequest(
+    string? LocalidadId,
+    string? Pais,
+    string? Provincia,
+    string? Localidad,
+    string? Calle,
+    string? Numero,
+    string? Barrio,
+    string? CodigoPostal,
+    string? Piso,
+    string? Departamento,
+    string? Comentario
+);
+
+public sealed record DomicilioResponse(
+    Guid Id,
+    Guid PersonaId,
+    string? LocalidadId,
+    string Pais,
+    string Provincia,
+    string Localidad,
+    string Calle,
+    string Numero,
+    string Barrio,
+    string CodigoPostal,
+    string Piso,
+    string Departamento,
+    string Comentario
+);
+
+public sealed record PersonaContactoRequest(
+    string Nombre,
+    string Apellido,
+    string TipoDocumento,
+    string NumeroDocumento,
+    string FechaNacimiento,
+    string SexoBiologico,
+    string? Telefono,
+    string? Email
+);
+
+public sealed record PersonaContactoResponse(
+    Guid Id,
+    Guid PersonaId,
+    string Nombre,
+    string Apellido,
+    string TipoDocumento,
+    string NumeroDocumento,
+    string FechaNacimiento,
+    string SexoBiologico,
+    string Telefono,
+    string Email
+);

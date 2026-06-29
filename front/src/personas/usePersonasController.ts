@@ -1,12 +1,14 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { actualizarPersonaSetMinimo, buscarPersonasPorDocumento, buscarPersonasPorSetMinimo, empadronarPersonaConSetMinimo } from "./personasApi";
+import { actualizarPersonaSetMinimo, buscarPersonasPorDocumento, buscarPersonasPorSetMinimo, createContacto, deleteContactos, empadronarPersonaConSetMinimo, getContactos, getDomicilio, updateContacto, upsertDomicilio } from "./personasApi";
 import type { PersonaCandidata } from "./personasApi";
 import { getTiposDocumento } from "../shared/catalogosApi";
 import type { TipoDocumento } from "../shared/catalogosApi";
+import { getProvincias, getLocalidades } from "../shared/ubicacionApi";
+import type { ProvinciaDto, LocalidadDto } from "../shared/ubicacionApi";
 import type { ScanFlowState, DniScanData, ContactoTipo, ContactoDato, PersonaContactoVinculada, SetMinimoSnapshot } from "./personasTypes";
 import {
   CONTACTOS_INICIALES, CONTACTOS_PERSONA_CONTACTO_INICIALES,
-  DIRECCION_PAIS_DEFAULT, DIRECCION_PROVINCIA_DEFAULT, DIRECCION_PROVINCIAS,
+  DIRECCION_PAIS_DEFAULT,
   parseApellidosNombres, normalizarFechaParaInput, normalizarSexoEscaneo,
   parseQrData, normalizarValorContacto, calcularEdad
 } from "./personasTypes";
@@ -40,7 +42,9 @@ export function usePersonasController() {
   const [contactos, setContactos] = useState<ContactoDato[]>(CONTACTOS_INICIALES);
   const [advertenciaContactoModalOpen, setAdvertenciaContactoModalOpen] = useState(false);
   const [direccionPais, setDireccionPais] = useState(DIRECCION_PAIS_DEFAULT);
-  const [direccionProvincia, setDireccionProvincia] = useState(DIRECCION_PROVINCIA_DEFAULT);
+  const [direccionProvincia, setDireccionProvincia] = useState("");
+  const [provincias, setProvincias] = useState<ProvinciaDto[]>([]);
+  const [localidades, setLocalidades] = useState<LocalidadDto[]>([]);
   const [direccionCalle, setDireccionCalle] = useState("");
   const [direccionNumero, setDireccionNumero] = useState("");
   const [direccionLocalidad, setDireccionLocalidad] = useState("");
@@ -51,6 +55,7 @@ export function usePersonasController() {
   const [direccionComentario, setDireccionComentario] = useState("");
   const [personaContactos, setPersonaContactos] = useState<PersonaContactoVinculada[]>([]);
   const [empadronarContactoModalOpen, setEmpadronarContactoModalOpen] = useState(false);
+  const [contactoEditandoId, setContactoEditandoId] = useState<string | null>(null);
   const [contactoNombre, setContactoNombre] = useState("");
   const [contactoApellido, setContactoApellido] = useState("");
   const [contactoTipoDocumento, setContactoTipoDocumento] = useState("DNI");
@@ -62,6 +67,7 @@ export function usePersonasController() {
   const [contactoScanMessage, setContactoScanMessage] = useState<string | null>(null);
   const [personaContactosSeleccionados, setPersonaContactosSeleccionados] = useState<string[]>([]);
   const [eliminarPersonaContactoModalOpen, setEliminarPersonaContactoModalOpen] = useState(false);
+  const [deletedContactosServerIds, setDeletedContactosServerIds] = useState<string[]>([]);
   const [selectedCandidatoId, setSelectedCandidatoId] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [scanModalOpen, setScanModalOpen] = useState(false);
@@ -78,12 +84,20 @@ export function usePersonasController() {
   useEffect(() => {
     const run = async () => {
       try {
-        const tipos = await getTiposDocumento();
+        const [tipos, provinciasData] = await Promise.all([
+          getTiposDocumento(),
+          getProvincias()
+        ]);
         setTiposDocumento(tipos);
+        setProvincias(provinciasData);
         if (tipos.some(t => t.codigo === "DNI")) {
           setTipoDocumento("DNI");
         } else if (tipos.length > 0) {
           setTipoDocumento(tipos[0].codigo);
+        }
+        if (provinciasData.length > 0) {
+          const defaultProv = provinciasData.find(p => p.id === "CABA") ?? provinciasData[0];
+          setDireccionProvincia(defaultProv.nombre);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudieron cargar tipos de documento.");
@@ -95,12 +109,29 @@ export function usePersonasController() {
   useEffect(() => { numeroInputRef.current?.focus(); }, []);
   useEffect(() => () => { if (scanTimerRef.current) window.clearTimeout(scanTimerRef.current); }, []);
 
-  const direccionLocalidadesFiltradas = useMemo(() => {
-    const provincia = DIRECCION_PROVINCIAS.find(item => item.nombre === direccionProvincia);
-    return provincia?.localidades ?? [];
-  }, [direccionProvincia]);
   const direccionPaises = [DIRECCION_PAIS_DEFAULT];
-  const direccionProvincias = DIRECCION_PROVINCIAS;
+  const direccionProvincias = provincias;
+  const direccionLocalidadesFiltradas = useMemo(() =>
+    localidades.map(l => l.nombre),
+    [localidades]
+  );
+
+  const provinciaActual = useMemo(() =>
+    provincias.find(p => p.nombre === direccionProvincia),
+    [provincias, direccionProvincia]
+  );
+
+  useEffect(() => {
+    if (!provinciaActual) {
+      setLocalidades([]);
+      return;
+    }
+    let cancelled = false;
+    getLocalidades(provinciaActual.id).then(locs => {
+      if (!cancelled) setLocalidades(locs);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [provinciaActual]);
 
   useEffect(() => {
     if (direccionLocalidad && !direccionLocalidadesFiltradas.includes(direccionLocalidad)) {
@@ -160,6 +191,74 @@ export function usePersonasController() {
     fechaNacimiento: fechaNacimiento.trim(),
     sexoBiologico: sexoBiologico.trim().toUpperCase()
   });
+
+  const buildDomicilioRequest = () => {
+    const prov = provincias.find(p => p.nombre === direccionProvincia);
+    return {
+      localidadId: prov?.id ?? null,
+      pais: direccionPais,
+      provincia: direccionProvincia,
+      localidad: direccionLocalidad,
+      calle: direccionCalle,
+      numero: direccionNumero,
+      barrio: direccionBarrio,
+      codigoPostal: direccionCodigoPostal,
+      piso: direccionPiso,
+      departamento: direccionDepartamento,
+      comentario: direccionComentario
+    };
+  };
+
+  const aplicarDomicilio = (domicilio: { pais: string; provincia: string; localidad: string; calle: string; numero: string; barrio: string; codigoPostal: string; piso: string; departamento: string; comentario: string }) => {
+    setDireccionPais(domicilio.pais || DIRECCION_PAIS_DEFAULT);
+    setDireccionProvincia(domicilio.provincia);
+    setDireccionLocalidad(domicilio.localidad);
+    setDireccionCalle(domicilio.calle);
+    setDireccionNumero(domicilio.numero);
+    setDireccionBarrio(domicilio.barrio);
+    setDireccionCodigoPostal(domicilio.codigoPostal);
+    setDireccionPiso(domicilio.piso);
+    setDireccionDepartamento(domicilio.departamento);
+    setDireccionComentario(domicilio.comentario);
+  };
+
+  const persistContactos = async (personaId: string) => {
+    const toDelete = deletedContactosServerIds;
+    if (toDelete.length > 0) {
+      try {
+        await deleteContactos(personaId, toDelete);
+      } catch {
+        // no bloqueante
+      }
+      setDeletedContactosServerIds([]);
+    }
+    for (const c of personaContactos) {
+      const request = {
+        nombre: c.nombre,
+        apellido: c.apellido,
+        tipoDocumento: c.tipoDocumento,
+        numeroDocumento: c.numeroDocumento,
+        fechaNacimiento: c.fechaNacimiento,
+        sexoBiologico: c.sexoBiologico,
+        telefono: c.telefonos.length > 0 ? c.telefonos[0] : undefined,
+        email: c.email || undefined
+      };
+      if (c.serverId) {
+        try {
+          await updateContacto(personaId, c.serverId, request);
+        } catch {
+          // no bloqueante por contacto individual
+        }
+      } else {
+        try {
+          const created = await createContacto(personaId, request);
+          setPersonaContactos(prev => prev.map(pc => pc.id === c.id ? { ...pc, serverId: created.id } : pc));
+        } catch {
+          // no bloqueante por contacto individual
+        }
+      }
+    }
+  };
 
   const applySetMinimoPrecargado = (data: DniScanData, fromScan: boolean) => {
     setTipoDocumento("DNI");
@@ -278,15 +377,16 @@ export function usePersonasController() {
     setModoEdicionEmpadronamiento(false);
     lastRebusquedaSignatureRef.current = "";
     setContactos(CONTACTOS_INICIALES); nextContactoIdRef.current = 3; setAdvertenciaContactoModalOpen(false);
-    setDireccionPais(DIRECCION_PAIS_DEFAULT); setDireccionProvincia(DIRECCION_PROVINCIA_DEFAULT);
+    setDireccionPais(DIRECCION_PAIS_DEFAULT); setDireccionProvincia("");
     setDireccionCalle(""); setDireccionNumero(""); setDireccionLocalidad(""); setDireccionBarrio("");
     setDireccionCodigoPostal(""); setDireccionPiso(""); setDireccionDepartamento(""); setDireccionComentario("");
-    setPersonaContactos([]); setEmpadronarContactoModalOpen(false);
+    setPersonaContactos([]); setEmpadronarContactoModalOpen(false); setContactoEditandoId(null);
     setContactoNombre(""); setContactoApellido(""); setContactoTipoDocumento("DNI"); setContactoNumeroDocumento("");
     setContactoFechaNacimiento(""); setContactoSexoBiologico("");
     setContactoDatosContacto(CONTACTOS_PERSONA_CONTACTO_INICIALES);
     setContactoScanRawData(""); setContactoScanMessage(null);
     nextPersonaContactoIdRef.current = 1; nextDatoContactoPersonaIdRef.current = 1;
+    setDeletedContactosServerIds([]);
     setCandidatos([]); setSelectedCandidatoId(null); setConsultado(false);
     setError(null); setInfo(null); setMostrarSetMinimo(false);
     numeroInputRef.current?.focus();
@@ -298,7 +398,7 @@ export function usePersonasController() {
     setInfo(`Candidato seleccionado: ${candidato.apellidosNombres}`);
   };
 
-  const onIniciarEdicionSeleccionado = () => {
+  const onIniciarEdicionSeleccionado = async () => {
     if (!selectedCandidato) return;
     const parsed = parseApellidosNombres(selectedCandidato.apellidosNombres);
     setTipoDocumento(selectedCandidato.tipoDocumento);
@@ -316,6 +416,34 @@ export function usePersonasController() {
     setMostrarSetMinimo(true);
     setModoEdicionEmpadronamiento(true);
     setInfo(`Editar empadronamiento habilitado para ${selectedCandidato.apellidosNombres}.`);
+    try {
+      const [domicilio, contactos] = await Promise.all([
+        getDomicilio(selectedCandidato.id),
+        getContactos(selectedCandidato.id)
+      ]);
+      if (domicilio && domicilio.id !== "00000000-0000-0000-0000-000000000000") {
+        aplicarDomicilio(domicilio);
+      }
+      if (contactos.length > 0) {
+        setPersonaContactos(contactos.map(c => ({
+          id: `persona-contacto-vinculada-${nextPersonaContactoIdRef.current++}`,
+          serverId: c.id,
+          tipoDocumento: c.tipoDocumento,
+          numeroDocumento: c.numeroDocumento,
+          apellidosNombres: `${c.apellido}, ${c.nombre}`,
+          nombre: c.nombre,
+          apellido: c.apellido,
+          fechaNacimiento: c.fechaNacimiento,
+          sexoBiologico: c.sexoBiologico,
+          sexoEdad: `${c.sexoBiologico}(${calcularEdad(c.fechaNacimiento)})`,
+          telefonos: c.telefono ? [c.telefono] : [],
+          email: c.email ?? "",
+          estado: "TEMPORAL"
+        })));
+      }
+    } catch {
+      // datos ampliados no disponibles
+    }
   };
 
   const onCancelarEdicionEmpadronamiento = () => {
@@ -329,6 +457,12 @@ export function usePersonasController() {
     try {
       setLoading(true); setError(null);
       const updated = await actualizarPersonaSetMinimo(selectedCandidatoId, requestSetMinimo());
+      try {
+        await upsertDomicilio(selectedCandidatoId, buildDomicilioRequest());
+      } catch {
+        // domicilio no bloqueante
+      }
+      await persistContactos(selectedCandidatoId);
       setCandidatos(prev => prev.map(item => item.id === selectedCandidatoId ? updated : item));
       setSetMinimoSnapshot(buildSetMinimoSnapshot());
       setInfo(`Set minimo actualizado para ${updated.apellidosNombres}.`);
@@ -355,6 +489,12 @@ export function usePersonasController() {
     try {
       setLoading(true); setError(null);
       const creada = await empadronarPersonaConSetMinimo(requestSetMinimo());
+      try {
+        await upsertDomicilio(creada.id, buildDomicilioRequest());
+      } catch {
+        // domicilio no bloqueante
+      }
+      await persistContactos(creada.id);
       setCandidatos(prev => [creada, ...prev.filter(item => item.id !== creada.id)]);
       setSelectedCandidatoId(creada.id);
       setConsultado(true);
@@ -389,16 +529,40 @@ export function usePersonasController() {
     }));
   };
 
-  const resetEmpadronarContactoForm = () => {
-    setContactoNombre(""); setContactoApellido(""); setContactoTipoDocumento("DNI"); setContactoNumeroDocumento("");
-    setContactoFechaNacimiento(""); setContactoSexoBiologico("");
-    setContactoDatosContacto(CONTACTOS_PERSONA_CONTACTO_INICIALES);
+  const resetEmpadronarContactoForm = (contacto?: PersonaContactoVinculada) => {
+    if (contacto) {
+      setContactoNombre(contacto.nombre);
+      setContactoApellido(contacto.apellido);
+      setContactoTipoDocumento(contacto.tipoDocumento);
+      setContactoNumeroDocumento(contacto.numeroDocumento);
+      setContactoFechaNacimiento(contacto.fechaNacimiento);
+      setContactoSexoBiologico(contacto.sexoBiologico);
+      setContactoDatosContacto([
+        { id: "persona-contacto-1", tipo: "TELEFONO", valor: contacto.telefonos[0] ?? "", uso: "PERSONAL" },
+        { id: "persona-contacto-2", tipo: "CORREO_ELECTRONICO", valor: contacto.email || "", uso: "PERSONAL" }
+      ]);
+    } else {
+      setContactoNombre(""); setContactoApellido(""); setContactoTipoDocumento("DNI"); setContactoNumeroDocumento("");
+      setContactoFechaNacimiento(""); setContactoSexoBiologico("");
+      setContactoDatosContacto(CONTACTOS_PERSONA_CONTACTO_INICIALES);
+    }
     setContactoScanRawData(""); setContactoScanMessage(null);
     nextDatoContactoPersonaIdRef.current = 1;
   };
 
-  const onAbrirEmpadronarContacto = () => { resetEmpadronarContactoForm(); setEmpadronarContactoModalOpen(true); };
-  const onCerrarEmpadronarContacto = () => { setEmpadronarContactoModalOpen(false); setContactoScanMessage(null); };
+  const onAbrirEmpadronarContacto = (contactoId?: string) => {
+    if (contactoId) {
+      const contacto = personaContactos.find(c => c.id === contactoId);
+      if (!contacto) return;
+      setContactoEditandoId(contactoId);
+      resetEmpadronarContactoForm(contacto);
+    } else {
+      setContactoEditandoId(null);
+      resetEmpadronarContactoForm();
+    }
+    setEmpadronarContactoModalOpen(true);
+  };
+  const onCerrarEmpadronarContacto = () => { setEmpadronarContactoModalOpen(false); setContactoScanMessage(null); setContactoEditandoId(null); };
 
   const onAgregarDatoContactoPersona = () => {
     const next = `persona-contacto-extra-${nextDatoContactoPersonaIdRef.current}`;
@@ -443,13 +607,36 @@ export function usePersonasController() {
     const edad = calcularEdad(contactoFechaNacimiento);
     const sexoLabel = contactoSexoBiologico.trim().toUpperCase().startsWith("F") ? "F" : "M";
     const apellidosNombres = `${contactoApellido.trim()}, ${contactoNombre.trim()}`;
-    const nuevaPersonaContacto: PersonaContactoVinculada = {
-      id: `persona-contacto-vinculada-${nextPersonaContactoIdRef.current++}`,
-      tipoDocumento: contactoTipoDocumento, numeroDocumento: contactoNumeroDocumento.trim(),
-      apellidosNombres, sexoEdad: `${sexoLabel}(${edad})`, telefonos, email, estado: "TEMPORAL"
-    };
-    setPersonaContactos(prev => [...prev, nuevaPersonaContacto]);
-    setInfo(`Se agrego a ${apellidosNombres} como persona de contacto.`);
+
+    if (contactoEditandoId) {
+      setPersonaContactos(prev => prev.map(item => {
+        if (item.id !== contactoEditandoId) return item;
+        return {
+          ...item,
+          nombre: contactoNombre.trim(),
+          apellido: contactoApellido.trim(),
+          tipoDocumento: contactoTipoDocumento,
+          numeroDocumento: contactoNumeroDocumento.trim(),
+          fechaNacimiento: contactoFechaNacimiento,
+          sexoBiologico: contactoSexoBiologico,
+          apellidosNombres,
+          sexoEdad: `${sexoLabel}(${edad})`,
+          telefonos,
+          email
+        };
+      }));
+      setInfo(`Se actualizo a ${apellidosNombres} como persona de contacto.`);
+    } else {
+      const nuevaPersonaContacto: PersonaContactoVinculada = {
+        id: `persona-contacto-vinculada-${nextPersonaContactoIdRef.current++}`,
+        tipoDocumento: contactoTipoDocumento, numeroDocumento: contactoNumeroDocumento.trim(),
+        apellidosNombres, nombre: contactoNombre.trim(), apellido: contactoApellido.trim(),
+        fechaNacimiento: contactoFechaNacimiento, sexoBiologico: contactoSexoBiologico,
+        sexoEdad: `${sexoLabel}(${edad})`, telefonos, email, estado: "TEMPORAL"
+      };
+      setPersonaContactos(prev => [...prev, nuevaPersonaContacto]);
+      setInfo(`Se agrego a ${apellidosNombres} como persona de contacto.`);
+    }
     onCerrarEmpadronarContacto();
   };
 
@@ -467,7 +654,18 @@ export function usePersonasController() {
   const onConfirmarEliminarPersonaContacto = () => {
     if (personaContactosSeleccionados.length === 0) { setEliminarPersonaContactoModalOpen(false); return; }
     const idsSeleccionados = new Set(personaContactosSeleccionados);
-    setPersonaContactos(prev => prev.filter(item => !idsSeleccionados.has(item.id)));
+    const removedServerIds: string[] = [];
+    setPersonaContactos(prev => {
+      const kept = prev.filter(item => {
+        if (idsSeleccionados.has(item.id)) {
+          if (item.serverId) removedServerIds.push(item.serverId);
+          return false;
+        }
+        return true;
+      });
+      return kept;
+    });
+    setDeletedContactosServerIds(prev => [...prev, ...removedServerIds]);
     setPersonaContactosSeleccionados([]);
     setEliminarPersonaContactoModalOpen(false);
   };
@@ -521,7 +719,7 @@ export function usePersonasController() {
     direccionLocalidad, setDireccionLocalidad, direccionBarrio, setDireccionBarrio,
     direccionCodigoPostal, setDireccionCodigoPostal, direccionPiso, setDireccionPiso,
     direccionDepartamento, setDireccionDepartamento, direccionComentario, setDireccionComentario,
-    personaContactos, empadronarContactoModalOpen,
+    personaContactos, empadronarContactoModalOpen, contactoEditandoId,
     contactoNombre, setContactoNombre, contactoApellido, setContactoApellido,
     contactoTipoDocumento, setContactoTipoDocumento, contactoNumeroDocumento, setContactoNumeroDocumento,
     contactoFechaNacimiento, setContactoFechaNacimiento, contactoSexoBiologico, setContactoSexoBiologico,

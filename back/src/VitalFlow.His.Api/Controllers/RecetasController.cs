@@ -7,7 +7,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/recetas")]
-[Authorize(Roles = "Medico,Auditor")]
+[Authorize(Roles = "Medico,Auditor,Administrador,Administrativo,Cajero,Enrolamiento Persona")]
 public sealed class RecetasController(IHistoriaClinicaService historiaClinicaService) : ControllerBase
 {
     [HttpPost]

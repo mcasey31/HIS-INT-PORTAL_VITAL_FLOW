@@ -11,6 +11,6 @@ public interface ITurnosService
     TurnosPacientePageResponse GetTurnosPaciente(string pacienteId, bool historial, int page, int pageSize);
     FinanciadorPlanTurnoResponse GuardarFinanciadorPaciente(string pacienteId, GuardarPacienteFinanciadorTurnoRequest request);
     void FinalizarVigenciaFinanciadorPaciente(string pacienteId, string financiadorPlanPacienteId);
-    AsignarTurnoResponse AsignarTurno(AsignarTurnoRequest request);
+    Task<AsignarTurnoResponse> AsignarTurno(AsignarTurnoRequest request);
     AsignarSobreturnoResponse AsignarSobreturno(AsignarSobreturnoRequest request);
 }

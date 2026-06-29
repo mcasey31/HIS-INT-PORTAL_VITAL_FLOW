@@ -41,6 +41,7 @@ export type TurnoAdmision = {
   id: string;
   turno: string;
   llegada: string | null;
+  pacienteId?: string | null;
   paciente: string;
   documento: string;
   financiador: string;
