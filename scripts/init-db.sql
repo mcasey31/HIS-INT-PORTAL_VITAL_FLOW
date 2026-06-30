@@ -10,6 +10,7 @@ CREATE SCHEMA IF NOT EXISTS sch_turno;
 CREATE SCHEMA IF NOT EXISTS sch_fhir;
 CREATE SCHEMA IF NOT EXISTS sch_persona;
 CREATE SCHEMA IF NOT EXISTS sch_seguridad;
+CREATE SCHEMA IF NOT EXISTS sch_hca;
 
 -- ================================================
 -- HIS Agenda Tables
