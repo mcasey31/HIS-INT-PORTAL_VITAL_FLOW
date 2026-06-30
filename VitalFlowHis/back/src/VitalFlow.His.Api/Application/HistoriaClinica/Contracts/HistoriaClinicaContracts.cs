@@ -92,6 +92,25 @@ public sealed record RecetaDigitalDetalleResponse(
     IReadOnlyList<RecetaDigitalEventoResponse> Eventos
 );
 
+public sealed record SolicitudEstudioResponse(
+    string Id,
+    string PacienteId,
+    string TurnoId,
+    string PracticaNombre,
+    string FechaSolicitada,
+    string? Observacion
+);
+
+public sealed record SolicitudEstudioItem(
+    string PracticaNombre,
+    string FechaSolicitada,
+    string? Observacion
+);
+
+public sealed record SincronizarSolicitudesEstudioRequest(
+    IReadOnlyList<SolicitudEstudioItem> Solicitudes
+);
+
 public sealed record AnularRecetaDigitalRequest(
     string Motivo,
     string UsuarioId

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { actualizarEstadoTurno, buscarTurnosAdmision, cerrarEncuentroTurno, getSelectoresAdmision, obtenerEncuentroTurno, SelectoresAdmision, TurnoAdmision } from "../admision/admisionApi";
-import { CrearEvolucionAmbulatoriaResponse, EvolucionAmbulatoriaResponse, PracticaCatalogoItem, crearEvolucionAmbulatoria, obtenerCatalogoPracticas, obtenerCategoriasCatalogo, obtenerEvolucionesAmbulatoriasPaciente } from "./escritorioClinicoApi";
+import { CrearEvolucionAmbulatoriaResponse, EvolucionAmbulatoriaResponse, PracticaCatalogoItem, SolicitudEstudioItem, crearEvolucionAmbulatoria, getSolicitudesEstudio, obtenerCatalogoPracticas, obtenerCategoriasCatalogo, obtenerEvolucionesAmbulatoriasPaciente, syncSolicitudesEstudio } from "./escritorioClinicoApi";
 import { useAuth } from "../auth/AuthContext";
 type UseEscritorioClinicoOptions = {
   onCancelSeleccionServicio?: () => void;
@@ -1447,6 +1447,23 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     setShowFechaPrimeraPracticaModal(false);
     setSolicitudError(null);
   }
+  async function guardarSolicitudesEstudio() {
+    if (!estadoPacienteId || !solicitudScopeId) return;
+    const scopeData = solicitudesEstudiosPorTurno[solicitudScopeId];
+    if (!scopeData) return;
+    const items: SolicitudEstudioItem[] = [];
+    for (const [fecha, practicas] of Object.entries(scopeData)) {
+      for (const nombre of practicas) {
+        const observacion = observacionesPorTurno[solicitudScopeId]?.[fecha]?.[nombre] ?? null;
+        items.push({ practicaNombre: nombre, fechaSolicitada: fecha, observacion });
+      }
+    }
+    try {
+      await syncSolicitudesEstudio(estadoPacienteId, solicitudScopeId, items);
+    } catch (err) {
+      console.error("Error al guardar solicitudes:", err);
+    }
+  }
   async function loadTurnos() {
     setLoading(true);
     setError(null);
@@ -1674,11 +1691,29 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     void (async () => {
       try {
         const response = await obtenerEncuentroTurno(selectedTurnoId);
-        const evoluciones = await obtenerEvolucionesAmbulatoriasPaciente(response.pacienteId, 20);
+        const [evoluciones, solicitudes] = await Promise.all([
+          obtenerEvolucionesAmbulatoriasPaciente(response.pacienteId, 20),
+          getSolicitudesEstudio(response.pacienteId, selectedTurnoId)
+        ]);
         if (active) {
           setEncuentroEstado(response.estado);
           setEstadoPacienteId(response.pacienteId);
           setEvolucionesAmbulatorias(evoluciones);
+          const scopeId = selectedTurnoId;
+          const solicitudesAgrupadas: Record<string, SolicitudesEstudiosPorFecha> = {};
+          const observacionesAgrupadas: Record<string, ObservacionesPorPracticaFecha> = {};
+          for (const s of solicitudes) {
+            if (!solicitudesAgrupadas[scopeId]) solicitudesAgrupadas[scopeId] = {};
+            if (!solicitudesAgrupadas[scopeId][s.fechaSolicitada]) solicitudesAgrupadas[scopeId][s.fechaSolicitada] = [];
+            solicitudesAgrupadas[scopeId][s.fechaSolicitada].push(s.practicaNombre);
+            if (s.observacion) {
+              if (!observacionesAgrupadas[scopeId]) observacionesAgrupadas[scopeId] = {};
+              if (!observacionesAgrupadas[scopeId][s.fechaSolicitada]) observacionesAgrupadas[scopeId][s.fechaSolicitada] = {};
+              observacionesAgrupadas[scopeId][s.fechaSolicitada][s.practicaNombre] = s.observacion;
+            }
+          }
+          setSolicitudesEstudiosPorTurno(solicitudesAgrupadas);
+          setObservacionesPorTurno(observacionesAgrupadas);
         }
       } catch {
         if (active) {
@@ -1703,6 +1738,14 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
       window.clearTimeout(timer);
     };
   }, [solicitudToast]);
+
+  const prevModalRef = useRef(showSolicitudEstudiosModal);
+  useEffect(() => {
+    if (prevModalRef.current === true && showSolicitudEstudiosModal === false) {
+      void guardarSolicitudesEstudio();
+    }
+    prevModalRef.current = showSolicitudEstudiosModal;
+  }, [showSolicitudEstudiosModal]);
 
   const showLlamarMegafonoModal = pendingLlamadoTurnoId !== null;
   const showVistaRapidaModal = turnoVistaRapidaId !== null;
@@ -1987,6 +2030,7 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     confirmarServicioIngreso,
     confirmarCambioLugarAtencion,
     limpiarSolicitudesScope,
+    guardarSolicitudesEstudio,
     abrirSolicitudEstudiosConScope,
     abrirSolicitudEstudios,
     abrirSolicitudEstudiosDesdeEvolucion,

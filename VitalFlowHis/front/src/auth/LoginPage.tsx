@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ApiError } from "../shared/apiError";
 import { useAuth } from "./AuthContext";
 import { authApi, type LoginCentroOption } from "./authApi";
+import "../login/Login.css";
 
 export function LoginPage() {
   const { login } = useAuth();

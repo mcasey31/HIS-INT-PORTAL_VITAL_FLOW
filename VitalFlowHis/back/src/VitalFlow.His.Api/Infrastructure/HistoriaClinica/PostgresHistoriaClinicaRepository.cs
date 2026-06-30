@@ -389,6 +389,94 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
         return result;
     }
 
+    public IReadOnlyList<SolicitudEstudioResponse> GetSolicitudesEstudio(Guid pacienteId, string turnoId)
+    {
+        const string sql = """
+            select
+                id,
+                paciente_id,
+                turno_id,
+                practica,
+                fecha_solicitada,
+                observacion
+            from sch_hca.solicitud_estudio
+            where paciente_id = @paciente_id
+              and turno_id = @turno_id
+              and estado = 'ACTIVA'
+            order by fecha_solicitada, practica;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("paciente_id", pacienteId.ToString());
+        cmd.Parameters.AddWithValue("turno_id", turnoId);
+
+        var result = new List<SolicitudEstudioResponse>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            result.Add(new SolicitudEstudioResponse(
+                Id: reader.GetGuid(reader.GetOrdinal("id")).ToString(),
+                PacienteId: reader.IsDBNull(reader.GetOrdinal("paciente_id"))
+                    ? ""
+                    : reader.GetString(reader.GetOrdinal("paciente_id")),
+                TurnoId: reader.GetString(reader.GetOrdinal("turno_id")),
+                PracticaNombre: reader.GetString(reader.GetOrdinal("practica")),
+                FechaSolicitada: reader.GetDateTime(reader.GetOrdinal("fecha_solicitada")).ToString("yyyy-MM-dd"),
+                Observacion: reader.IsDBNull(reader.GetOrdinal("observacion"))
+                    ? null
+                    : reader.GetString(reader.GetOrdinal("observacion"))));
+        }
+
+        return result;
+    }
+
+    public void SincronizarSolicitudesEstudio(Guid pacienteId, string turnoId, IReadOnlyList<SolicitudEstudioItem> solicitudes, Guid? createdBy)
+    {
+        const string sqlDelete = """
+            update sch_hca.solicitud_estudio
+            set estado = 'INACTIVA', updated_at = now()
+            where paciente_id = @paciente_id
+              and turno_id = @turno_id
+              and estado = 'ACTIVA';
+            """;
+
+        const string sqlInsert = """
+            insert into sch_hca.solicitud_estudio
+                (id, paciente_id, turno_id, practica, fecha_solicitada, observacion, estado, created_at, created_by, updated_at)
+            values
+                (@id, @paciente_id, @turno_id, @practica, @fecha_solicitada, @observacion, 'ACTIVA', now(), @created_by, now());
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var tx = conn.BeginTransaction();
+
+        using (var cmdDel = new NpgsqlCommand(sqlDelete, conn, tx))
+        {
+            cmdDel.Parameters.AddWithValue("paciente_id", pacienteId.ToString());
+            cmdDel.Parameters.AddWithValue("turno_id", turnoId);
+            cmdDel.ExecuteNonQuery();
+        }
+
+        foreach (var item in solicitudes)
+        {
+            using var cmdIns = new NpgsqlCommand(sqlInsert, conn, tx);
+            cmdIns.Parameters.AddWithValue("id", Guid.NewGuid());
+            cmdIns.Parameters.AddWithValue("paciente_id", pacienteId.ToString());
+            cmdIns.Parameters.AddWithValue("turno_id", turnoId);
+            cmdIns.Parameters.AddWithValue("practica", item.PracticaNombre);
+            cmdIns.Parameters.AddWithValue("fecha_solicitada", DateOnly.Parse(item.FechaSolicitada));
+            cmdIns.Parameters.AddWithValue("observacion", (object?)item.Observacion ?? DBNull.Value);
+            cmdIns.Parameters.AddWithValue("created_by", createdBy?.ToString() ?? (object)DBNull.Value);
+            cmdIns.ExecuteNonQuery();
+        }
+
+        tx.Commit();
+    }
+
     public AnularRecetaDigitalResponse? AnularRecetaDigital(Guid recetaId, string motivo, Guid usuarioId)
     {
         const string sqlExists = """
