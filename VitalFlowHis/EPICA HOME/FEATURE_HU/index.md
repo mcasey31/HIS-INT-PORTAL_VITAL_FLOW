@@ -1,4 +1,0 @@
-# Feature Index - EPICA HOME
-
-- FEATURE_HOME
-- FEATURE_LOGIN

@@ -1,5 +1,0 @@
-﻿# Estructura EPICA -> FEATURE -> HU
-
-- Epic: EPICA HISTORIA CLINICA AMBULATORIA
-- Features: 12
-- HU: 67
