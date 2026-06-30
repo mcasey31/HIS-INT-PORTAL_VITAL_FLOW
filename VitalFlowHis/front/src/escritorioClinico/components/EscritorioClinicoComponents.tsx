@@ -101,6 +101,9 @@ export function EscritorioClinicoListado({ state }: { state: useEscritorioClinic
     abrirHistoriaClinica, abrirDesdeMegafono, estadoEsLlamable, working, esDiaActual, verTurno
   } = state;
 
+  const rowClass = (estado: string) =>
+    `hc-row-${estado.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
   return (
     <section className="hc-list panel" aria-label="Listado de pacientes">
       <h3>Pacientes del dia</h3>
@@ -125,7 +128,7 @@ export function EscritorioClinicoListado({ state }: { state: useEscritorioClinic
             const llamados = contadorLlamados[turno.id] ?? 0;
             const llegadaLabel = formatLlegada(turno.llegada);
             return (
-              <li key={turno.id} className={selected ? "is-selected" : ""}>
+              <li key={turno.id} className={[selected ? "is-selected" : "", rowClass(turno.estado)].filter(Boolean).join(" ")}>
                 <div className="hc-pacientes-grid" role="row">
                   <div className="hc-cell">
                     <p className="hc-cell-main">{turno.turno}</p>
@@ -148,20 +151,56 @@ export function EscritorioClinicoListado({ state }: { state: useEscritorioClinic
                     <p>{turno.servicio}</p>
                   </div>
 
-                  <div className="hc-cell">
-                    <span className={estadoChipClass(turno.estado)}>{estadoLabel(turno.estado)}</span>
-                    <span className="hc-chip">Llamados: {llamados}</span>
+                  <div className="hc-cell hc-cell-estado">
+                    <span className={`hc-chip hc-chip-${turno.estado.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>
+                      {estadoLabel(turno.estado)}
+                    </span>
+                    {llamados > 0 ? (
+                      <span className="hc-chip hc-chip-llamados" title={`Llamado ${llamados} vez${llamados !== 1 ? "es" : ""}`}>
+                        📣 {llamados}
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="hc-paciente-actions">
-                    <button type="button" className="hc-icon-button" title="Ver datos del turno" aria-label="Ver datos del turno" onClick={() => verTurno(turno)}>
-                      <span aria-hidden="true">👁</span>
+                    <button
+                      type="button"
+                      className="hc-icon-button hc-icon-btn-ver"
+                      title="Ver datos del turno"
+                      aria-label="Ver datos del turno"
+                      onClick={() => verTurno(turno)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z"/>
+                      </svg>
+                      <span className="sr-only">Ver turno</span>
                     </button>
-                    <button type="button" className="hc-icon-button" title="Abrir historia clinica" aria-label="Abrir historia clinica" onClick={() => void abrirHistoriaClinica(turno)}>
-                      <span aria-hidden="true">📋</span>
+                    <button
+                      type="button"
+                      className="hc-icon-button hc-icon-btn-hc"
+                      title="Abrir historia clinica"
+                      aria-label="Abrir historia clinica"
+                      onClick={() => void abrirHistoriaClinica(turno)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M9 11l3 3 8-8"/>
+                        <path d="M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/>
+                      </svg>
+                      <span className="sr-only">Historia clinica</span>
                     </button>
-                    <button type="button" className="hc-icon-button" title="Llamar por megafono" aria-label="Llamar por megafono" onClick={() => void abrirDesdeMegafono(turno)} disabled={!estadoEsLlamable(turno.estado) || working || !esDiaActual}>
-                      <span aria-hidden="true">📣</span>
+                    <button
+                      type="button"
+                      className="hc-icon-button hc-icon-btn-call"
+                      title="Llamar por megafono"
+                      aria-label="Llamar por megafono"
+                      onClick={() => void abrirDesdeMegafono(turno)}
+                      disabled={!estadoEsLlamable(turno.estado) || working || !esDiaActual}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+                      </svg>
+                      <span className="sr-only">Llamar</span>
                     </button>
                   </div>
                 </div>

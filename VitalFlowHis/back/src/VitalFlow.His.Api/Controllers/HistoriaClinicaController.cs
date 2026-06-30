@@ -37,4 +37,38 @@ public sealed class HistoriaClinicaController(IHistoriaClinicaService historiaCl
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpGet("pacientes/{pacienteId:guid}/solicitudes-estudio")]
+    public ActionResult<IReadOnlyList<SolicitudEstudioResponse>> ObtenerSolicitudesEstudio(
+        Guid pacienteId,
+        [FromQuery] string turnoId)
+    {
+        try
+        {
+            return Ok(historiaClinicaService.ObtenerSolicitudesEstudio(pacienteId, turnoId));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("pacientes/{pacienteId:guid}/solicitudes-estudio/sync")]
+    public ActionResult SincronizarSolicitudesEstudio(
+        Guid pacienteId,
+        [FromQuery] string turnoId,
+        [FromBody] SincronizarSolicitudesEstudioRequest request)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            Guid? createdBy = userIdClaim is not null && Guid.TryParse(userIdClaim, out var uid) ? uid : null;
+            historiaClinicaService.SincronizarSolicitudesEstudio(pacienteId, turnoId, request, createdBy);
+            return Ok(new { message = "Solicitudes sincronizadas correctamente." });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
