@@ -1015,6 +1015,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
         setError(msg);
       }
     }
+    if (turno.pacienteId) setEncuentroPacienteId(turno.pacienteId);
   }
 
   function verTurno(turno: TurnoAdmision) {
@@ -1039,6 +1040,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     if (ok) {
       setModoIngreso("megafono"); setOrigenPanoramica("megafono");
       setSelectedTurnoId(pendingLlamadoTurno.id);
+      if (pendingLlamadoTurno.pacienteId) setEncuentroPacienteId(pendingLlamadoTurno.pacienteId);
     }
   }
 
