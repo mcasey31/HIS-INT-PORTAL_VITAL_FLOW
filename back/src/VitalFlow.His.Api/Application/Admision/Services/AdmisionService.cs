@@ -64,6 +64,7 @@ public sealed class AdmisionService(
             [EstadoProgramado] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 EstadoEnSalaEspera,
+                EstadoEnAtencion,
                 EstadoAusente,
                 EstadoNoAdmitido,
                 EstadoPendientePago
@@ -330,7 +331,7 @@ public sealed class AdmisionService(
                     turnoIdRespuesta,
                     turnoLabel,
                     llegada?.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture),
-                    row?.PacienteId,
+                    row?.PacienteId ?? turnoProgramado?.PacienteId,
                     row?.PacienteNombre ?? turnoProgramado?.PacienteNombre ?? "Por identificar",
                     row?.Documento ?? turnoProgramado?.Documento ?? "-",
                     row?.Financiador ?? turnoProgramado?.Financiador ?? "-",
