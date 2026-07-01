@@ -113,9 +113,7 @@ jobs:
         run: |
           npm i -g vercel
           cd VitalFlowHis/front
-          vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes \
-            --scope ${{ secrets.VERCEL_ORG_ID }} \
-            --project-id ${{ secrets.VERCEL_HIS_FRONTEND_PROJECT_ID }}
+          vercel deploy --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_HIS_FRONTEND_PROJECT_ID }}
@@ -124,9 +122,7 @@ jobs:
         run: |
           npm i -g vercel
           cd VitalFlowPortal
-          vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes \
-            --scope ${{ secrets.VERCEL_ORG_ID }} \
-            --project-id ${{ secrets.VERCEL_PORTAL_FRONTEND_PROJECT_ID }}
+          vercel deploy --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PORTAL_FRONTEND_PROJECT_ID }}
