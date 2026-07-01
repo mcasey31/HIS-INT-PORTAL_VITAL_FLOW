@@ -69,35 +69,36 @@ jobs:
             ${{ env.PORTAL_BACKEND_IMAGE }}:${{ github.sha }}
             ${{ env.PORTAL_BACKEND_IMAGE }}:latest
 
-  deploy-railway-main:
-    name: 🚂 Deploy to Railway MAIN
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    environment: production
-
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🚂 Deploy HIS Backend to Railway
-        uses: perovskii/railway-action@v1
-        with:
-          projectId: ${{ secrets.RAILWAY_PROJECT_ID }}
-          environmentName: production
-          serviceId: ${{ secrets.RAILWAY_HIS_BACKEND_SERVICE_ID_PROD }}
-          redeployWithoutChanges: true
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-      - name: 🚂 Deploy Portal Backend to Railway
-        uses: perovskii/railway-action@v1
-        with:
-          projectId: ${{ secrets.RAILWAY_PROJECT_ID }}
-          environmentName: production
-          serviceId: ${{ secrets.RAILWAY_PORTAL_BACKEND_SERVICE_ID_PROD }}
-          redeployWithoutChanges: true
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+  # Railway deployment commented out - configure when RAILWAY_PROJECT_ID is added to secrets
+  # deploy-railway-main:
+  #   name: 🚂 Deploy to Railway MAIN
+  #   needs: build-and-push
+  #   runs-on: ubuntu-latest
+  #   environment: production
+  #
+  #   steps:
+  #     - name: 📥 Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: 🚂 Deploy HIS Backend to Railway
+  #       uses: perovskii/railway-action@v1
+  #       with:
+  #         projectId: ${{ secrets.RAILWAY_PROJECT_ID }}
+  #         environmentName: production
+  #         serviceId: ${{ secrets.RAILWAY_HIS_BACKEND_SERVICE_ID_PROD }}
+  #         redeployWithoutChanges: true
+  #       env:
+  #         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+  #
+  #     - name: 🚂 Deploy Portal Backend to Railway
+  #       uses: perovskii/railway-action@v1
+  #       with:
+  #         projectId: ${{ secrets.RAILWAY_PROJECT_ID }}
+  #         environmentName: production
+  #         serviceId: ${{ secrets.RAILWAY_PORTAL_BACKEND_SERVICE_ID_PROD }}
+  #         redeployWithoutChanges: true
+  #       env:
+  #         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
   deploy-vercel-main:
     name: 📡 Deploy to Vercel MAIN
@@ -109,28 +110,30 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 📡 Deploy HIS Frontend to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-args: '--prod'
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_HIS_FRONTEND_MAIN_PROJECT_ID }}
-          scope: ${{ secrets.VERCEL_ORG_ID }}
-          working-directory: './VitalFlowHis/front'
+        run: |
+          npm i -g vercel
+          cd VitalFlowHis/front
+          vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes \
+            --scope ${{ secrets.VERCEL_ORG_ID }} \
+            --project-id ${{ secrets.VERCEL_HIS_FRONTEND_MAIN_PROJECT_ID }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_HIS_FRONTEND_MAIN_PROJECT_ID }}
 
       - name: 📡 Deploy Portal Frontend to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-args: '--prod'
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PORTAL_FRONTEND_MAIN_PROJECT_ID }}
-          scope: ${{ secrets.VERCEL_ORG_ID }}
-          working-directory: './VitalFlowPortal'
+        run: |
+          npm i -g vercel
+          cd VitalFlowPortal
+          vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes \
+            --scope ${{ secrets.VERCEL_ORG_ID }} \
+            --project-id ${{ secrets.VERCEL_PORTAL_FRONTEND_MAIN_PROJECT_ID }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PORTAL_FRONTEND_MAIN_PROJECT_ID }}
 
   notify:
     name: 📢 Notify Deployment
-    needs: [deploy-railway-main, deploy-vercel-main]
+    needs: [deploy-vercel-main]
     runs-on: ubuntu-latest
     if: always()
 
