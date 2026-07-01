@@ -7,9 +7,9 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  HIS_BACKEND_IMAGE: ghcr.io/${{ github.repository }}/his-backend
-  HIS_FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/his-frontend
-  PORTAL_BACKEND_IMAGE: ghcr.io/${{ github.repository }}/portal-backend
+  HIS_BACKEND_IMAGE: ghcr.io/${{ github.repository | lower }}/his-backend
+  HIS_FRONTEND_IMAGE: ghcr.io/${{ github.repository | lower }}/his-frontend
+  PORTAL_BACKEND_IMAGE: ghcr.io/${{ github.repository | lower }}/portal-backend
 
 jobs:
   build-and-push:
