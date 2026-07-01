@@ -1,0 +1,7 @@
+{
+  "$schema": "https://vercel.com/schemas/vercel.json",
+  "buildCommand": "cd VitalFlowPortal && npm run build",
+  "devCommand": "cd VitalFlowPortal && npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs"
+}
