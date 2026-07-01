@@ -66,35 +66,9 @@ jobs:
             ${{ env.PORTAL_BACKEND_IMAGE }}:qa
             ${{ env.PORTAL_BACKEND_IMAGE }}:qa-${{ github.sha }}
 
-  # Railway deployment commented out - configure when RAILWAY_PROJECT_ID is added to secrets
-  deploy-vercel-qa:
-    name: 🌐 Deploy to Vercel QA
-    needs: build-and-push
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🌐 Deploy HIS Frontend to Vercel
-        run: |
-          npm install -g vercel
-          cd ./VitalFlowHis/front
-          vercel deploy --prod --yes
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_HIS_FRONTEND_QA_PROJECT_ID }}
-
-      - name: 🌐 Deploy Portal Frontend to Vercel
-        run: |
-          npm install -g vercel
-          cd ./VitalFlowPortal
-          vercel deploy --prod --yes
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PORTAL_FRONTEND_QA_PROJECT_ID }}
+  # 💡 MVP Strategy: Docker only for QA (no Vercel)
+  # Team uses local Docker Compose to see changes
+  # Vercel deploy only on main branch for production
 
   # Railway deployment commented out - configure when RAILWAY_PROJECT_ID is added to secrets
   #   name: 🚂 Deploy to Railway QA
@@ -128,7 +102,7 @@ jobs:
 
   notify:
     name: 📢 Notify Deployment
-    needs: [build-and-push, deploy-vercel-qa]
+    needs: [build-and-push]
     runs-on: ubuntu-latest
     if: always()
 

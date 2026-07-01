@@ -69,34 +69,9 @@ jobs:
             ${{ env.PORTAL_BACKEND_IMAGE }}:dev-${{ github.sha }}
             ${{ env.PORTAL_BACKEND_IMAGE }}:latest
 
-  deploy-vercel-dev:
-    name: 🌐 Deploy to Vercel DEV
-    needs: build-and-push
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🌐 Deploy HIS Frontend to Vercel
-        run: |
-          npm install -g vercel
-          cd ./VitalFlowHis/front
-          vercel deploy --prod --yes
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_HIS_FRONTEND_PROJECT_ID }}
-
-      - name: 🌐 Deploy Portal Frontend to Vercel
-        run: |
-          npm install -g vercel
-          cd ./VitalFlowPortal
-          vercel deploy --prod --yes
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PORTAL_FRONTEND_PROJECT_ID }}
+  # 💡 MVP Strategy: Docker only for dev (no Vercel)
+  # Team uses local Docker Compose to see changes
+  # Vercel deploy only on main branch for production
 
   # Railway deployment commented out - configure when RAILWAY_PROJECT_ID is added to secrets
   # deploy-railway-dev:
@@ -131,7 +106,7 @@ jobs:
 
   notify:
     name: 📢 Notify Deployment
-    needs: [build-and-push, deploy-vercel-dev]
+    needs: [build-and-push]
     runs-on: ubuntu-latest
     if: always()
 
@@ -139,19 +114,19 @@ jobs:
       - name: ✅ Deployment Success
         if: success()
         run: |
-          echo "✅ DEV Environment Pipeline Completed Successfully!"
+          echo "✅ DEV Environment Docker Build Completed!"
           echo ""
           echo "🐳 Docker Images Built & Pushed to GHCR:"
           echo "  - HIS Backend: ghcr.io/mcasey31/his-int-portal_vital_flow/his-backend:dev"
           echo "  - HIS Frontend: ghcr.io/mcasey31/his-int-portal_vital_flow/his-frontend:dev"
           echo "  - Portal Backend: ghcr.io/mcasey31/his-int-portal_vital_flow/portal-backend:dev"
           echo ""
-          echo "🌐 Vercel Frontends (Auto-deployed via GitHub integration):"
-          echo "  - HIS Frontend: https://vitalflow-his-front-dev.vercel.app"
-          echo "  - Portal Frontend: https://vitalflow-dev.vercel.app"
+          echo "📋 Next Steps:"
+          echo "  1. Pull latest images: docker pull ghcr.io/mcasey31/his-int-portal_vital_flow/*:dev"
+          echo "  2. Run Docker Compose: docker-compose up -d"
+          echo "  3. All team members see same changes"
           echo ""
-          echo "⏳ Vercel builds typically complete within 2-5 minutes"
-          echo "🔄 Check Vercel dashboard if changes don't appear immediately"
+          echo "🎯 MVP: Team uses local Docker to see changes"
 
       - name: ❌ Deployment Failed
         if: failure()
