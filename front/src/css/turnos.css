@@ -1,0 +1,576 @@
+.turnos-page {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.turnos-page h2 {
+  margin: 0;
+}
+
+.turnos-step-card {
+  border: 1px solid #d5deea;
+  border-radius: 10px;
+  background: #fcfdff;
+  padding: 0.8rem;
+}
+
+.turnos-step-card h3 {
+  margin: 0 0 0.4rem;
+  color: #2f4d72;
+}
+
+.turnos-step-help {
+  margin: 0 0 0.6rem;
+  color: #5d6f84;
+}
+
+.turnos-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.6rem;
+}
+
+.turnos-label {
+  display: inline-block;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+
+.turnos-multi-select {
+  border: 1px solid #d5deea;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.45rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.turnos-checkbox-row {
+  margin: 0;
+}
+
+.turnos-empty-field {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #5d6f84;
+}
+
+.turnos-alert {
+  margin-top: 0.6rem;
+  border: 1px solid #bfd2e9;
+  background: #eef6ff;
+  color: #2f4d72;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+}
+
+.turnos-alert-warn {
+  border-color: #e6d8a4;
+  background: #fffbe7;
+  color: #7a5a00;
+}
+
+.turnos-paciente-ok {
+  margin-top: 0.5rem;
+  border: 1px solid #bddcc4;
+  background: #f1faf3;
+  border-radius: 8px;
+  padding: 0.55rem;
+}
+
+.turnos-paciente-ok p {
+  margin-top: 0;
+}
+
+.turnos-financiador-head {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.turnos-financiador-edit-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.turnos-financiador-edit-wrap .icon-edit-btn {
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.turnos-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.turnos-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #b8c7da;
+  background: #eef3f9;
+  color: #2f4d72;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.turnos-pill-selected {
+  border-color: #0f6cab;
+  background: #e9f4ff;
+  color: #0f5485;
+}
+
+.turnos-pill-vigente {
+  border-color: #9ed3a9;
+  background: #e9f8ed;
+  color: #27693c;
+}
+
+.turnos-pill-locked {
+  border-color: #d5bcbf;
+  background: #f8edef;
+  color: #7f3a43;
+}
+
+.turnos-financiador-modal {
+  width: min(780px, calc(100vw - 2rem));
+}
+
+.turnos-financiadores-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+}
+
+.turnos-financiador-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid #d5deea;
+  border-radius: 10px;
+  background: #f9fbff;
+  padding: 0.55rem;
+}
+
+.turnos-financiador-item small {
+  color: #4e6178;
+}
+
+.turnos-financiador-item-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.turnos-financiador-form {
+  border-top: 1px solid #dbe4ef;
+  padding-top: 0.8rem;
+}
+
+.turnos-financiador-form h4 {
+  margin: 0 0 0.5rem;
+}
+
+.turnos-grid td,
+.turnos-grid th {
+  white-space: normal;
+}
+
+.turnos-col-centro {
+  min-width: 140px;
+  white-space: nowrap;
+}
+
+.turnos-estado {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.78rem;
+  border: 1px solid transparent;
+  font-weight: 700;
+}
+
+.turnos-estado-disponible {
+  background: #eef9ef;
+  border-color: #a9d7b1;
+  color: #1f6a2b;
+}
+
+.turnos-estado-con_cupo {
+  background: #fff7e8;
+  border-color: #e7c17d;
+  color: #8f5a00;
+}
+
+.turnos-estado-sin_cobertura {
+  background: #fdeff0;
+  border-color: #e2a8ad;
+  color: #8a232d;
+}
+
+.turnos-estado-asignado {
+  background: #e9eef6;
+  border-color: #bfcbdc;
+  color: #42586f;
+}
+
+.turnos-asignacion-modal {
+  width: min(680px, calc(100vw - 2rem));
+}
+
+.turnos-asignacion-modal p {
+  margin: 0.35rem 0;
+}
+
+.turnos-email-preview {
+  border: 1px solid #d7e2ef;
+  border-radius: 10px;
+  background: #f6faff;
+  padding: 0.6rem;
+  margin: 0.55rem 0 0.35rem;
+}
+
+.turnos-email-preview h4 {
+  margin: 0 0 0.3rem;
+  color: #345b82;
+}
+
+.turnos-email-preview p {
+  margin-top: 0;
+}
+
+.turnos-input-error {
+  color: #8a232d;
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+
+.turnos-st-btn {
+  background: #fff;
+  border-color: #6f83a7;
+  color: #385173;
+}
+
+.turnos-st-btn:disabled {
+  background: #f1f3f7;
+  color: #9ca8b7;
+  border-color: #d2dae6;
+}
+
+.turnos-disponibilidad-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.turnos-almanaque-card {
+  border: 1px solid #d5deea;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0.65rem;
+}
+
+.turnos-almanaque-selected {
+  margin: 0 0 0.5rem;
+  color: #3a6b9a;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.turnos-almanaque-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.turnos-almanaque-nav .btn-outline {
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.turnos-almanaque-nav strong {
+  text-transform: capitalize;
+  color: #3b4f66;
+}
+
+.turnos-almanaque-grid-head,
+.turnos-almanaque-grid-body {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.2rem;
+}
+
+.turnos-almanaque-grid-head {
+  margin-bottom: 0.25rem;
+}
+
+.turnos-almanaque-grid-head span {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #76899f;
+}
+
+.turnos-dia-btn {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  height: 34px;
+  background: transparent;
+  color: #9aa8b8;
+  cursor: default;
+}
+
+.turnos-dia-btn.is-available {
+  color: #2f5f8f;
+  border-color: #d3e1ef;
+  background: #f8fbff;
+  font-weight: 700;
+  box-shadow: inset 0 -3px 0 #7bb3e6;
+  cursor: pointer;
+}
+
+.turnos-dia-btn:disabled {
+  opacity: 0.45;
+}
+
+.turnos-dia-btn.is-selected {
+  background: #4e9cde;
+  border-color: #4e9cde;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.turnos-almanaque-foot {
+  margin: 0.55rem 0 0;
+  color: #4f647b;
+  font-size: 0.84rem;
+  border-top: 1px solid #e6eef8;
+  padding-top: 0.45rem;
+}
+
+.turnos-historial-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.turnos-historial-actions .btn-outline.is-active {
+  border-color: #0f6cab;
+  color: #0f6cab;
+  background: #edf6ff;
+}
+
+.turnos-estado-agendado {
+  background: #e7f6ea;
+  border-color: #99d3a6;
+  color: #1d6a32;
+}
+
+.turnos-estado-consumido {
+  background: #eaf4ff;
+  border-color: #a6c7eb;
+  color: #285886;
+}
+
+.turnos-estado-ausente {
+  background: #fef2e8;
+  border-color: #ebb88a;
+  color: #924d12;
+}
+
+.turnos-estado-cancelado_por_agenda,
+.turnos-estado-cancelado_por_bloqueo,
+.turnos-estado-cancelado_por_paciente {
+  background: #fdeff0;
+  border-color: #e2a8ad;
+  color: #8a232d;
+}
+
+.turnos-proximos-wrapper {
+  border: 1px solid #d8e6f5;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f7fbff 0%, #ffffff 100%);
+  padding: 0.7rem;
+  margin: 0 0 0.75rem;
+}
+
+.turnos-proximos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.55rem;
+}
+
+.turnos-proximos-header h4 {
+  margin: 0;
+  font-size: 0.93rem;
+  color: #244b72;
+}
+
+.turnos-proximos-count {
+  border: 1px solid #b8cfe7;
+  border-radius: 999px;
+  padding: 0.12rem 0.48rem;
+  font-size: 0.78rem;
+  color: #2f5f8f;
+  background: #eef6ff;
+  font-weight: 700;
+}
+
+.turnos-proximos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+  gap: 0.55rem;
+}
+
+.turnos-proximo-card {
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  gap: 0.55rem;
+  border: 1px solid #d6e2ef;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0.5rem;
+}
+
+.turnos-proximo-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.25rem;
+  border-top: 1px solid #f0f5fb;
+  margin-top: 0.25rem;
+}
+
+.turnos-proximo-card .turnos-proximo-actions + .turnos-proximo-actions {
+  display: none;
+}
+
+.btn-danger-outline {
+  background: transparent;
+  border: 1px solid #e53e3e;
+  color: #e53e3e;
+  border-radius: 6px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-danger-outline:hover:not(:disabled) {
+  background: #fff5f5;
+}
+
+.btn-danger-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  background: #e53e3e;
+  border: 1px solid #c53030;
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #c53030;
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.turnos-proximo-fecha {
+  border-radius: 8px;
+  border: 1px solid #c7d9ee;
+  background: #f2f8ff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.08rem;
+  padding: 0.35rem 0.2rem;
+}
+
+.turnos-proximo-mes {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #3a638e;
+  letter-spacing: 0.05em;
+}
+
+.turnos-proximo-dia {
+  font-size: 1.18rem;
+  font-weight: 800;
+  color: #1b4a74;
+  line-height: 1;
+}
+
+.turnos-proximo-hora {
+  font-size: 0.73rem;
+  color: #335a82;
+  font-weight: 600;
+}
+
+.turnos-proximo-info p {
+  margin: 0 0 0.18rem;
+  color: #2f4f73;
+  font-size: 0.82rem;
+}
+
+.turnos-proximo-info p:last-child {
+  margin-bottom: 0;
+}
+
+.turnos-proximos-empty {
+  border: 1px dashed #c6d7eb;
+  border-radius: 8px;
+  padding: 0.55rem;
+  color: #486689;
+  background: #f8fbff;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 760px) {
+  .turnos-financiador-item {
+    flex-direction: column;
+  }
+
+  .turnos-financiador-item-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .turnos-proximos-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .turnos-disponibilidad-layout {
+    grid-template-columns: 1fr;
+  }
+}
