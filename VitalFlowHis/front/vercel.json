@@ -1,0 +1,10 @@
+{
+  "projectId": "prj_SVA6zY5OpkCDrzqQmW7CnhtSJmsx",
+  "orgId": "team_7EfQjf3hFhTic6THfPxLoqVM",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://vitalflow-his-backend-production.up.railway.app/api/:path*"
+    }
+  ]
+}

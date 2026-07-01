@@ -80,8 +80,9 @@ jobs:
         run: |
           cd ./VitalFlowHis/front
           npm install -g vercel
-          vercel --token ${{ secrets.VERCEL_TOKEN }} --force --prod
+          vercel deploy --prod --yes
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_HIS_FRONTEND_QA_PROJECT_ID }}
 
@@ -89,8 +90,9 @@ jobs:
         run: |
           cd ./VitalFlowPortal
           npm install -g vercel
-          vercel --token ${{ secrets.VERCEL_TOKEN }} --force --prod
+          vercel deploy --prod --yes
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PORTAL_FRONTEND_QA_PROJECT_ID }}
 
