@@ -80,10 +80,10 @@ jobs:
 
       - name: 🔍 Debug: Check Vercel Secrets
         run: |
-          echo "VERCEL_TOKEN is set: ${{ secrets.VERCEL_TOKEN != '' }}"
-          echo "VERCEL_ORG_ID is set: ${{ secrets.VERCEL_ORG_ID != '' }}"
-          echo "VERCEL_HIS_FRONTEND_MAIN_PROJECT_ID is set: ${{ secrets.VERCEL_HIS_FRONTEND_MAIN_PROJECT_ID != '' }}"
-          echo "VERCEL_PORTAL_FRONTEND_MAIN_PROJECT_ID is set: ${{ secrets.VERCEL_PORTAL_FRONTEND_MAIN_PROJECT_ID != '' }}"
+          echo "VERCEL_TOKEN is set: $([ -n '${{ secrets.VERCEL_TOKEN }}' ] && echo 'yes' || echo 'no')"
+          echo "VERCEL_ORG_ID is set: $([ -n '${{ secrets.VERCEL_ORG_ID }}' ] && echo 'yes' || echo 'no')"
+          echo "VERCEL_HIS_FRONTEND_MAIN_PROJECT_ID is set: $([ -n '${{ secrets.VERCEL_HIS_FRONTEND_MAIN_PROJECT_ID }}' ] && echo 'yes' || echo 'no')"
+          echo "VERCEL_PORTAL_FRONTEND_MAIN_PROJECT_ID is set: $([ -n '${{ secrets.VERCEL_PORTAL_FRONTEND_MAIN_PROJECT_ID }}' ] && echo 'yes' || echo 'no')"
 
       - name: 🌐 Deploy HIS Frontend to Vercel
         run: |
