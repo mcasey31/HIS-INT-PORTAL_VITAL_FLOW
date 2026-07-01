@@ -69,11 +69,35 @@ jobs:
             ${{ env.PORTAL_BACKEND_IMAGE }}:dev-${{ github.sha }}
             ${{ env.PORTAL_BACKEND_IMAGE }}:latest
 
-  # Note: Vercel frontends auto-deploy via GitHub integration (native Vercel feature)
-  # When code is pushed to dev branch, Vercel automatically builds and deploys:
-  # - HIS Frontend: vitalflow-his-front-dev.vercel.app
-  # - Portal Frontend: vitalflow-dev.vercel.app
-  
+  deploy-vercel-dev:
+    name: 🌐 Deploy to Vercel DEV
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🌐 Deploy HIS Frontend to Vercel
+        run: |
+          npm install -g vercel
+          cd ./VitalFlowHis/front
+          vercel deploy --prod --yes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_HIS_FRONTEND_PROJECT_ID }}
+
+      - name: 🌐 Deploy Portal Frontend to Vercel
+        run: |
+          npm install -g vercel
+          cd ./VitalFlowPortal
+          vercel deploy --prod --yes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PORTAL_FRONTEND_PROJECT_ID }}
+
   # Railway deployment commented out - configure when RAILWAY_PROJECT_ID is added to secrets
   # deploy-railway-dev:
   #   name: 🚂 Deploy to Railway DEV
@@ -107,7 +131,7 @@ jobs:
 
   notify:
     name: 📢 Notify Deployment
-    needs: [build-and-push]
+    needs: [build-and-push, deploy-vercel-dev]
     runs-on: ubuntu-latest
     if: always()
 

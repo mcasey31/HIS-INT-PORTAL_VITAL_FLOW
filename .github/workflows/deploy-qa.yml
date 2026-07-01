@@ -67,10 +67,36 @@ jobs:
             ${{ env.PORTAL_BACKEND_IMAGE }}:qa-${{ github.sha }}
 
   # Railway deployment commented out - configure when RAILWAY_PROJECT_ID is added to secrets
-  # Note: Vercel frontends auto-deploy via GitHub integration (native Vercel feature)
-  # When code is pushed to qa branch, Vercel automatically builds and deploys QA projects
-  
-  # deploy-railway-qa:
+  deploy-vercel-qa:
+    name: 🌐 Deploy to Vercel QA
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🌐 Deploy HIS Frontend to Vercel
+        run: |
+          npm install -g vercel
+          cd ./VitalFlowHis/front
+          vercel deploy --prod --yes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_HIS_FRONTEND_QA_PROJECT_ID }}
+
+      - name: 🌐 Deploy Portal Frontend to Vercel
+        run: |
+          npm install -g vercel
+          cd ./VitalFlowPortal
+          vercel deploy --prod --yes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PORTAL_FRONTEND_QA_PROJECT_ID }}
+
+  # Railway deployment commented out - configure when RAILWAY_PROJECT_ID is added to secrets
   #   name: 🚂 Deploy to Railway QA
   #   needs: build-and-push
   #   runs-on: ubuntu-latest
@@ -102,7 +128,7 @@ jobs:
 
   notify:
     name: 📢 Notify Deployment
-    needs: [build-and-push]
+    needs: [build-and-push, deploy-vercel-qa]
     runs-on: ubuntu-latest
     if: always()
 
