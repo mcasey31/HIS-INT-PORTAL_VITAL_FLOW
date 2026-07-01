@@ -1,0 +1,152 @@
+name: 🌟 Deploy MAIN/Production (HIS + Portal)
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  HIS_BACKEND_IMAGE: ghcr.io/${{ github.repository }}/his-backend
+  HIS_FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/his-frontend
+  PORTAL_BACKEND_IMAGE: ghcr.io/${{ github.repository }}/portal-backend
+
+jobs:
+  build-and-push:
+    name: 🔨 Build & Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: 🔐 Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏗️ Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # HIS Backend
+      - name: 📦 Build & Push HIS Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./VitalFlowHis/back/src/VitalFlow.His.Api
+          file: ./VitalFlowHis/back/src/VitalFlow.His.Api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.HIS_BACKEND_IMAGE }}:main
+            ${{ env.HIS_BACKEND_IMAGE }}:${{ github.sha }}
+            ${{ env.HIS_BACKEND_IMAGE }}:latest
+
+      # HIS Frontend
+      - name: 📦 Build & Push HIS Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./VitalFlowHis/front
+          file: ./VitalFlowHis/front/Dockerfile
+          push: true
+          tags: |
+            ${{ env.HIS_FRONTEND_IMAGE }}:main
+            ${{ env.HIS_FRONTEND_IMAGE }}:${{ github.sha }}
+            ${{ env.HIS_FRONTEND_IMAGE }}:latest
+
+      # Portal Backend
+      - name: 📦 Build & Push Portal Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./VitalFlowPortal
+          file: ./VitalFlowPortal/Dockerfile.backend
+          push: true
+          tags: |
+            ${{ env.PORTAL_BACKEND_IMAGE }}:main
+            ${{ env.PORTAL_BACKEND_IMAGE }}:${{ github.sha }}
+            ${{ env.PORTAL_BACKEND_IMAGE }}:latest
+
+  deploy-railway-main:
+    name: 🚂 Deploy to Railway MAIN
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚂 Deploy HIS Backend to Railway
+        uses: perovskii/railway-action@v1
+        with:
+          projectId: ${{ secrets.RAILWAY_PROJECT_ID }}
+          environmentName: production
+          serviceId: ${{ secrets.RAILWAY_HIS_BACKEND_SERVICE_ID_PROD }}
+          redeployWithoutChanges: true
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: 🚂 Deploy Portal Backend to Railway
+        uses: perovskii/railway-action@v1
+        with:
+          projectId: ${{ secrets.RAILWAY_PROJECT_ID }}
+          environmentName: production
+          serviceId: ${{ secrets.RAILWAY_PORTAL_BACKEND_SERVICE_ID_PROD }}
+          redeployWithoutChanges: true
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+  deploy-vercel-main:
+    name: 📡 Deploy to Vercel MAIN
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📡 Deploy HIS Frontend to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-args: '--prod'
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_HIS_FRONTEND_MAIN_PROJECT_ID }}
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+          working-directory: './VitalFlowHis/front'
+
+      - name: 📡 Deploy Portal Frontend to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-args: '--prod'
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PORTAL_FRONTEND_MAIN_PROJECT_ID }}
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+          working-directory: './VitalFlowPortal'
+
+  notify:
+    name: 📢 Notify Deployment
+    needs: [deploy-railway-main, deploy-vercel-main]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: ✅ Production Deployment Success
+        if: success()
+        run: |
+          echo "✅ PRODUCTION Environment Deployed Successfully!"
+          echo "🏥 HIS: https://vitalflow-his-front.vercel.app"
+          echo "👤 Portal: https://vitalflow-portal.vercel.app"
+          echo "⏰ Timestamp: $(date)"
+
+      - name: ❌ Production Deployment Failed
+        if: failure()
+        run: |
+          echo "❌ PRODUCTION Deployment Failed! Check GitHub Actions logs immediately."
+          exit 1
