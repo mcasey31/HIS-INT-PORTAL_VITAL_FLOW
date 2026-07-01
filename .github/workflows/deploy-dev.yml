@@ -69,36 +69,11 @@ jobs:
             ${{ env.PORTAL_BACKEND_IMAGE }}:dev-${{ github.sha }}
             ${{ env.PORTAL_BACKEND_IMAGE }}:latest
 
-  deploy-vercel-dev:
-    name: 🌐 Deploy to Vercel DEV
-    needs: build-and-push
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🌐 Deploy HIS Frontend to Vercel
-        run: |
-          cd ./VitalFlowHis/front
-          npm install -g vercel
-          vercel deploy --prod --yes
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_HIS_FRONTEND_PROJECT_ID }}
-
-      - name: 🌐 Deploy Portal Frontend to Vercel
-        run: |
-          cd ./VitalFlowPortal
-          npm install -g vercel
-          vercel deploy --prod --yes
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PORTAL_FRONTEND_PROJECT_ID }}
-
-
+  # Note: Vercel frontends auto-deploy via GitHub integration (native Vercel feature)
+  # When code is pushed to dev branch, Vercel automatically builds and deploys:
+  # - HIS Frontend: vitalflow-his-front-dev.vercel.app
+  # - Portal Frontend: vitalflow-dev.vercel.app
+  
   # Railway deployment commented out - configure when RAILWAY_PROJECT_ID is added to secrets
   # deploy-railway-dev:
   #   name: 🚂 Deploy to Railway DEV
@@ -132,7 +107,7 @@ jobs:
 
   notify:
     name: 📢 Notify Deployment
-    needs: [deploy-vercel-dev]
+    needs: [build-and-push]
     runs-on: ubuntu-latest
     if: always()
 
@@ -140,16 +115,19 @@ jobs:
       - name: ✅ Deployment Success
         if: success()
         run: |
-          echo "✅ DEV Environment Deployed Successfully!"
+          echo "✅ DEV Environment Pipeline Completed Successfully!"
           echo ""
-          echo "🐳 Docker Images:"
+          echo "🐳 Docker Images Built & Pushed to GHCR:"
           echo "  - HIS Backend: ghcr.io/mcasey31/his-int-portal_vital_flow/his-backend:dev"
           echo "  - HIS Frontend: ghcr.io/mcasey31/his-int-portal_vital_flow/his-frontend:dev"
           echo "  - Portal Backend: ghcr.io/mcasey31/his-int-portal_vital_flow/portal-backend:dev"
           echo ""
-          echo "🌐 Vercel Deployments:"
+          echo "🌐 Vercel Frontends (Auto-deployed via GitHub integration):"
           echo "  - HIS Frontend: https://vitalflow-his-front-dev.vercel.app"
           echo "  - Portal Frontend: https://vitalflow-dev.vercel.app"
+          echo ""
+          echo "⏳ Vercel builds typically complete within 2-5 minutes"
+          echo "🔄 Check Vercel dashboard if changes don't appear immediately"
 
       - name: ❌ Deployment Failed
         if: failure()

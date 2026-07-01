@@ -67,35 +67,9 @@ jobs:
             ${{ env.PORTAL_BACKEND_IMAGE }}:qa-${{ github.sha }}
 
   # Railway deployment commented out - configure when RAILWAY_PROJECT_ID is added to secrets
-  deploy-vercel-qa:
-    name: 🌐 Deploy to Vercel QA
-    needs: build-and-push
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🌐 Deploy HIS Frontend to Vercel
-        run: |
-          cd ./VitalFlowHis/front
-          npm install -g vercel
-          vercel deploy --prod --yes
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_HIS_FRONTEND_QA_PROJECT_ID }}
-
-      - name: 🌐 Deploy Portal Frontend to Vercel
-        run: |
-          cd ./VitalFlowPortal
-          npm install -g vercel
-          vercel deploy --prod --yes
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PORTAL_FRONTEND_QA_PROJECT_ID }}
-
+  # Note: Vercel frontends auto-deploy via GitHub integration (native Vercel feature)
+  # When code is pushed to qa branch, Vercel automatically builds and deploys QA projects
+  
   # deploy-railway-qa:
   #   name: 🚂 Deploy to Railway QA
   #   needs: build-and-push
@@ -128,7 +102,7 @@ jobs:
 
   notify:
     name: 📢 Notify Deployment
-    needs: [deploy-vercel-qa]
+    needs: [build-and-push]
     runs-on: ubuntu-latest
     if: always()
 
@@ -136,14 +110,17 @@ jobs:
       - name: ✅ Deployment Success
         if: success()
         run: |
-          echo "✅ QA Environment Deployed Successfully!"
+          echo "✅ QA Environment Pipeline Completed Successfully!"
           echo ""
-          echo "🐳 Docker Images:"
+          echo "🐳 Docker Images Built & Pushed to GHCR:"
           echo "  - HIS Backend: ghcr.io/mcasey31/his-int-portal_vital_flow/his-backend:qa"
           echo "  - HIS Frontend: ghcr.io/mcasey31/his-int-portal_vital_flow/his-frontend:qa"
           echo "  - Portal Backend: ghcr.io/mcasey31/his-int-portal_vital_flow/portal-backend:qa"
           echo ""
-          echo "🌐 Vercel Deployments:"
+          echo "🌐 Vercel QA Frontends (Auto-deployed via GitHub integration):"
+          echo "  - Check Vercel QA projects for deployment status"
+          echo ""
+          echo "⏳ Vercel builds typically complete within 2-5 minutes"
           echo "  - HIS Frontend: https://vitalflow-his-front-qa.vercel.app"
           echo "  - Portal Frontend: https://vitalflow-qa.vercel.app"
 
