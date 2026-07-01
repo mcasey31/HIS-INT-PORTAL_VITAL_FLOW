@@ -50,8 +50,7 @@ public sealed record TurnoAdmisionResponse(
     string Servicio,
     string Efector,
     string Estado,
-    string EstadoTurno,
-    string? PacienteId = null
+    string EstadoTurno
 );
 
 public sealed record ConfirmarArriboTurnoResponse(

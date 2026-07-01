@@ -69,8 +69,7 @@ public sealed record RecetaDigitalResumenResponse(
     string Estado,
     string RdiarProfile,
     string CreadoEn,
-    int CantidadItems,
-    string? ItemsResumen = null
+    int CantidadItems
 );
 
 public sealed record RecetaDigitalDetalleResponse(
@@ -110,20 +109,6 @@ public sealed record SolicitudEstudioItem(
 
 public sealed record SincronizarSolicitudesEstudioRequest(
     IReadOnlyList<SolicitudEstudioItem> Solicitudes
-);
-
-public sealed record CrearEvolucionAmbulatoriaRequest(
-    string PacienteId,
-    string? TurnoId,
-    string Texto,
-    IReadOnlyList<string> Problemas,
-    string Especialidad,
-    string Profesional
-);
-
-public sealed record CrearEvolucionAmbulatoriaResponse(
-    string EvolucionId,
-    string FechaAtencion
 );
 
 public sealed record AnularRecetaDigitalRequest(
