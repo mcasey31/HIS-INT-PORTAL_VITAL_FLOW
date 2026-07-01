@@ -284,7 +284,6 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
                 const { fecha, hora } = formatDateTime(registro.fechaHora);
                 const isProblemasCronicos = seccion.key === "problemas-cronicos";
                 const isUltimaAtencion = seccion.key === "ultima-atencion";
-                const isPrescripcion = seccion.key === "prescripciones";
                 return <li key={registro.id}>
                   {isUltimaAtencion ? <button type="button" className="hc-evolucion-link" disabled={!puedeAbrirEvoluciones} onClick={() => {
                     if (!puedeAbrirEvoluciones) {
@@ -307,8 +306,6 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
                   {isProblemasCronicos ? <>
                     <p className="hc-row-meta">Fecha de creacion: {fecha}</p>
                     <p className="hc-row-meta">Evoluciones asociadas: {registro.evolucionesAsociadas ?? 0}</p>
-                  </> : isPrescripcion ? <>
-                    <p className="hc-row-meta">Fecha: {fecha}</p>
                   </> : <p className="hc-row-meta">Fecha: {fecha} | Hora: {hora}</p>}
                 </li>;
               })}

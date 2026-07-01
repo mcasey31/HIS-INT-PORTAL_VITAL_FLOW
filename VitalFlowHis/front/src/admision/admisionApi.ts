@@ -46,7 +46,6 @@ export type TurnoAdmision = {
   efector: string;
   estado: string;
   estadoTurno?: string;
-  pacienteId?: string;
 };
 
 export type ConfirmarArriboTurnoResponse = {
