@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { actualizarEstadoTurno, buscarTurnosAdmision, cerrarEncuentroTurno, getSelectoresAdmision, obtenerEncuentroTurno, SelectoresAdmision, TurnoAdmision } from "../admision/admisionApi";
-import { CrearEvolucionAmbulatoriaResponse, EvolucionAmbulatoriaResponse, PracticaCatalogoItem, SolicitudEstudioItem, crearEvolucionAmbulatoria, getSolicitudesEstudio, obtenerCatalogoPracticas, obtenerCategoriasCatalogo, obtenerEvolucionesAmbulatoriasPaciente, syncSolicitudesEstudio } from "./escritorioClinicoApi";
+import { CrearEvolucionAmbulatoriaResponse, EvolucionAmbulatoriaResponse, PracticaCatalogoItem, RecetaResumenResponse, SolicitudEstudioItem, SolicitudEstudioResponse, crearEvolucionAmbulatoria, getSolicitudesEstudio, obtenerCatalogoPracticas, obtenerCategoriasCatalogo, obtenerEvolucionesAmbulatoriasPaciente, obtenerRecetasPaciente, syncSolicitudesEstudio } from "./escritorioClinicoApi";
 import { useAuth } from "../auth/AuthContext";
 type UseEscritorioClinicoOptions = {
   onCancelSeleccionServicio?: () => void;
@@ -47,8 +47,6 @@ const ESTADO_EN_ATENCION = "EN_ATENCION";
 const PROFESIONAL_POR_DEFECTO = "Profesional asignado";
 const PROFESIONAL_LEGACY_PLACEHOLDER = "Equipo profesional asignado";
 const EVOLUCIONES_LOCALES_STORAGE_KEY = "vitalflow:hca:evoluciones-locales";
-const RECETARIO_URL = import.meta.env.VITE_RECETARIO_URL?.trim() ?? "";
-const RECETARIO_PROFILE = import.meta.env.VITE_RECETARIO_PROFILE?.trim() || "RDI_Ar_0_2_5";
 function estadoEsLlamable(estado: string): boolean {
   const normalized = estado.trim().toUpperCase();
   return normalized === ESTADO_EN_SALA_ESPERA || normalized === ESTADO_EN_OBSERVACION;
@@ -287,9 +285,6 @@ function canIntegrarRecetario(turno: TurnoAdmision | null): boolean {
   if (!turno) {
     return false;
   }
-  if (!RECETARIO_URL) {
-    return false;
-  }
   return turno.paciente !== "Por identificar" && turno.documento !== "-";
 }
 function buildEvolucionScopeKey(turno: TurnoAdmision): string {
@@ -329,179 +324,68 @@ function parseStoredEvolucionesLocales(raw: string | null): Record<string, Evolu
     return {};
   }
 }
-type RecetarioLaunchContext = {
-  standard: "RDIar";
-  profile: string;
-  sourceSystem: "ODI";
-  patient: {
-    display: string;
-    identifier: string;
-  };
-  encounter: {
-    turnoId: string;
-    servicio: string;
-    efector: string;
-  };
-  issuedAt: string;
-};
-function toBase64Url(value: string): string {
-  const bytes = new TextEncoder().encode(value);
-  let binary = "";
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
 function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#39;");
 }
 function sanitizeRichTextHtml(value: string): string {
   return value.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "").replace(/\son\w+\s*=\s*"[^"]*"/gi, "").replace(/\son\w+\s*=\s*'[^']*'/gi, "").replace(/\sstyle\s*=\s*"[^"]*"/gi, "").replace(/\sstyle\s*=\s*'[^']*'/gi, "");
 }
-function buildRecetarioLaunchContext(turno: TurnoAdmision): RecetarioLaunchContext {
-  return {
-    standard: "RDIar",
-    profile: RECETARIO_PROFILE,
-    sourceSystem: "ODI",
-    patient: {
-      display: turno.paciente,
-      identifier: turno.documento
-    },
-    encounter: {
-      turnoId: turno.id,
-      servicio: turno.servicio,
-      efector: turno.efector
-    },
-    issuedAt: new Date().toISOString()
-  };
+type PrescripcionItem = {
+  id: string;
+  medicamento: string;
+  dosis: string;
+  frecuencia: string;
+  duracionDias: number | null;
+  via: string;
+  indicacion: string;
+  medicamentoCodigo?: string;
+  medicamentoSistema?: string;
+  medicamentoDisplay?: string;
+};
+const VIAS_ADMINISTRACION = ["Oral", "Intramuscular", "Intravenosa", "Subcutánea", "Tópica", "Inhalatoria", "Rectal", "Sublingual", "Oftálmica", "Ótica"];
+function buildPrescripciones(recetas: RecetaResumenResponse[]): RegistroPanoramica[] {
+  return recetas.flatMap(r => {
+    const lineas = r.itemsResumen ? r.itemsResumen.split("\n").filter(Boolean) : [];
+    if (lineas.length === 0) {
+      return [{
+        id: r.recetaId,
+        fechaHora: r.creadoEn,
+        titulo: `${r.cantidadItems} medicamento${r.cantidadItems !== 1 ? "s" : ""} prescripto${r.cantidadItems !== 1 ? "s" : ""}`,
+        detalle: `Estado: ${r.estado}`
+      }];
+    }
+    return lineas.map((linea, idx) => ({
+      id: `${r.recetaId}-${idx}`,
+      fechaHora: r.creadoEn,
+      titulo: linea,
+      detalle: `Estado: ${r.estado}`
+    }));
+  });
 }
-function buildRecetarioUrl(turno: TurnoAdmision): string {
-  const launchContext = buildRecetarioLaunchContext(turno);
-  const encodedContext = toBase64Url(JSON.stringify(launchContext));
-  const target = new URL(RECETARIO_URL);
-  target.searchParams.set("origen", "odi");
-  target.searchParams.set("standard", "RDIar");
-  target.searchParams.set("profile", RECETARIO_PROFILE);
-  target.searchParams.set("launch", encodedContext);
-  return target.toString();
-}
-function buildPanoramica(turno: TurnoAdmision | null, evolucionesAmbulatorias: EvolucionAmbulatoriaResponse[]): SeccionPanoramica[] {
+
+function buildPanoramica(turno: TurnoAdmision | null, evolucionesAmbulatorias: EvolucionAmbulatoriaResponse[], solicitudesEstudio: SolicitudEstudioResponse[] = [], recetasPaciente: RecetaResumenResponse[] = []): SeccionPanoramica[] {
   if (!turno) {
     return [];
   }
-  const paciente = turno.paciente === "Por identificar" ? "Paciente sin identificar" : turno.paciente;
-  const doc = turno.documento === "-" ? "Sin documento" : turno.documento;
+  const prescripciones = buildPrescripciones(recetasPaciente);
   const problemasCronicos = buildProblemasCronicos(turno);
   const ultimaAtencionAmbulatoria = buildUltimaAtencionAmbulatoria(evolucionesAmbulatorias);
+  const estudiosRealData = solicitudesEstudio.map(s => ({
+    id: s.id,
+    fechaHora: s.fechaSolicitada + "T00:00:00",
+    titulo: s.practicaNombre,
+    detalle: s.observacion ?? "Solicitado"
+  }));
   const baseRows: Record<string, RegistroPanoramica[]> = {
     "problemas-cronicos": problemasCronicos,
-    "historia-clinica": [{
-      id: "hc-01",
-      fechaHora: "2026-05-28T15:12:00",
-      titulo: `Ultimo ingreso de ${paciente}`,
-      detalle: `Documento ${doc}`
-    }, {
-      id: "hc-02",
-      fechaHora: "2026-05-10T11:10:00",
-      titulo: "Anamnesis general",
-      detalle: "Revision por clinica medica"
-    }],
-    "internaciones": [{
-      id: "in-01",
-      fechaHora: "2025-11-04T13:20:00",
-      titulo: "Internacion breve",
-      detalle: "Dolor abdominal agudo"
-    }],
-    "estudios-complementarios": [{
-      id: "ec-01",
-      fechaHora: "2026-05-27T09:30:00",
-      titulo: "Laboratorio general",
-      detalle: "Hemograma y bioquimica"
-    }, {
-      id: "ec-02",
-      fechaHora: "2026-05-21T16:00:00",
-      titulo: "Ecografia abdominal",
-      detalle: "Sin hallazgos relevantes"
-    }, {
-      id: "ec-03",
-      fechaHora: "2026-05-17T12:45:00",
-      titulo: "Radiografia torax",
-      detalle: "Control anual"
-    }, {
-      id: "ec-04",
-      fechaHora: "2026-05-12T08:20:00",
-      titulo: "Electrocardiograma",
-      detalle: "Ritmo sinusal"
-    }, {
-      id: "ec-05",
-      fechaHora: "2026-04-27T14:00:00",
-      titulo: "Perfil lipidico",
-      detalle: "Leve aumento LDL"
-    }, {
-      id: "ec-06",
-      fechaHora: "2026-04-10T11:10:00",
-      titulo: "TSH",
-      detalle: "Valores normales"
-    }, {
-      id: "ec-07",
-      fechaHora: "2026-03-30T09:00:00",
-      titulo: "Glucemia ayuno",
-      detalle: "En seguimiento"
-    }, {
-      id: "ec-08",
-      fechaHora: "2026-03-12T10:40:00",
-      titulo: "Orina completa",
-      detalle: "Sin alteraciones"
-    }, {
-      id: "ec-09",
-      fechaHora: "2026-02-18T09:20:00",
-      titulo: "Creatinina",
-      detalle: "Funcion renal estable"
-    }, {
-      id: "ec-10",
-      fechaHora: "2026-01-21T15:40:00",
-      titulo: "Urea",
-      detalle: "Control de rutina"
-    }, {
-      id: "ec-11",
-      fechaHora: "2025-12-18T10:10:00",
-      titulo: "Ionograma",
-      detalle: "Dentro de parametros"
-    }, {
-      id: "ec-12",
-      fechaHora: "2025-11-11T09:45:00",
-      titulo: "Proteinograma",
-      detalle: "Sin cambios"
-    }],
-    "intervenciones": [{
-      id: "iq-01",
-      fechaHora: "2024-08-15T08:00:00",
-      titulo: "Colecistectomia laparoscopica",
-      detalle: "Alta a las 48 hs"
-    }],
+    "historia-clinica": [],
+    internaciones: [],
+    "estudios-complementarios": estudiosRealData,
+    intervenciones: [],
+    prescripciones,
     "ultima-atencion": ultimaAtencionAmbulatoria,
-    alertas: [{
-      id: "al-01",
-      fechaHora: "2026-05-30T08:00:00",
-      titulo: "Alergia medicamentosa",
-      detalle: "Penicilina (alerta alta)"
-    }, {
-      id: "al-02",
-      fechaHora: "2026-05-21T10:30:00",
-      titulo: "Riesgo cardiovascular",
-      detalle: "Control estricto de TA en cada consulta"
-    }],
-    recordatorios: [{
-      id: "re-01",
-      fechaHora: "2026-05-31T09:00:00",
-      titulo: "Recordatorio individual",
-      detalle: "Solicitar laboratorio de control en 30 dias"
-    }, {
-      id: "re-02",
-      fechaHora: "2026-05-25T12:00:00",
-      titulo: "Recordatorio general",
-      detalle: "Verificar esquema de vacunacion en proximas consultas"
-    }]
+    alertas: [],
+    recordatorios: []
   };
   const toTen = (rows: RegistroPanoramica[]) => sortByMostRecent(rows).slice(0, 10);
   return [{
@@ -524,6 +408,10 @@ function buildPanoramica(turno: TurnoAdmision | null, evolucionesAmbulatorias: E
     key: "intervenciones",
     titulo: "Intervenciones quirurgicas",
     registros: toTen(baseRows.intervenciones)
+  }, {
+    key: "prescripciones",
+    titulo: "Ultimas prescripciones",
+    registros: toTen(baseRows.prescripciones)
   }, {
     key: "ultima-atencion",
     titulo: "Ultima atencion ambulatoria",
@@ -553,6 +441,7 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
   const [showSinAgendaModal, setShowSinAgendaModal] = useState(false);
   const [encuentroEstado, setEncuentroEstado] = useState<string>("SIN_ENCUENTRO");
   const [estadoPacienteId, setEstadoPacienteId] = useState<string | null>(null);
+  const [encuentroId, setEncuentroId] = useState<string | null>(null);
   const [evolucionesAmbulatorias, setEvolucionesAmbulatorias] = useState<EvolucionAmbulatoriaResponse[]>([]);
   const [fechaAgenda, setFechaAgenda] = useState(todayIsoDate());
   const [servicioId, setServicioId] = useState("");
@@ -597,6 +486,8 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
   const [practicasSeleccionadasDerecha, setPracticasSeleccionadasDerecha] = useState<string[]>([]);
   const [practicaObservacionActiva, setPracticaObservacionActiva] = useState<string | null>(null);
   const [observacionDraft, setObservacionDraft] = useState("");
+  const [solicitudesEstudio, setSolicitudesEstudio] = useState<SolicitudEstudioResponse[]>([]);
+  const [recetasPaciente, setRecetasPaciente] = useState<RecetaResumenResponse[]>([]);
   const [observacionesPorTurno, setObservacionesPorTurno] = useState<Record<string, ObservacionesPorPracticaFecha>>({});
   const [solicitudScopeTurnoId, setSolicitudScopeTurnoId] = useState<string | null>(null);
   const [solicitudOrigen, setSolicitudOrigen] = useState<"general" | "evolucion">("general");
@@ -609,6 +500,11 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
   const [catalogoLoading, setCatalogoLoading] = useState(false);
   const [catalogoSearch, setCatalogoSearch] = useState("");
   const [catalogoCategoriaFiltro, setCatalogoCategoriaFiltro] = useState("");
+  const [showPrescripcionModal, setShowPrescripcionModal] = useState(false);
+  const [prescripcionItems, setPrescripcionItems] = useState<PrescripcionItem[]>([]);
+  const [prescripcionDraft, setPrescripcionDraft] = useState<Omit<PrescripcionItem, "id">>({
+    medicamento: "", dosis: "", frecuencia: "", duracionDias: null, via: "Oral", indicacion: ""
+  });
   const evolucionEditorRef = useRef<HTMLDivElement | null>(null);
   const lugarAtencionPreguntadoRef = useRef(false);
   const selectedTurno = useMemo(() => turnos.find(t => t.id === selectedTurnoId) ?? null, [selectedTurnoId, turnos]);
@@ -707,7 +603,7 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     });
   }, [selectedTurno, evolucionesAmbulatorias, evolucionesLocalesPaciente, profesionalActual]);
 
-  const panoramica = useMemo(() => buildPanoramica(selectedTurno, evolucionesAmbulatoriasConLocales), [selectedTurno, evolucionesAmbulatoriasConLocales]);
+  const panoramica = useMemo(() => buildPanoramica(selectedTurno, evolucionesAmbulatoriasConLocales, solicitudesEstudio, recetasPaciente), [selectedTurno, evolucionesAmbulatoriasConLocales, solicitudesEstudio, recetasPaciente]);
   const evolucionesCombinadas = useMemo(() => {
     if (!selectedTurno) {
       return buildListadoEvoluciones(evolucionesAmbulatorias).map(item => ({
@@ -1124,9 +1020,10 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     }
     const texto = sanitizeRichTextHtml(evolucionTextoDraft).trim();
     try {
+      const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const response = await crearEvolucionAmbulatoria({
         pacienteId: estadoPacienteId,
-        turnoId: selectedTurno.id,
+        turnoId: guidRegex.test(selectedTurno.id) ? selectedTurno.id : null,
         texto,
         problemas: [...evolucionProblemasEtiquetas],
         especialidad: selectedTurno.servicio,
@@ -1139,8 +1036,22 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
         profesional: profesionalActual,
         problemasAsociados: [...evolucionProblemasEtiquetas]
       }, ...prev]);
-    } catch {
-      setEvolucionFormError("Error al guardar la evolucion. Verifique la conexion e intente de nuevo.");
+    } catch (err) {
+      console.error("Error guardar evolucion:", err);
+      let msg = "Error al guardar la evolucion. Verifique la conexion e intente de nuevo.";
+      if (err && typeof err === "object" && "data" in err) {
+        const apiErr = err as { data: any; message: string };
+        msg = apiErr.message;
+        if (apiErr.data?.errors) {
+          const detalles = Object.entries(apiErr.data.errors)
+            .map(([campo, msgs]) => `${campo}: ${(msgs as string[]).join(", ")}`)
+            .join(" | ");
+          msg += ` (${detalles})`;
+        }
+      } else if (err instanceof Error) {
+        msg = err.message;
+      }
+      setEvolucionFormError(msg);
       return;
     }
     setShowAgregarEvolucionModal(false);
@@ -1447,10 +1358,30 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     setShowFechaPrimeraPracticaModal(false);
     setSolicitudError(null);
   }
+  async function refreshPacienteData() {
+    if (!estadoPacienteId || !selectedTurnoId) return;
+    try {
+      const [recetas, solicitudes] = await Promise.all([
+        obtenerRecetasPaciente(estadoPacienteId),
+        getSolicitudesEstudio(estadoPacienteId, selectedTurnoId)
+      ]);
+      setRecetasPaciente(recetas);
+      setSolicitudesEstudio(solicitudes);
+    } catch (err) {
+      console.error("Error refreshing paciente data:", err);
+    }
+  }
+
   async function guardarSolicitudesEstudio() {
-    if (!estadoPacienteId || !solicitudScopeId) return;
+    if (!estadoPacienteId || !solicitudScopeId) {
+      setError("No se puede guardar: datos del paciente no disponibles.");
+      return;
+    }
     const scopeData = solicitudesEstudiosPorTurno[solicitudScopeId];
-    if (!scopeData) return;
+    if (!scopeData) {
+      setError("No hay practicas seleccionadas para guardar.");
+      return;
+    }
     const items: SolicitudEstudioItem[] = [];
     for (const [fecha, practicas] of Object.entries(scopeData)) {
       for (const nombre of practicas) {
@@ -1460,6 +1391,7 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     }
     try {
       await syncSolicitudesEstudio(estadoPacienteId, solicitudScopeId, items);
+      await refreshPacienteData();
     } catch (err) {
       console.error("Error al guardar solicitudes:", err);
     }
@@ -1644,13 +1576,27 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
       setWorking(false);
     }
   }
+  function agregarItemPrescripcion() {
+    if (!prescripcionDraft.medicamento.trim()) return;
+    const newItem: PrescripcionItem = {
+      id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
+      ...prescripcionDraft,
+      duracionDias: prescripcionDraft.duracionDias ?? null
+    };
+    setPrescripcionItems(prev => [...prev, newItem]);
+    setPrescripcionDraft({ medicamento: "", dosis: "", frecuencia: "", duracionDias: null, via: "Oral", indicacion: "" });
+  }
+  function eliminarItemPrescripcion(id: string) {
+    setPrescripcionItems(prev => prev.filter(item => item.id !== id));
+  }
+  function cerrarPrescripcion() {
+    setShowPrescripcionModal(false);
+    setPrescripcionItems([]);
+    setPrescripcionDraft({ medicamento: "", dosis: "", frecuencia: "", duracionDias: null, via: "Oral", indicacion: "" });
+  }
   function abrirRecetaDigital() {
     if (!selectedTurno) {
       setError("Debe seleccionar un paciente para acceder al recetario.");
-      return;
-    }
-    if (!RECETARIO_URL) {
-      setError("No se configuro VITE_RECETARIO_URL para integrar Receta Digital.");
       return;
     }
     if (selectedTurno.paciente === "Por identificar" || selectedTurno.documento === "-") {
@@ -1658,8 +1604,7 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
       return;
     }
     setError(null);
-    const url = buildRecetarioUrl(selectedTurno);
-    window.open(url, "_blank", "noopener,noreferrer");
+    setShowPrescripcionModal(true);
   }
   useEffect(() => {
     void loadSelectores();
@@ -1682,7 +1627,10 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     if (!selectedTurnoId) {
       setEncuentroEstado("SIN_ENCUENTRO");
       setEstadoPacienteId(null);
+      setEncuentroId(null);
       setEvolucionesAmbulatorias([]);
+      setSolicitudesEstudio([]);
+      setRecetasPaciente([]);
       setShowEvolucionesListado(false);
       setShowAgregarEvolucionModal(false);
       return;
@@ -1690,15 +1638,50 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     let active = true;
     void (async () => {
       try {
-        const response = await obtenerEncuentroTurno(selectedTurnoId);
-        const [evoluciones, solicitudes] = await Promise.all([
-          obtenerEvolucionesAmbulatoriasPaciente(response.pacienteId, 20),
-          getSolicitudesEstudio(response.pacienteId, selectedTurnoId)
+        const pacienteIdFromTurno = selectedTurno?.pacienteId;
+        let pacienteId = pacienteIdFromTurno ?? null;
+        let encuentroEstadoLocal = "SIN_ENCUENTRO";
+        let encuentroIdLocal: string | null = null;
+
+        // Intentar obtener datos del encuentro (no bloqueante)
+        try {
+          const response = await obtenerEncuentroTurno(selectedTurnoId);
+          if (active) {
+            encuentroEstadoLocal = response.estado;
+            encuentroIdLocal = response.encuentroId;
+          }
+          if (!pacienteId) {
+            pacienteId = response.pacienteId;
+          }
+        } catch {
+          // El encuentro puede no existir aún; continuar con el pacienteId del turno
+        }
+
+        if (!pacienteId) {
+          if (active) {
+            setEncuentroEstado("SIN_ENCUENTRO");
+            setEstadoPacienteId(null);
+            setEvolucionesAmbulatorias([]);
+            setSolicitudesEstudio([]);
+            setRecetasPaciente([]);
+            setSolicitudesEstudiosPorTurno({});
+            setObservacionesPorTurno({});
+          }
+          return;
+        }
+
+        const [evoluciones, solicitudes, recetas] = await Promise.all([
+          obtenerEvolucionesAmbulatoriasPaciente(pacienteId, 20),
+          getSolicitudesEstudio(pacienteId, selectedTurnoId),
+          obtenerRecetasPaciente(pacienteId)
         ]);
         if (active) {
-          setEncuentroEstado(response.estado);
-          setEstadoPacienteId(response.pacienteId);
+          setEncuentroEstado(encuentroEstadoLocal);
+          setEstadoPacienteId(pacienteId);
+          setEncuentroId(encuentroIdLocal);
           setEvolucionesAmbulatorias(evoluciones);
+          setSolicitudesEstudio(solicitudes);
+          setRecetasPaciente(recetas);
           const scopeId = selectedTurnoId;
           const solicitudesAgrupadas: Record<string, SolicitudesEstudiosPorFecha> = {};
           const observacionesAgrupadas: Record<string, ObservacionesPorPracticaFecha> = {};
@@ -1720,13 +1703,17 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
           setEncuentroEstado("SIN_ENCUENTRO");
           setEstadoPacienteId(null);
           setEvolucionesAmbulatorias([]);
+          setSolicitudesEstudio([]);
+          setRecetasPaciente([]);
+          setSolicitudesEstudiosPorTurno({});
+          setObservacionesPorTurno({});
         }
       }
     })();
     return () => {
       active = false;
     };
-  }, [selectedTurnoId]);
+  }, [selectedTurnoId, selectedTurno]);
   useEffect(() => {
     if (!solicitudToast) {
       return;
@@ -1851,6 +1838,8 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     encuentroEstado,
     setEncuentroEstado,
     estadoPacienteId,
+    encuentroId,
+    setEncuentroId,
     evolucionesAmbulatorias,
     setEvolucionesAmbulatorias,
     fechaAgenda,
@@ -1942,6 +1931,9 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     setSolicitudToast,
     solicitudError,
     setSolicitudError,
+    solicitudesEstudio,
+    setSolicitudesEstudio,
+    recetasPaciente,
     solicitudesEstudiosPorTurno,
     setSolicitudesEstudiosPorTurno,
     catalogoPracticas,
@@ -2030,6 +2022,16 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     confirmarServicioIngreso,
     confirmarCambioLugarAtencion,
     limpiarSolicitudesScope,
+    showPrescripcionModal,
+    setShowPrescripcionModal,
+    prescripcionItems,
+    setPrescripcionItems,
+    prescripcionDraft,
+    setPrescripcionDraft,
+    agregarItemPrescripcion,
+    eliminarItemPrescripcion,
+    cerrarPrescripcion,
+    VIAS_ADMINISTRACION,
     guardarSolicitudesEstudio,
     abrirSolicitudEstudiosConScope,
     abrirSolicitudEstudios,
@@ -2055,6 +2057,7 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     abrirDesdeMegafono,
     confirmarLlamadoMegafono,
     confirmarSalidaEncuentro,
-    abrirRecetaDigital
+    abrirRecetaDigital,
+    refreshPacienteData
   };
 }

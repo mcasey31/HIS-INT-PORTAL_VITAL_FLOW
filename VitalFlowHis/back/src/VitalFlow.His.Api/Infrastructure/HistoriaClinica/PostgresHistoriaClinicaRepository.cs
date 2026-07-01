@@ -356,7 +356,24 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
                 r.estado,
                 r.rdiar_profile,
                 r.created_at,
-                coalesce(count(i.id), 0) as cantidad_items
+                coalesce(count(i.id), 0) as cantidad_items,
+                (
+                    select coalesce(
+                        string_agg(
+                            i2.medicamento_display ||
+                            case when i2.duracion_dias is not null
+                                then ' — ' || i2.duracion_dias::text || ' días'
+                                else ''
+                            end,
+                            E'\n'
+                            order by i2.id
+                        ),
+                        ''
+                    )
+                    from sch_hca.receta_digital_item i2
+                    where i2.receta_id = r.id
+                      and i2.activo = true
+                ) as items_resumen
             from sch_hca.receta_digital r
             left join sch_hca.receta_digital_item i
                 on i.receta_id = r.id
@@ -383,15 +400,16 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
                 Estado: reader.GetString(reader.GetOrdinal("estado")),
                 RdiarProfile: reader.GetString(reader.GetOrdinal("rdiar_profile")),
                 CreadoEn: reader.GetDateTime(reader.GetOrdinal("created_at")).ToString("O"),
-                CantidadItems: reader.GetInt32(reader.GetOrdinal("cantidad_items"))));
+                CantidadItems: reader.GetInt32(reader.GetOrdinal("cantidad_items")),
+                ItemsResumen: reader.IsDBNull(reader.GetOrdinal("items_resumen")) ? null : reader.GetString(reader.GetOrdinal("items_resumen"))));
         }
 
         return result;
     }
 
-    public IReadOnlyList<SolicitudEstudioResponse> GetSolicitudesEstudio(Guid pacienteId, string turnoId)
+    public IReadOnlyList<SolicitudEstudioResponse> GetSolicitudesEstudio(Guid pacienteId, string? turnoId)
     {
-        const string sql = """
+        var sql = """
             select
                 id,
                 paciente_id,
@@ -401,8 +419,8 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
                 observacion
             from sch_hca.solicitud_estudio
             where paciente_id = @paciente_id
-              and turno_id = @turno_id
               and estado = 'ACTIVA'
+            """ + (turnoId is not null ? "and turno_id = @turno_id\n" : "") + """
             order by fecha_solicitada, practica;
             """;
 
@@ -411,7 +429,10 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
 
         using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("paciente_id", pacienteId.ToString());
-        cmd.Parameters.AddWithValue("turno_id", turnoId);
+        if (turnoId is not null)
+        {
+            cmd.Parameters.AddWithValue("turno_id", turnoId);
+        }
 
         var result = new List<SolicitudEstudioResponse>();
         using var reader = cmd.ExecuteReader();
@@ -475,6 +496,47 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
         }
 
         tx.Commit();
+    }
+
+    public CrearEvolucionAmbulatoriaResponse CreateEvolucionAmbulatoria(Guid pacienteId, CrearEvolucionAmbulatoriaRequest request)
+    {
+        const string sql = """
+            insert into sch_hca.evolucion_ambulatoria
+                (id, paciente_id, turno_id, fecha_atencion, especialidad, profesional,
+                 texto, problemas_asociados_json, activo, created_at, updated_at)
+            values
+                (@id, @paciente_id, @turno_id, now(), @especialidad, @profesional,
+                 @texto, @problemas_asociados_json::jsonb, true, now(), now())
+            returning id, fecha_atencion;
+            """;
+
+        var evolucionId = Guid.NewGuid();
+        var problemasJson = JsonSerializer.Serialize(request.Problemas);
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", evolucionId);
+        cmd.Parameters.AddWithValue("paciente_id", pacienteId);
+        cmd.Parameters.AddWithValue("turno_id", (object?)request.TurnoId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("especialidad", request.Especialidad.Trim());
+        cmd.Parameters.AddWithValue("profesional", request.Profesional.Trim());
+        cmd.Parameters.AddWithValue("texto", request.Texto);
+        cmd.Parameters.AddWithValue("problemas_asociados_json", problemasJson);
+
+        using var reader = cmd.ExecuteReader();
+        if (reader.Read())
+        {
+            var fecha = reader.GetDateTime(reader.GetOrdinal("fecha_atencion"));
+            return new CrearEvolucionAmbulatoriaResponse(
+                EvolucionId: evolucionId.ToString(),
+                FechaAtencion: fecha.ToString("O"));
+        }
+
+        return new CrearEvolucionAmbulatoriaResponse(
+            EvolucionId: evolucionId.ToString(),
+            FechaAtencion: DateTimeOffset.UtcNow.ToString("O"));
     }
 
     public AnularRecetaDigitalResponse? AnularRecetaDigital(Guid recetaId, string motivo, Guid usuarioId)

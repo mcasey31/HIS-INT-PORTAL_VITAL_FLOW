@@ -1,6 +1,8 @@
+import { useState, useEffect, useRef } from "react";
 import { useEscritorioClinico } from "../useEscritorioClinico";
 type useEscritorioClinicoState = ReturnType<typeof useEscritorioClinico>;
 import { sanitizeRichTextHtml } from "../EscritorioClinicoPage";
+import { buscarVademecum, registrarRecetaDigital, type VademecumItem } from "../escritorioClinicoApi";
 
 export function EscritorioClinicoModales({ state }: { state: useEscritorioClinicoState }) {
   const {
@@ -17,6 +19,9 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
     ESTADO_EN_ATENCION, ESTADO_EN_SALA_ESPERA, cumpleRegistroMinimoSalidaEncuentro, salidaEncuentroError,
     confirmarSalidaEncuentro, working,
     showSolicitarEstudiosModal, setShowSolicitarEstudiosModal, isEstudioDesdeEvolucion,
+    showFechaPrimeraPracticaModal, setShowFechaPrimeraPracticaModal, fechaSolicitudNueva, setFechaSolicitudNueva,
+    confirmarFechaPrimeraPractica,
+    solicitudError,
     opcionesPracticasIzquierda, opcionesPracticasDerecha, searchQueryPracticasIzquierda, setSearchQueryPracticasIzquierda,
     searchQueryPracticasDerecha, setSearchQueryPracticasDerecha, selectedPracticasIzquierda,
     setSelectedPracticasIzquierda, selectedPracticasDerecha, setSelectedPracticasDerecha,
@@ -29,8 +34,153 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
     showServicioModal, servicioPendienteId, setServicioPendienteId, serviciosDisponibles,
     serviceSelectionError, setServiceSelectionError, confirmarServicioIngreso, cancelarServicioIngreso,
     showLugarAtencionModal, setShowLugarAtencionModal, lugarAtencionPendienteId, setLugarAtencionPendienteId,
-    efectoresDisponibles, lugarAtencionError, setLugarAtencionError, confirmarCambioLugarAtencion
+    efectoresDisponibles, lugarAtencionError, setLugarAtencionError, confirmarCambioLugarAtencion,
+    showPrescripcionModal, setShowPrescripcionModal, error,
+    prescripcionItems, setPrescripcionItems, prescripcionDraft, setPrescripcionDraft,
+    agregarItemPrescripcion, eliminarItemPrescripcion, cerrarPrescripcion,
+    VIAS_ADMINISTRACION, estadoPacienteId, encuentroId, refreshPacienteData
   } = state;
+
+  const [vademecumSearch, setVademecumSearch] = useState("");
+  const [vademecumResults, setVademecumResults] = useState<VademecumItem[]>([]);
+  const [vademecumLoading, setVademecumLoading] = useState(false);
+  const [selectedDrug, setSelectedDrug] = useState<VademecumItem | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [recetaError, setRecetaError] = useState<string | null>(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const searchTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+
+    const query = vademecumSearch.trim();
+    if (query.length < 2) {
+      setVademecumResults([]);
+      return;
+    }
+
+    setVademecumLoading(true);
+    setRecetaError(null);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const data = await buscarVademecum(query);
+        setVademecumResults(data);
+      } catch (err) {
+        console.error("Error al buscar vademecum:", err);
+        setRecetaError("Error al buscar medicamentos. Verifique la conexión con el servidor.");
+      } finally {
+        setVademecumLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, [vademecumSearch]);
+
+  useEffect(() => {
+    if (!showPrescripcionModal) {
+      setVademecumSearch("");
+      setVademecumResults([]);
+      setSelectedDrug(null);
+      setRecetaError(null);
+      setIsSaving(false);
+      setShowSuccessToast(false);
+    }
+  }, [showPrescripcionModal]);
+
+  useEffect(() => {
+    if (vademecumSearch.trim().length < 2) {
+      setRecetaError(null);
+    }
+  }, [vademecumSearch]);
+
+  const handleGuardarReceta = async () => {
+    if (prescripcionItems.length === 0) return;
+    setIsSaving(true);
+    setRecetaError(null);
+
+    try {
+      let userId = "00000000-0000-0000-0000-000000000000";
+      const sessionRaw = sessionStorage.getItem("vitalflow.auth.session");
+      if (sessionRaw) {
+        try {
+          const session = JSON.parse(sessionRaw);
+          const token = session.accessToken;
+          if (token) {
+            const base64Url = token.split(".")[1];
+            if (base64Url) {
+              const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+              const decoded = JSON.parse(atob(base64));
+              if (decoded.userId) {
+                userId = decoded.userId;
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Error decoding JWT:", e);
+        }
+      }
+
+      let matricula = "MP99999";
+      const match = selectedTurno?.efector?.match(/\((M[PN]\s*\d+[^)]*)\)/i);
+      if (match && match[1]) {
+        matricula = match[1].trim();
+      } else {
+        for (const ef of efectoresDisponibles || []) {
+          const m = ef.nombre?.match(/\((M[PN]\s*\d+[^)]*)\)/i);
+          if (m && m[1]) {
+            matricula = m[1].trim();
+            break;
+          }
+        }
+      }
+
+      const items = prescripcionItems.map(item => ({
+        medicamentoCodigo: item.medicamentoCodigo || item.id,
+        medicamentoSistema: item.medicamentoSistema || "http://troquel.ar",
+        medicamentoDisplay: item.medicamentoDisplay || item.medicamento,
+        dosisTexto: item.dosis || null,
+        frecuenciaTexto: item.frecuencia || null,
+        duracionDias: item.duracionDias || null,
+        indicacion: item.indicacion || null
+      }));
+
+      const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const turnoIdValido = selectedTurno?.id && guidRegex.test(selectedTurno.id) ? selectedTurno.id : null;
+      const encuentroIdValido = encuentroId && guidRegex.test(encuentroId) ? encuentroId : null;
+      await registrarRecetaDigital({
+        pacienteId: estadoPacienteId || "",
+        encuentroId: encuentroIdValido,
+        turnoId: turnoIdValido,
+        prescriptorUsuarioId: userId,
+        prescriptorMatricula: matricula,
+        organizacionOid: "2.16.840.1.113883.2.10.1.1",
+        fhirBundleJson: JSON.stringify({
+          resourceType: "Bundle",
+          type: "document",
+          entry: []
+        }),
+        items
+      });
+
+      setShowSuccessToast(true);
+      await refreshPacienteData();
+      setTimeout(() => {
+        setShowSuccessToast(false);
+        cerrarPrescripcion();
+      }, 2000);
+    } catch (err) {
+      console.error("Error al registrar receta digital:", err);
+      setRecetaError(err instanceof Error ? err.message : "Error al registrar receta digital en el servidor.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <>
@@ -234,58 +384,70 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
         <section className="confirm-modal hc-solicitudes-modal" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}>
           <h3>{isEstudioDesdeEvolucion ? "Solicitar estudios (desde evolución)" : "Solicitar estudios"}</h3>
           
-          <div className="hc-solicitudes-grid">
-            <div className="hc-solicitudes-panel">
-              <h4>Prácticas disponibles</h4>
-              <input value={searchQueryPracticasIzquierda} onChange={event => setSearchQueryPracticasIzquierda(event.target.value)} placeholder="Buscar practica disponible..." className="hc-solicitudes-search" />
-              <select multiple className="hc-solicitudes-listbox" value={selectedPracticasIzquierda} onChange={event => {
-                const values = Array.from(event.target.selectedOptions).map(opt => opt.value);
-                setSelectedPracticasIzquierda(values);
-              }}>
-                {opcionesPracticasIzquierda.filter(p => p.nombre.toLowerCase().includes(searchQueryPracticasIzquierda.toLowerCase())).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-              </select>
+          <div className="hc-solicitudes-body">
+            <div className="hc-solicitudes-grid">
+              <div className="hc-solicitudes-panel">
+                <h4>Prácticas disponibles</h4>
+                <input value={searchQueryPracticasIzquierda} onChange={event => setSearchQueryPracticasIzquierda(event.target.value)} placeholder="Buscar practica disponible..." className="hc-solicitudes-search" />
+                <div className="hc-solicitudes-listbox">
+                  {opcionesPracticasIzquierda.filter(p => p.nombre.toLowerCase().includes(searchQueryPracticasIzquierda.toLowerCase())).map(p => (
+                    <label key={p.id} className="hc-checkbox-item">
+                      <input type="checkbox" checked={selectedPracticasIzquierda.includes(p.id)} onChange={() => {
+                        setSelectedPracticasIzquierda(prev => prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id]);
+                      }} />
+                      <span>{p.nombre}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="hc-solicitudes-controls">
+                <button type="button" onClick={moverPracticasSeleccionadasADerecha} disabled={selectedPracticasIzquierda.length === 0} title="Mover a seleccionadas">→</button>
+                <button type="button" onClick={moverPracticasSeleccionadasAIzquierda} disabled={selectedPracticasDerecha.length === 0} title="Quitar de seleccionadas">←</button>
+              </div>
+              
+              <div className="hc-solicitudes-panel">
+                <h4>Prácticas seleccionadas</h4>
+                <input value={searchQueryPracticasDerecha} onChange={event => setSearchQueryPracticasDerecha(event.target.value)} placeholder="Buscar practica seleccionada..." className="hc-solicitudes-search" />
+                <div className="hc-solicitudes-listbox">
+                  {opcionesPracticasDerecha.filter(p => p.nombre.toLowerCase().includes(searchQueryPracticasDerecha.toLowerCase())).map(p => (
+                    <label key={p.id} className="hc-checkbox-item">
+                      <input type="checkbox" checked={selectedPracticasDerecha.includes(p.id)} onChange={() => {
+                        setSelectedPracticasDerecha(prev => prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id]);
+                      }} />
+                      <span>{p.nombre}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
             
-            <div className="hc-solicitudes-controls">
-              <button type="button" onClick={moverPracticasSeleccionadasADerecha} disabled={selectedPracticasIzquierda.length === 0} title="Mover a seleccionadas">→</button>
-              <button type="button" onClick={moverPracticasSeleccionadasAIzquierda} disabled={selectedPracticasDerecha.length === 0} title="Quitar de seleccionadas">←</button>
-            </div>
-            
-            <div className="hc-solicitudes-panel">
-              <h4>Prácticas seleccionadas</h4>
-              <input value={searchQueryPracticasDerecha} onChange={event => setSearchQueryPracticasDerecha(event.target.value)} placeholder="Buscar practica seleccionada..." className="hc-solicitudes-search" />
-              <select multiple className="hc-solicitudes-listbox" value={selectedPracticasDerecha} onChange={event => {
-                const values = Array.from(event.target.selectedOptions).map(opt => opt.value);
-                setSelectedPracticasDerecha(values);
-              }}>
-                {opcionesPracticasDerecha.filter(p => p.nombre.toLowerCase().includes(searchQueryPracticasDerecha.toLowerCase())).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-              </select>
-            </div>
+            {opcionesPracticasDerecha.length > 0 ? <div className="hc-solicitudes-observaciones">
+              <h4>Observaciones por práctica</h4>
+              <p className="hc-solicitudes-help">Seleccione "Observación" para añadir detalles técnicos para el especialista que realizará el estudio.</p>
+              <ul className="hc-evoluciones-list">
+                {opcionesPracticasDerecha.map(practica => {
+                  const obs = (solicitudesPorScope[solicitudesScopeActual] ?? {})[practica.id] ?? "";
+                  return <li key={practica.id}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>{practica.nombre}</span>
+                      <button type="button" className="btn-outline" onClick={() => abrirObservacionPractica(practica.id)}>
+                        {obs ? "Editar observación" : "Añadir observación"}
+                      </button>
+                    </div>
+                    {obs ? <p style={{ marginTop: "0.5rem", fontStyle: "italic", fontSize: "0.85rem" }}>Obs: {obs}</p> : null}
+                    {obs ? <button type="button" className="hc-icon-button" style={{ color: "var(--color-danger)", marginTop: "0.25rem" }} onClick={() => eliminarObservacionPractica(practica.id)}>Quitar obs.</button> : null}
+                  </li>;
+                })}
+              </ul>
+            </div> : null}
           </div>
-          
-          {opcionesPracticasDerecha.length > 0 ? <div className="hc-solicitudes-observaciones">
-            <h4>Observaciones por práctica</h4>
-            <p className="hc-solicitudes-help">Seleccione "Observación" para añadir detalles técnicos para el especialista que realizará el estudio.</p>
-            <ul className="hc-evoluciones-list">
-              {opcionesPracticasDerecha.map(practica => {
-                const obs = (solicitudesPorScope[solicitudesScopeActual] ?? {})[practica.id] ?? "";
-                return <li key={practica.id}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span>{practica.nombre}</span>
-                    <button type="button" className="btn-outline" onClick={() => abrirObservacionPractica(practica.id)}>
-                      {obs ? "Editar observación" : "Añadir observación"}
-                    </button>
-                  </div>
-                  {obs ? <p style={{ marginTop: "0.5rem", fontStyle: "italic", fontSize: "0.85rem" }}>Obs: {obs}</p> : null}
-                  {obs ? <button type="button" className="hc-icon-button" style={{ color: "var(--color-danger)", marginTop: "0.25rem" }} onClick={() => eliminarObservacionPractica(practica.id)}>Quitar obs.</button> : null}
-                </li>;
-              })}
-            </ul>
-          </div> : null}
+
+          {solicitudError ? <p className="hc-error">{solicitudError}</p> : null}
 
           <div className="confirm-actions">
             {opcionesPracticasDerecha.length > 0 && !isEstudioDesdeEvolucion ? <button type="button" className="btn-outline" onClick={() => void imprimirSolicitudesPracticas()}>Imprimir comprobante</button> : null}
-            <button type="button" onClick={() => setShowSolicitarEstudiosModal(false)}>Cerrar / Volver</button>
+            <button type="button" onClick={() => setShowSolicitarEstudiosModal(false)}>Guardar</button>
           </div>
         </section>
       </div> : null}
@@ -331,6 +493,208 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
           <div className="confirm-actions">
             <button type="button" className="btn-outline" onClick={() => setShowLugarAtencionModal(false)}>Cancelar</button>
             <button type="button" onClick={confirmarCambioLugarAtencion}>Confirmar cambio</button>
+          </div>
+        </section>
+      </div> : null}
+
+      {showPrescripcionModal && selectedTurno ? <div className="modal-backdrop" role="presentation" onClick={cerrarPrescripcion}>
+        <section className="confirm-modal hc-prescripcion-modal" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}>
+          <h3>Receta Digital</h3>
+
+          <div className="hc-prescripcion-paciente">
+            <p><strong>Paciente:</strong> {selectedTurno.paciente} | <strong>Documento:</strong> {selectedTurno.documento}</p>
+          </div>
+
+          <div className="hc-prescripcion-form">
+            <h4>Agregar medicamento</h4>
+
+            {!selectedDrug ? (
+              <div className="hc-vademecum-search-container">
+                <label>
+                  Medicamento *
+                  <div className="hc-vademecum-search-input-wrapper">
+                    <svg className="hc-vademecum-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8"/>
+                      <path d="M21 21l-4.35-4.35"/>
+                    </svg>
+                    <input
+                      type="text"
+                      value={vademecumSearch}
+                      onChange={e => setVademecumSearch(e.target.value)}
+                      placeholder="Buscar por fórmula, marca comercial o laboratorio..."
+                    />
+                    {vademecumLoading ? (
+                      <span className="hc-vademecum-spinner">Cargando...</span>
+                    ) : null}
+                  </div>
+                </label>
+
+                {vademecumResults.length > 0 ? (
+                  <div className="hc-vademecum-results-grid">
+                    <div className="hc-vademecum-results-header">
+                      <span className="hc-vcm-col-producto">Producto</span>
+                      <span className="hc-vcm-col-principio">Principio Activo</span>
+                      <span className="hc-vcm-col-troquel">Troquel</span>
+                      <span className="hc-vcm-col-cobertura">Cobertura</span>
+                    </div>
+                    {vademecumResults.map(drug => (
+                      <div
+                        key={drug.id}
+                        className="hc-vademecum-result-row"
+                        onClick={() => {
+                          setSelectedDrug(drug);
+                          setPrescripcionDraft({
+                            ...prescripcionDraft,
+                            medicamento: drug.producto
+                          });
+                        }}
+                        tabIndex={0}
+                        onKeyDown={e => { if (e.key === "Enter") { setSelectedDrug(drug); setPrescripcionDraft({ ...prescripcionDraft, medicamento: drug.producto }); } }}
+                      >
+                        <span className="hc-vcm-col-producto hc-vcm-producto-nombre">{drug.producto}</span>
+                        <span className="hc-vcm-col-principio">{drug.principioActivo}</span>
+                        <span className="hc-vcm-col-troquel">{drug.troquel}</span>
+                        <span className="hc-vcm-col-cobertura">{drug.cobertura ? <span className="hc-vademecum-badge-cobertura">{drug.cobertura}</span> : "—"}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : vademecumSearch.trim().length >= 2 && !vademecumLoading && !recetaError ? (
+                  <div className="hc-vademecum-no-results">
+                    No se encontraron medicamentos para "{vademecumSearch}"
+                  </div>
+                ) : null}
+
+              </div>
+            ) : (
+              <div>
+                <div className="hc-vademecum-selected-card">
+                  <div className="hc-vademecum-selected-card-content">
+                    <h5>Medicamento seleccionado</h5>
+                    <p><strong>Fórmula:</strong> {selectedDrug.principioActivo}</p>
+                    <p><strong>Producto:</strong> {selectedDrug.producto}</p>
+                    <p><strong>Troquel:</strong> {selectedDrug.troquel} | {selectedDrug.cobertura ? <strong className="hc-vademecum-selected-cobertura">{selectedDrug.cobertura} Cobertura</strong> : <span>Sin Cobertura</span>}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-outline btn-change-drug"
+                    onClick={() => {
+                      setSelectedDrug(null);
+                      setVademecumSearch("");
+                      setPrescripcionDraft({
+                        ...prescripcionDraft,
+                        medicamento: ""
+                      });
+                    }}
+                  >
+                    Cambiar
+                  </button>
+                </div>
+
+                <div className="hc-prescripcion-grid">
+                  <label>
+                    Dosis
+                    <input type="text" value={prescripcionDraft.dosis} onChange={e => setPrescripcionDraft({ ...prescripcionDraft, dosis: e.target.value })} placeholder="Ej: 500 mg" />
+                  </label>
+                  <label>
+                    Frecuencia
+                    <input type="text" value={prescripcionDraft.frecuencia} onChange={e => setPrescripcionDraft({ ...prescripcionDraft, frecuencia: e.target.value })} placeholder="Ej: Cada 8 horas" />
+                  </label>
+                  <label>
+                    Duración (días)
+                    <input type="number" min={1} value={prescripcionDraft.duracionDias ?? ""} onChange={e => setPrescripcionDraft({ ...prescripcionDraft, duracionDias: e.target.value ? Number(e.target.value) : null })} placeholder="Ej: 7" />
+                  </label>
+                  <label>
+                    Vía
+                    <select value={prescripcionDraft.via} onChange={e => setPrescripcionDraft({ ...prescripcionDraft, via: e.target.value })}>
+                      {VIAS_ADMINISTRACION.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </label>
+                  <label className="hc-prescripcion-fullwidth">
+                    Indicaciones
+                    <textarea value={prescripcionDraft.indicacion} onChange={e => setPrescripcionDraft({ ...prescripcionDraft, indicacion: e.target.value })} rows={2} placeholder="Indicaciones adicionales..." />
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-outline btn-agregar-receta"
+                  style={{ marginTop: "1rem", width: "100%", textTransform: "uppercase" }}
+                  onClick={() => {
+                    const newItem = {
+                      id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                      ...prescripcionDraft,
+                      medicamento: selectedDrug.producto,
+                      medicamentoCodigo: selectedDrug.troquel,
+                      medicamentoSistema: "http://troquel.ar",
+                      medicamentoDisplay: selectedDrug.producto,
+                      duracionDias: prescripcionDraft.duracionDias ?? null
+                    };
+                    setPrescripcionItems(prev => [...prev, newItem]);
+                    setPrescripcionDraft({ medicamento: "", dosis: "", frecuencia: "", duracionDias: null, via: "Oral", indicacion: "" });
+                    setSelectedDrug(null);
+                    setVademecumSearch("");
+                  }}
+                >
+                  Agregar a la receta
+                </button>
+              </div>
+            )}
+          </div>
+
+          {prescripcionItems.length > 0 ? <div className="hc-prescripcion-items">
+            <h4>Medicamentos prescriptos ({prescripcionItems.length})</h4>
+            <ul>
+              {prescripcionItems.map(item => (
+                <li key={item.id}>
+                  <div className="hc-prescripcion-item-header">
+                    <strong>{item.medicamento}</strong>
+                    <button type="button" className="hc-icon-button" style={{ color: "var(--color-danger)" }} onClick={() => eliminarItemPrescripcion(item.id)}>Quitar</button>
+                  </div>
+                  <div className="hc-prescripcion-item-detalle">
+                    {item.dosis ? <span>Dosis: {item.dosis}</span> : null}
+                    {item.frecuencia ? <span>Frec: {item.frecuencia}</span> : null}
+                    {item.duracionDias ? <span>Duración: {item.duracionDias} días</span> : null}
+                    <span>Vía: {item.via}</span>
+                  </div>
+                  {item.indicacion ? <p className="hc-prescripcion-item-indicacion">{item.indicacion}</p> : null}
+                </li>
+              ))}
+            </ul>
+          </div> : null}
+
+          {showSuccessToast ? (
+            <div className="hc-toast-success-prescripcion">
+              ✓ ¡Receta digital guardada con éxito!
+            </div>
+          ) : null}
+
+          {recetaError ? <p className="hc-error">{recetaError}</p> : null}
+
+          <div className="confirm-actions">
+            <button type="button" className="btn-outline" disabled={isSaving} onClick={cerrarPrescripcion}>Cancelar</button>
+            <button type="button" disabled={prescripcionItems.length === 0 || isSaving} onClick={handleGuardarReceta}>
+              {isSaving ? "Guardando..." : "Guardar receta"}
+            </button>
+          </div>
+        </section>
+      </div> : null}
+
+      {/* Modal para seleccionar fecha de la primera práctica */}
+      {showFechaPrimeraPracticaModal ? <div className="modal-backdrop" role="presentation" onClick={() => setShowFechaPrimeraPracticaModal(false)}>
+        <section className="confirm-modal" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}>
+          <h3>Seleccionar fecha de solicitud</h3>
+          <p>Ingrese la fecha para la cual se solicitan las prácticas.</p>
+
+          <label style={{ display: "block", marginTop: "1rem" }}>
+            Fecha de solicitud
+            <input type="date" value={fechaSolicitudNueva} min={new Date().toISOString().split("T")[0]} onChange={event => setFechaSolicitudNueva(event.target.value)} style={{ width: "100%", marginTop: "0.5rem" }} />
+          </label>
+
+          {solicitudError ? <p className="hc-error">{solicitudError}</p> : null}
+
+          <div className="confirm-actions">
+            <button type="button" className="btn-outline" onClick={() => setShowFechaPrimeraPracticaModal(false)}>Cancelar</button>
+            <button type="button" onClick={() => void confirmarFechaPrimeraPractica()}>Confirmar</button>
           </div>
         </section>
       </div> : null}

@@ -10,6 +10,7 @@ public interface IHistoriaClinicaService
     RecetaDigitalDetalleResponse ObtenerRecetaDigital(Guid recetaId);
     IReadOnlyList<RecetaDigitalResumenResponse> ObtenerRecetasDigitalesPaciente(Guid pacienteId);
     AnularRecetaDigitalResponse AnularRecetaDigital(Guid recetaId, AnularRecetaDigitalRequest request);
-    IReadOnlyList<SolicitudEstudioResponse> ObtenerSolicitudesEstudio(Guid pacienteId, string turnoId);
+    IReadOnlyList<SolicitudEstudioResponse> ObtenerSolicitudesEstudio(Guid pacienteId, string? turnoId);
     void SincronizarSolicitudesEstudio(Guid pacienteId, string turnoId, SincronizarSolicitudesEstudioRequest request, Guid? createdBy);
+    CrearEvolucionAmbulatoriaResponse CrearEvolucionAmbulatoria(CrearEvolucionAmbulatoriaRequest request);
 }

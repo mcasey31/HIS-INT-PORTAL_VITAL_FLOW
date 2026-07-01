@@ -1,6 +1,6 @@
 import { useAdmision } from "../useAdmision";
 type useAdmisionState = ReturnType<typeof useAdmision>;
-import { CATALOGO_FINANCIADORES, isPrivadoFinanciador } from "../AdmisionPage";
+import { CATALOGO_FINANCIADORES, isPrivadoFinanciador } from "../admisionShared";
 
 export function AdmisionModales({ state }: { state: useAdmisionState }) {
   const {

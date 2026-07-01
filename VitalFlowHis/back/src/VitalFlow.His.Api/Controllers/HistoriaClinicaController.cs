@@ -7,7 +7,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/historia-clinica")]
-[Authorize(Roles = "Medico,Auditor")]
+[Authorize(Roles = "Medico,Auditor,Administrador")]
 public sealed class HistoriaClinicaController(IHistoriaClinicaService historiaClinicaService) : ControllerBase
 {
     [HttpGet("pacientes/{pacienteId:guid}/problemas-cronicos")]
@@ -38,10 +38,24 @@ public sealed class HistoriaClinicaController(IHistoriaClinicaService historiaCl
         }
     }
 
+    [HttpPost("pacientes/evoluciones-ambulatorias")]
+    public ActionResult<CrearEvolucionAmbulatoriaResponse> CrearEvolucionAmbulatoria(
+        [FromBody] CrearEvolucionAmbulatoriaRequest request)
+    {
+        try
+        {
+            return Ok(historiaClinicaService.CrearEvolucionAmbulatoria(request));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpGet("pacientes/{pacienteId:guid}/solicitudes-estudio")]
     public ActionResult<IReadOnlyList<SolicitudEstudioResponse>> ObtenerSolicitudesEstudio(
         Guid pacienteId,
-        [FromQuery] string turnoId)
+        [FromQuery] string? turnoId)
     {
         try
         {

@@ -1,6 +1,6 @@
 import { useAdmision } from "../useAdmision";
 type useAdmisionState = ReturnType<typeof useAdmision>;
-import { CATALOGO_FINANCIADORES, mapFinanciadoresPaciente, parseNombreFinanciadorPlan, normalizarAfiliado, isPrivadoFinanciador } from "../AdmisionPage";
+import { CATALOGO_FINANCIADORES, mapFinanciadoresPaciente, parseNombreFinanciadorPlan, normalizarAfiliado, isPrivadoFinanciador } from "../admisionShared";
 
 export function AdmisionIdentificacionPaciente({ state }: { state: useAdmisionState }) {
   const {
