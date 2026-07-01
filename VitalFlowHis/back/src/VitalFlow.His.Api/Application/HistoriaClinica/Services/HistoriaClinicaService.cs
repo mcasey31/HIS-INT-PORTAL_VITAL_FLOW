@@ -167,11 +167,16 @@ public sealed class HistoriaClinicaService(IHistoriaClinicaRepository repository
         return repository.GetRecetasDigitalesByPaciente(pacienteId);
     }
 
-    public IReadOnlyList<SolicitudEstudioResponse> ObtenerSolicitudesEstudio(Guid pacienteId, string? turnoId)
+    public IReadOnlyList<SolicitudEstudioResponse> ObtenerSolicitudesEstudio(Guid pacienteId, string turnoId)
     {
         if (pacienteId == Guid.Empty)
         {
             throw new ArgumentException("pacienteId es obligatorio.");
+        }
+
+        if (string.IsNullOrWhiteSpace(turnoId))
+        {
+            throw new ArgumentException("turnoId es obligatorio.");
         }
 
         return repository.GetSolicitudesEstudio(pacienteId, turnoId).ToList();
@@ -210,38 +215,6 @@ public sealed class HistoriaClinicaService(IHistoriaClinicaRepository repository
         }
 
         repository.SincronizarSolicitudesEstudio(pacienteId, turnoId, request.Solicitudes, createdBy);
-    }
-
-    public CrearEvolucionAmbulatoriaResponse CrearEvolucionAmbulatoria(CrearEvolucionAmbulatoriaRequest request)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        if (!Guid.TryParse(request.PacienteId, out var pacienteId) || pacienteId == Guid.Empty)
-        {
-            throw new ArgumentException("pacienteId es obligatorio y debe ser GUID valido.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Texto))
-        {
-            throw new ArgumentException("texto es obligatorio.");
-        }
-
-        if (request.Problemas is null || request.Problemas.Count == 0)
-        {
-            throw new ArgumentException("debe incluir al menos un problema asociado.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Especialidad))
-        {
-            throw new ArgumentException("especialidad es obligatoria.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Profesional))
-        {
-            throw new ArgumentException("profesional es obligatorio.");
-        }
-
-        return repository.CreateEvolucionAmbulatoria(pacienteId, request);
     }
 
     public AnularRecetaDigitalResponse AnularRecetaDigital(Guid recetaId, AnularRecetaDigitalRequest request)
