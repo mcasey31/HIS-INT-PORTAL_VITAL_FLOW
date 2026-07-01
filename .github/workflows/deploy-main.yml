@@ -79,7 +79,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 🌐 Deploy HIS Frontend to Vercel
-        uses: vercel/action@main
+        uses: amondnet/vercel-action@v42.3.0
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -91,7 +91,7 @@ jobs:
           VERCEL_ENV: production
 
       - name: 🌐 Deploy Portal Frontend to Vercel
-        uses: vercel/action@main
+        uses: amondnet/vercel-action@v42.3.0
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
