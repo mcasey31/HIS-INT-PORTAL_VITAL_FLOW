@@ -69,6 +69,39 @@ jobs:
             ${{ env.PORTAL_BACKEND_IMAGE }}:${{ github.sha }}
             ${{ env.PORTAL_BACKEND_IMAGE }}:latest
 
+  deploy-vercel-main:
+    name: 🌐 Deploy to Vercel PRODUCTION
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🌐 Deploy HIS Frontend to Vercel
+        uses: vercel/action@main
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_HIS_FRONTEND_MAIN_PROJECT_ID }}
+          working-directory: ./VitalFlowHis/front
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-comment: true
+        env:
+          VERCEL_ENV: production
+
+      - name: 🌐 Deploy Portal Frontend to Vercel
+        uses: vercel/action@main
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PORTAL_FRONTEND_MAIN_PROJECT_ID }}
+          working-directory: ./VitalFlowPortal
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-comment: true
+        env:
+          VERCEL_ENV: production
+
   # Railway deployment commented out - configure when RAILWAY_PROJECT_ID is added to secrets
   # deploy-railway-main:
   #   name: 🚂 Deploy to Railway MAIN
@@ -102,23 +135,29 @@ jobs:
 
   notify:
     name: 📢 Notify Deployment
-    needs: [build-and-push]
+    needs: [deploy-vercel-main]
     runs-on: ubuntu-latest
     if: always()
 
     steps:
-      - name: ✅ Production Docker Build Success
+      - name: ✅ Production Deployment Success
         if: success()
         run: |
-          echo "✅ PRODUCTION Environment Docker Images Built Successfully!"
-          echo "Images available at ghcr.io/mcasey31/his-int-portal_vital_flow:"
-          echo "  - his-backend:latest"
-          echo "  - his-frontend:latest"
-          echo "  - portal-backend:latest"
+          echo "✅ PRODUCTION Environment Deployed Successfully!"
+          echo ""
+          echo "🐳 Docker Images:"
+          echo "  - HIS Backend: ghcr.io/mcasey31/his-int-portal_vital_flow/his-backend:latest"
+          echo "  - HIS Frontend: ghcr.io/mcasey31/his-int-portal_vital_flow/his-frontend:latest"
+          echo "  - Portal Backend: ghcr.io/mcasey31/his-int-portal_vital_flow/portal-backend:latest"
+          echo ""
+          echo "🌐 Vercel Deployments:"
+          echo "  - HIS Frontend: https://vitalflow-his-front.vercel.app"
+          echo "  - Portal Frontend: https://vitalflow-portal.vercel.app"
+          echo ""
           echo "⏰ Timestamp: $(date)"
 
-      - name: ❌ Production Docker Build Failed
+      - name: ❌ Production Deployment Failed
         if: failure()
         run: |
-          echo "❌ PRODUCTION Docker Build Failed! Check GitHub Actions logs immediately."
+          echo "❌ PRODUCTION Deployment Failed! Check GitHub Actions logs immediately."
           exit 1

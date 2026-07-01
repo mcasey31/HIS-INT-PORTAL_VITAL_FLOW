@@ -67,6 +67,39 @@ jobs:
             ${{ env.PORTAL_BACKEND_IMAGE }}:qa-${{ github.sha }}
 
   # Railway deployment commented out - configure when RAILWAY_PROJECT_ID is added to secrets
+  deploy-vercel-qa:
+    name: 🌐 Deploy to Vercel QA
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🌐 Deploy HIS Frontend to Vercel
+        uses: vercel/action@main
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_HIS_FRONTEND_QA_PROJECT_ID }}
+          working-directory: ./VitalFlowHis/front
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-comment: true
+        env:
+          VERCEL_ENV: production
+
+      - name: 🌐 Deploy Portal Frontend to Vercel
+        uses: vercel/action@main
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PORTAL_FRONTEND_QA_PROJECT_ID }}
+          working-directory: ./VitalFlowPortal
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-comment: true
+        env:
+          VERCEL_ENV: production
+
   # deploy-railway-qa:
   #   name: 🚂 Deploy to Railway QA
   #   needs: build-and-push
@@ -99,22 +132,27 @@ jobs:
 
   notify:
     name: 📢 Notify Deployment
-    needs: [build-and-push]
+    needs: [deploy-vercel-qa]
     runs-on: ubuntu-latest
     if: always()
 
     steps:
-      - name: ✅ Docker Build Success
+      - name: ✅ Deployment Success
         if: success()
         run: |
-          echo "✅ QA Environment Docker Images Built Successfully!"
-          echo "Images available at ghcr.io/mcasey31/his-int-portal_vital_flow:"
-          echo "  - his-backend:qa"
-          echo "  - his-frontend:qa"
-          echo "  - portal-backend:qa"
+          echo "✅ QA Environment Deployed Successfully!"
+          echo ""
+          echo "🐳 Docker Images:"
+          echo "  - HIS Backend: ghcr.io/mcasey31/his-int-portal_vital_flow/his-backend:qa"
+          echo "  - HIS Frontend: ghcr.io/mcasey31/his-int-portal_vital_flow/his-frontend:qa"
+          echo "  - Portal Backend: ghcr.io/mcasey31/his-int-portal_vital_flow/portal-backend:qa"
+          echo ""
+          echo "🌐 Vercel Deployments:"
+          echo "  - HIS Frontend: https://vitalflow-his-front-qa.vercel.app"
+          echo "  - Portal Frontend: https://vitalflow-qa.vercel.app"
 
-      - name: ❌ Docker Build Failed
+      - name: ❌ Deployment Failed
         if: failure()
         run: |
-          echo "❌ Docker Build Failed! Check GitHub Actions logs."
+          echo "❌ Deployment Failed! Check GitHub Actions logs."
           exit 1
