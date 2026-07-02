@@ -22,7 +22,8 @@ public sealed record RegistrarRecetaDigitalItemRequest(
     string? DosisTexto,
     string? FrecuenciaTexto,
     int? DuracionDias,
-    string? Indicacion
+    string? Indicacion,
+    string? Via
 );
 
 public sealed record RegistrarRecetaDigitalRequest(
@@ -53,6 +54,7 @@ public sealed record RecetaDigitalItemResponse(
     string? FrecuenciaTexto,
     int? DuracionDias,
     string? Indicacion,
+    string? ViaAdministracion,
     string Estado
 );
 
@@ -130,6 +132,7 @@ public sealed record RecetaDigitalItemCreate(
     string? FrecuenciaTexto,
     int? DuracionDias,
     string? Indicacion,
+    string? ViaAdministracion,
     string Estado
 );
 
