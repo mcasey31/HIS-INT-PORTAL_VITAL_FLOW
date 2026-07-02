@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using VitalFlow.His.Api.Application.Admision.Contracts;
 using VitalFlow.His.Api.Application.Admision.Repositories;
 using VitalFlow.His.Api.Application.Turnos.Repositories;
@@ -295,13 +295,14 @@ public sealed class AdmisionService(
                     row?.Documento ?? turnoProgramado?.Documento ?? "-",
                     row?.Financiador ?? turnoProgramado?.Financiador ?? "-",
                     servicioNombre,
-                    consultorioNombre,
+                    profesionalNombre,
                     estado,
-                    estadoTurno)));
+                    estadoTurno,
+                    row?.PacienteId ?? turnoProgramado?.PacienteId,
+                    consultorioNombre)));
         }
 
-        var permitirFallbackProgramados = string.IsNullOrWhiteSpace(request.ServicioId)
-            && string.IsNullOrWhiteSpace(request.PracticaId)
+        var permitirFallbackProgramados = string.IsNullOrWhiteSpace(request.PracticaId)
             && string.IsNullOrWhiteSpace(request.TipoEfector)
             && string.IsNullOrWhiteSpace(request.EfectorId);
 
@@ -342,7 +343,8 @@ public sealed class AdmisionService(
                         turnoProgramado.Servicio,
                         turnoProgramado.Profesional,
                         estado,
-                        estadoTurno)));
+                        estadoTurno,
+                        row?.PacienteId ?? turnoProgramado.PacienteId)));
             }
         }
 
@@ -685,6 +687,12 @@ public sealed class AdmisionService(
             {
                 throw new ArgumentException($"Ya existe un paciente en atencion (turno {turnosEnAtencion[0]}).");
             }
+
+            // Crear el encuentro si no existe (puede no haberse creado en ConfirmarArriboTurno)
+            if (rowActual?.PacienteId is not null)
+            {
+                admisionRepository.CrearEncuentroSiNoExiste(turnoId, rowActual!.PacienteId);
+            }
         }
 
         var motivo = string.IsNullOrWhiteSpace(request.Motivo) ? null : request.Motivo.Trim();
@@ -750,8 +758,24 @@ public sealed class AdmisionService(
             throw new ArgumentException("turnoId es obligatorio.");
         }
 
-        var encuentro = admisionRepository.GetEncuentroPorTurno(turnoId)
-            ?? throw new ArgumentException("No existe encuentro para el turno indicado.");
+        var encuentro = admisionRepository.GetEncuentroPorTurno(turnoId);
+        if (encuentro is null)
+        {
+            // Si el turno está EN_ATENCION pero no tiene encuentro, crearlo automáticamente
+            var row = admisionRepository.GetTurnoAdmision(turnoId);
+            if (row is not null
+                && string.Equals(row.Estado, EstadoEnAtencion, StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(row.PacienteId))
+            {
+                var nuevoEncuentroId = admisionRepository.CrearEncuentroSiNoExiste(turnoId, row.PacienteId);
+                encuentro = admisionRepository.GetEncuentroPorTurno(turnoId);
+            }
+
+            if (encuentro is null)
+            {
+                throw new ArgumentException("No existe encuentro para el turno indicado.");
+            }
+        }
 
         return EncuentroRowToResponse(encuentro);
     }
