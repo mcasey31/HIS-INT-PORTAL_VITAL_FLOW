@@ -7,7 +7,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/medicamentos")]
-[Authorize(Roles = "Medico,Auditor")]
+[Authorize(Roles = "Medico,Auditor,Administrador")]
 public sealed class MedicamentoController(IMedicamentoService medicamentoService) : ControllerBase
 {
     [HttpGet("buscar")]

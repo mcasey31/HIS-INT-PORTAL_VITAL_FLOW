@@ -176,6 +176,37 @@ public sealed class PersonasController(
         return Ok(personaService.GetContactos(personaId));
     }
 
+    [HttpGet("{personaId:guid}/correos")]
+    public IActionResult GetCorreos(Guid personaId)
+    {
+        const string sql = """
+            select email from sch_persona.persona where id = @personaId
+            """;
+
+        using var conn = new NpgsqlConnection(configuration.GetConnectionString("VitalFlowHisDb"));
+        conn.Open();
+
+        var correos = new List<string>();
+
+        using (var cmd = new NpgsqlCommand(sql, conn))
+        {
+            cmd.Parameters.AddWithValue("personaId", personaId);
+            using var reader = cmd.ExecuteReader();
+            if (reader.Read() && !reader.IsDBNull(0))
+            {
+                var email = reader.GetString(0);
+                if (!string.IsNullOrWhiteSpace(email))
+                    correos.Add(email.Trim());
+            }
+        }
+
+        return Ok(new
+        {
+            principal = correos.Count > 0 ? correos[0] : "",
+            correos
+        });
+    }
+
     [HttpPost("{personaId:guid}/contactos")]
     public IActionResult CreateContacto(Guid personaId, [FromBody] PersonaContactoRequest request)
     {

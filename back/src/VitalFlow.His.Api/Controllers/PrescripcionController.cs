@@ -7,7 +7,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/prescripciones")]
-[Authorize(Roles = "Medico,Auditor")]
+[Authorize(Roles = "Medico,Auditor,Administrador")]
 public sealed class PrescripcionController(
     IPrescripcionService prescripcionService,
     IHttpContextAccessor httpContextAccessor,
