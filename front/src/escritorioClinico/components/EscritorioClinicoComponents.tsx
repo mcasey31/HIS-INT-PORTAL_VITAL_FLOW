@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useEscritorioClinicoController } from "../useEscritorioClinicoController";
 type useEscritorioClinicoState = ReturnType<typeof useEscritorioClinicoController>;
-import { sanitizeRichTextHtml, CATEGORIAS_PROBLEMA } from "../escritorioClinicoTypes";
+import { sanitizeRichTextHtml, CATEGORIAS_PROBLEMA, PACIENTE_POR_IDENTIFICAR, DEFAULT_DOCUMENT_TYPE, ESTADO_ATENDIDO, ESTADO_ACTIVA, ESTADO_EN_ATENCION } from "../escritorioClinicoTypes";
 
 const estadoChipClass = (estado: string) => `hc-chip hc-chip-${estado.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 
@@ -178,7 +178,7 @@ export function EscritorioClinicoListado({ state }: { state: useEscritorioClinic
                   </div>
 
                   <div className="hc-cell hc-cell-estado">
-                    <span className={estadoChipClass(turno.estado)}>{turno.estado === "ATENDIDO" ? <><span className="hc-atendido-check" aria-hidden="true">✓</span> {estadoLabel(turno.estado)}</> : estadoLabel(turno.estado)}</span>
+                    <span className={estadoChipClass(turno.estado)}>{turno.estado === ESTADO_ATENDIDO ? <><span className="hc-atendido-check" aria-hidden="true">✓</span> {estadoLabel(turno.estado)}</> : estadoLabel(turno.estado)}</span>
                     <span className="hc-chip">Llamados: {llamados}</span>
                     {solicitudesEstudiosPorTurno[turno.id] && Object.keys(solicitudesEstudiosPorTurno[turno.id]).length > 0 ? (
                       <span className="hc-chip hc-chip-estudios" title="Estudios solicitados">
@@ -219,10 +219,11 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
     showAsignarProblemaModal, setShowAsignarProblemaModal,
     abrirSistemasClinicos, canIntegrarSistemasClinicos,
     solicitudesEstudiosPorTurno,
-    prescripcionModuleRecetas, recetasDetalle, imprimirReceta
+    prescripcionModuleRecetas, recetasDetalle, imprimirReceta,
+    handleEnviarEmail, emailError
   } = state;
 
-  const pacienteEnAtencion = selectedTurno?.estado === "EN_ATENCION";
+  const pacienteEnAtencion = selectedTurno?.estado === ESTADO_EN_ATENCION;
   const puedeVolverListado = origenPanoramica === "historia";
   const puedeSalirEncuentro = origenPanoramica !== "historia" || pacienteEnAtencion;
 
@@ -262,7 +263,7 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
             <button type="button" className="btn-panoramica btn-panoramica-estudios" onClick={abrirSolicitudEstudios} disabled={!puedeSolicitarEstudios}>
               🔬 Estudios ({totalEstudiosSolicitadosTurno})
             </button>
-            <button type="button" className="btn-panoramica btn-panoramica-receta" onClick={abrirRecetaDigital} disabled={!selectedTurno || !selectedTurno.llegada || selectedTurno.paciente === "Por identificar"}>
+            <button type="button" className="btn-panoramica btn-panoramica-receta" onClick={abrirRecetaDigital} disabled={!selectedTurno || !selectedTurno.llegada || selectedTurno.paciente === PACIENTE_POR_IDENTIFICAR}>
               💊 Prescribir
             </button>
             <button type="button" className="btn-panoramica btn-panoramica-sistemas" onClick={abrirSistemasClinicos} disabled={!canIntegrarSistemasClinicos(selectedTurno) || !selectedTurno?.llegada}>
@@ -297,11 +298,12 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
               )}
             </ul>}
           </article>
+          {emailError ? <p className="hc-error">{emailError}</p> : null}
           <article className="hc-card hc-card-recetas">
-            <h4>Recetas activas ({prescripcionModuleRecetas.filter(r => r.estado === "ACTIVA").length})</h4>
-            {prescripcionModuleRecetas.filter(r => r.estado === "ACTIVA").length === 0
+            <h4>Recetas activas ({prescripcionModuleRecetas.filter(r => r.estado === ESTADO_ACTIVA).length})</h4>
+            {prescripcionModuleRecetas.filter(r => r.estado === ESTADO_ACTIVA).length === 0
               ? <p className="hc-card-empty">Sin recetas activas</p>
-              : <ul>{prescripcionModuleRecetas.filter(r => r.estado === "ACTIVA").map(receta => {
+              : <ul>{prescripcionModuleRecetas.filter(r => r.estado === ESTADO_ACTIVA).map(receta => {
                 const detalle = recetasDetalle[receta.recetaId];
                 return <li key={receta.recetaId}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -317,7 +319,9 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
                       <button type="button" className="btn-panoramica btn-panoramica-receta" style={{ padding: "0.25rem 0.6rem", fontSize: "0.8rem" }} onClick={() => imprimirReceta(receta)} title="Imprimir receta">
                         🖨
                       </button>
-                      <span style={{ fontSize: "1.1rem", color: "#9aaec2", cursor: "not-allowed", opacity: 0.6, lineHeight: "1.6" }} title="Enviar por correo electrónico (próximamente)">✉️</span>
+              <button type="button" className="btn-panoramica btn-panoramica-receta"
+                style={{ padding: "0.25rem 0.6rem", fontSize: "0.8rem" }}
+                onClick={handleEnviarEmail} title="Enviar recetas de hoy por correo electrónico">✉️</button>
                     </div>
                   </div>
                 </li>;
@@ -449,7 +453,7 @@ export function BuscarPacienteModal({ state }: { state: useEscritorioClinicoStat
             <label>
               Tipo de documento
               <select value={buscarPacienteTipoDoc} onChange={e => setBuscarPacienteTipoDoc(e.target.value)}>
-                <option value="DNI">DNI</option>
+                <option value={DEFAULT_DOCUMENT_TYPE}>DNI</option>
                 <option value="Pasaporte">Pasaporte</option>
                 <option value="Cedula">Cedula</option>
                 <option value="Otro">Otro</option>

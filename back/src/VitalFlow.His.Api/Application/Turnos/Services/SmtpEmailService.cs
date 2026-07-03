@@ -20,7 +20,7 @@ public sealed class SmtpEmailService : IEmailService
         !string.IsNullOrWhiteSpace(_options.Host) &&
         _options.Port is > 0;
 
-    public async Task SendEmailAsync(string to, string subject, string body)
+    public async Task SendEmailAsync(string to, string subject, string body, IReadOnlyList<EmailAttachment>? attachments = null)
     {
         if (!IsConfigured)
         {
@@ -34,6 +34,16 @@ public sealed class SmtpEmailService : IEmailService
         message.Subject = subject;
 
         var builder = new BodyBuilder { HtmlBody = body };
+
+        if (attachments is not null)
+        {
+            foreach (var attachment in attachments)
+            {
+                var bytes = Convert.FromBase64String(attachment.ContentBase64);
+                builder.Attachments.Add(attachment.FileName, bytes, ContentType.Parse(attachment.MediaType));
+            }
+        }
+
         message.Body = builder.ToMessageBody();
 
         using var client = new SmtpClient();

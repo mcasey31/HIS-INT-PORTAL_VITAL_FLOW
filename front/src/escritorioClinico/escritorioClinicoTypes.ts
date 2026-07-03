@@ -150,6 +150,9 @@ export type RecetarioLaunchContext = {
 export const ESTADO_EN_SALA_ESPERA = "EN_SALA_DE_ESPERA";
 export const ESTADO_EN_OBSERVACION = "EN_OBSERVACION";
 export const ESTADO_EN_ATENCION = "EN_ATENCION";
+export const ESTADO_ATENDIDO = "ATENDIDO";
+export const ESTADO_NO_ATENDIDO = "NO_ATENDIDO";
+export const ESTADO_ACTIVA = "ACTIVA";
 export const PROFESIONAL_POR_DEFECTO = "Profesional asignado";
 export const PROFESIONAL_LEGACY_PLACEHOLDER = "Equipo profesional asignado";
 export const EVOLUCIONES_LOCALES_STORAGE_KEY = "vitalflow:hca:evoluciones-locales";
@@ -158,6 +161,14 @@ export const EFECTOR_ID_STORAGE_KEY = "vitalflow:hca:efector-id";
 export const RECETARIO_URL = import.meta.env.VITE_RECETARIO_URL?.trim() ?? "";
 export const RECETARIO_PROFILE = import.meta.env.VITE_RECETARIO_PROFILE?.trim() || "RDI_Ar_0_2_5";
 export const SISTEMAS_CLINICOS_URL = import.meta.env.VITE_SISTEMAS_CLINICOS_URL?.trim() ?? "";
+export const DEFAULT_DOCUMENT_TYPE = "DNI";
+export const PACIENTE_POR_IDENTIFICAR = "Por identificar";
+export const VALOR_GUION = "-";
+export const CONSULTA_MEDICA = "Consulta medica";
+export const SIN_DETALLE = "Sin detalle";
+export const ROL_ADMINISTRADOR = "administrador";
+export const ROL_MEDICO = "medico";
+export const TIPO_EFECTOR_CONSULTORIO = "CONSULTORIO";
 
 export function estadoEsLlamable(estado: string): boolean {
   const normalized = estado.trim().toUpperCase();
@@ -218,7 +229,7 @@ export function formatDateTime(value: string): {
 
 export function formatLlegada(value: string | null): string {
   if (!value) {
-    return "-";
+    return VALOR_GUION;
   }
   if (value.includes("T")) {
     const parsed = new Date(value);
@@ -304,7 +315,7 @@ export function buildListadoEvoluciones(evoluciones: EvolucionAmbulatoriaRespons
       fechaAtencion: fecha,
       especialidad: evolucion.especialidad,
       profesional: evolucion.profesional,
-      practica: "Consulta medica",
+      practica: CONSULTA_MEDICA,
       problemasAsociados: evolucion.problemasAsociados
     };
   });
@@ -326,25 +337,25 @@ export function extractPlainTextFromHtml(value: string): string {
 export function canIntegrarRecetario(turno: TurnoAdmision | null): boolean {
   if (!turno) return false;
   if (!RECETARIO_URL) return false;
-  return turno.paciente !== "Por identificar" && turno.documento !== "-";
+  return turno.paciente !== PACIENTE_POR_IDENTIFICAR && turno.documento !== VALOR_GUION;
 }
 
 export function canIntegrarSistemasClinicos(turno: TurnoAdmision | null): boolean {
   if (!turno) return false;
   if (!SISTEMAS_CLINICOS_URL) return false;
-  return turno.paciente !== "Por identificar" && turno.documento !== "-";
+  return turno.paciente !== PACIENTE_POR_IDENTIFICAR && turno.documento !== VALOR_GUION;
 }
 
 export function buildSistemasClinicosUrl(turno: TurnoAdmision): string {
   const target = new URL(SISTEMAS_CLINICOS_URL);
-  target.searchParams.set("tipoDocumento", turno.documento.includes(" ") ? turno.documento.split(" ")[0] ?? "DNI" : "DNI");
+  target.searchParams.set("tipoDocumento", turno.documento.includes(" ") ? turno.documento.split(" ")[0] ?? DEFAULT_DOCUMENT_TYPE : DEFAULT_DOCUMENT_TYPE);
   target.searchParams.set("numeroDocumento", turno.documento.includes(" ") ? turno.documento.split(" ").slice(1).join(" ") : turno.documento);
   return target.toString();
 }
 
 export function buildEvolucionScopeKey(turno: TurnoAdmision): string {
   const documento = (turno.documento ?? "").trim();
-  if (documento && documento !== "-") {
+  if (documento && documento !== VALOR_GUION) {
     return documento.toUpperCase().replace(/[^A-Z0-9]/g, "");
   }
   return turno.id;
@@ -475,6 +486,22 @@ export interface BuscarMedicamentosResponse {
   paginaSize: number;
 }
 
+export interface CorreosPacienteResponse {
+  principal: string;
+  correos: string[];
+}
+
+export interface EnviarRecetasEmailRequest {
+  pacienteId: string;
+  email: string;
+  recetaIds: string[];
+}
+
+export interface EnviarRecetasEmailResponse {
+  enviado: boolean;
+  message: string;
+}
+
 export function buildRecetarioLaunchContext(turno: TurnoAdmision): RecetarioLaunchContext {
   return {
     standard: "RDIar",
@@ -509,7 +536,7 @@ function buildHistoriaClinica(evoluciones: EvolucionAmbulatoriaResponse[]): Regi
     id: ev.evolucionId,
     fechaHora: ev.fechaAtencion,
     titulo: `${ev.especialidad} — ${ev.profesional}`,
-    detalle: ev.texto ? extractPlainTextFromHtml(ev.texto).substring(0, 200) : "Sin detalle",
+    detalle: ev.texto ? extractPlainTextFromHtml(ev.texto).substring(0, 200) : SIN_DETALLE,
     problemasAsociados: ev.problemasAsociados
   }));
 }

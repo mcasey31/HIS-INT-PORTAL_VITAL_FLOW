@@ -1,5 +1,5 @@
 import { httpClient } from "../shared/httpClient";
-import type { AnularRecetaDigitalResponse, AsignarProblemaRequest, AsignarProblemaResponse, BuscarMedicamentosResponse, CrearPrescripcionRequest, CrearPrescripcionResponse, CrearEvolucionAmbulatoriaRequest, CrearEvolucionAmbulatoriaResponse, EvolucionAmbulatoriaResponse, FinanciadorActivoResponse, GuardarSolicitudesEstudiosRequest, GuardarSolicitudesEstudiosResponse, PersonaCandidataBusqueda, ProblemaCronicoResponse, RecetaDigitalDetalleResponse, RecetaDigitalResumenResponse, SolicitudEstudioRecord } from "./escritorioClinicoTypes";
+import type { AnularRecetaDigitalResponse, AsignarProblemaRequest, AsignarProblemaResponse, BuscarMedicamentosResponse, CorreosPacienteResponse, CrearPrescripcionRequest, CrearPrescripcionResponse, CrearEvolucionAmbulatoriaRequest, CrearEvolucionAmbulatoriaResponse, EnviarRecetasEmailRequest, EnviarRecetasEmailResponse, EvolucionAmbulatoriaResponse, FinanciadorActivoResponse, GuardarSolicitudesEstudiosRequest, GuardarSolicitudesEstudiosResponse, PersonaCandidataBusqueda, ProblemaCronicoResponse, RecetaDigitalDetalleResponse, RecetaDigitalResumenResponse, SolicitudEstudioRecord } from "./escritorioClinicoTypes";
 
 export async function obtenerEvolucionesAmbulatoriasPaciente(
   pacienteId: string,
@@ -117,4 +117,16 @@ export async function guardarSolicitudesEstudiosTurno(
     `/api/v1/historia-clinica/turnos/${encodeURIComponent(turnoId)}/solicitudes-estudios`,
     request
   );
+}
+
+export async function obtenerCorreosPaciente(
+  personaId: string
+): Promise<CorreosPacienteResponse> {
+  return httpClient.get<CorreosPacienteResponse>(`/api/v1/personas/${encodeURIComponent(personaId)}/correos`);
+}
+
+export async function enviarRecetasEmail(
+  request: EnviarRecetasEmailRequest
+): Promise<EnviarRecetasEmailResponse> {
+  return httpClient.post<EnviarRecetasEmailResponse>("/api/v1/recetas/enviar-email", request);
 }

@@ -6,9 +6,11 @@ import type { AsignarProblemaRequest, BuscarMedicamentosResponse, CrearEvolucion
 import {
   UseEscritorioClinicoOptions, ModoIngreso, OrigenPanoramica, AccionSalidaEncuentro,
   EvolucionCreadaLocal, SolicitudesEstudiosPorFecha, ObservacionesPorPracticaFecha,
-  ESTADO_EN_SALA_ESPERA, ESTADO_EN_OBSERVACION, ESTADO_EN_ATENCION,
+  ESTADO_EN_SALA_ESPERA, ESTADO_EN_OBSERVACION, ESTADO_EN_ATENCION, ESTADO_ATENDIDO, ESTADO_NO_ATENDIDO, ESTADO_ACTIVA,
   PROFESIONAL_POR_DEFECTO, PROFESIONAL_LEGACY_PLACEHOLDER,   EVOLUCIONES_LOCALES_STORAGE_KEY, EFECTOR_ID_STORAGE_KEY,
   RECETARIO_URL, RECETARIO_PROFILE, SISTEMAS_CLINICOS_URL,
+  DEFAULT_DOCUMENT_TYPE, PACIENTE_POR_IDENTIFICAR, VALOR_GUION,
+  CONSULTA_MEDICA, ROL_ADMINISTRADOR, ROL_MEDICO, TIPO_EFECTOR_CONSULTORIO,
   todayIsoDate, formatProfesionalDisplayName, estadoEsLlamable, parseTurnoDateTime,
   normalizeText, normalizeProfesionalLabel, buildEvolucionScopeKey, normalizeEvolucionScopeToken,
   parseStoredEvolucionesLocales, buildListadoEvoluciones, hasValidEvolucionContent,
@@ -21,8 +23,8 @@ import { useAuth } from "../auth/AuthContext";
 export function useEscritorioClinicoController({ onCancelSeleccionServicio }: UseEscritorioClinicoOptions = {}) {
   const { roles, username } = useAuth();
   const profesionalActual = useMemo(() => formatProfesionalDisplayName(username), [username]);
-  const isAdminUsuario = roles.some(role => normalizeText(role) === "administrador");
-  const isMedicoUsuario = roles.some(role => normalizeText(role) === "medico");
+  const isAdminUsuario = roles.some(role => normalizeText(role) === ROL_ADMINISTRADOR);
+  const isMedicoUsuario = roles.some(role => normalizeText(role) === ROL_MEDICO);
 
   const [selectores, setSelectores] = useState<SelectoresAdmision | null>(null);
   const [turnos, setTurnos] = useState<TurnoAdmision[]>([]);
@@ -127,9 +129,15 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   const [prescripcionFrecuencia, setPrescripcionFrecuencia] = useState("");
   const [prescripcionDuracion, setPrescripcionDuracion] = useState("");
   const [prescripcionIndicacion, setPrescripcionIndicacion] = useState("");
+  const [prescripcionVia, setPrescripcionVia] = useState("Oral");
   const [prescripcionGuardando, setPrescripcionGuardando] = useState(false);
   const [prescripcionError, setPrescripcionError] = useState<string | null>(null);
   const [prescripcionExitosa, setPrescripcionExitosa] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState<string | null>(null);
+  const [emailModalPacienteId, setEmailModalPacienteId] = useState("");
+  const [emailModalRecetaIds, setEmailModalRecetaIds] = useState<string[]>([]);
   const medicamentoSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const evolucionEditorRef = useRef<HTMLDivElement | null>(null);
   const lugarAtencionPreguntadoRef = useRef(false);
@@ -230,7 +238,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
         fechaAtencion: formatted,
         especialidad: item.especialidad,
         profesional: normalizeProfesionalLabel(item.profesional, profesionalActual),
-        practica: "Consulta medica",
+        practica: CONSULTA_MEDICA,
         problemasAsociados: item.problemasAsociados,
         texto: item.texto
       };
@@ -343,21 +351,21 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
 
   const efectoresDisponibles = useMemo(() => {
     if (isMedicoUsuario && !isAdminUsuario) {
-      const consultorios = Array.from(new Set(turnos.map(turno => turno.efector).filter(nombre => nombre && nombre !== "-")));
-      return consultorios.map(nombre => ({ id: nombre, nombre, tipoEfector: "CONSULTORIO", servicioId }));
+      const consultorios = Array.from(new Set(turnos.map(turno => turno.efector).filter(nombre => nombre && nombre !== VALOR_GUION)));
+      return consultorios.map(nombre => ({ id: nombre, nombre, tipoEfector: TIPO_EFECTOR_CONSULTORIO, servicioId }));
     }
     return (selectores?.efectores ?? []).filter((efector: { servicioId: string }) => !servicioId || efector.servicioId === servicioId);
   }, [isMedicoUsuario, isAdminUsuario, turnos, servicioId, selectores]);
 
-  const servicioActualNombre = useMemo(() => serviciosDisponibles.find((servicio: { id: string }) => servicio.id === servicioId)?.nombre ?? "-", [serviciosDisponibles, servicioId]);
+  const servicioActualNombre = useMemo(() => serviciosDisponibles.find((servicio: { id: string }) => servicio.id === servicioId)?.nombre ?? VALOR_GUION, [serviciosDisponibles, servicioId]);
   const lugarAtencionNombre = useMemo(() => {
     if (isMedicoUsuario && !isAdminUsuario) {
       if (efectorId) return efectorId;
-      return efectoresDisponibles[0]?.nombre ?? turnos[0]?.efector ?? "-";
+      return efectoresDisponibles[0]?.nombre ?? turnos[0]?.efector ?? VALOR_GUION;
     }
-    return efectoresDisponibles.find((efector: { id: string }) => efector.id === efectorId)?.nombre ?? "-";
+    return efectoresDisponibles.find((efector: { id: string }) => efector.id === efectorId)?.nombre ?? VALOR_GUION;
   }, [isMedicoUsuario, isAdminUsuario, turnos, efectoresDisponibles, efectorId]);
-  const horarioConfigurado = useMemo(() => turnos[0]?.turno ? `${turnos[0].turno} hs` : "-", [turnos]);
+  const horarioConfigurado = useMemo(() => turnos[0]?.turno ? `${turnos[0].turno} hs` : VALOR_GUION, [turnos]);
 
   async function loadSelectores() {
     const data = await getSelectoresAdmision();
@@ -501,7 +509,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     };
     const scopeKey = buildEvolucionScopeKey(selectedTurno);
     const documentoRaw = (selectedTurno.documento ?? "").trim().toUpperCase();
-    const aliasKeys = Array.from(new Set([scopeKey, selectedTurno.id, documentoRaw])).filter(key => key && key !== "-");
+    const aliasKeys = Array.from(new Set([scopeKey, selectedTurno.id, documentoRaw])).filter(key => key && key !== VALOR_GUION);
     setEvolucionesLocalesPorTurno(prev => {
       const next = { ...prev };
       for (const key of aliasKeys) {
@@ -534,8 +542,8 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     setWorking(true);
     try {
       let pacienteId = encuentroPacienteId;
-      if (!pacienteId && selectedTurno.documento && selectedTurno.documento !== "-") {
-        const candidatos = await buscarPersonaPorDocumento("DNI", selectedTurno.documento.replace(/[^0-9]/g, ""));
+      if (!pacienteId && selectedTurno.documento && selectedTurno.documento !== VALOR_GUION) {
+        const candidatos = await buscarPersonaPorDocumento(DEFAULT_DOCUMENT_TYPE, selectedTurno.documento.replace(/[^0-9]/g, ""));
         if (candidatos.length > 0) {
           pacienteId = candidatos[0].id;
         }
@@ -568,7 +576,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   }
 
   function abrirBuscarPaciente() {
-    setBuscarPacienteTipoDoc("DNI");
+    setBuscarPacienteTipoDoc(DEFAULT_DOCUMENT_TYPE);
     setBuscarPacienteNumDoc("");
     setBuscarPacienteCandidatos([]);
     setBuscarPacienteSeleccionado(null);
@@ -926,7 +934,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       setTurnos(data);
       Promise.all(data.map(t => loadSolicitudesEstudios(t.id))).catch(() => {});
       if (isMedicoUsuario && !isAdminUsuario) {
-        const consultorios = Array.from(new Set(data.map(item => item.efector).filter(nombre => nombre && nombre !== "-")));
+        const consultorios = Array.from(new Set(data.map(item => item.efector).filter(nombre => nombre && nombre !== VALOR_GUION)));
         const consultorioDefault = consultorios[0] ?? "";
         setEfectorId(prev => prev && consultorios.includes(prev) ? prev : consultorioDefault);
         if (!efectorId && !lugarAtencionPreguntadoRef.current && consultorioDefault) {
@@ -1050,11 +1058,11 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
         if (selectedTurno.estado !== ESTADO_EN_ATENCION) { setError("Cerrar encuentro requiere paciente en atencion."); setWorking(false); return; }
         if (!cumpleRegistroMinimoSalidaEncuentro) { setError("Debe registrar texto y al menos una etiqueta de problemas en la evolucion para continuar."); setWorking(false); return; }
         if (encuentroPacienteId) {
-          const response = await cerrarEncuentroTurno(selectedTurno.id, { estadoPacienteFinal: "ATENDIDO" });
+          const response = await cerrarEncuentroTurno(selectedTurno.id, { estadoPacienteFinal: ESTADO_ATENDIDO });
           updateTurnoState(selectedTurno.id, response.estadoPacienteFinal);
           setEncuentroEstado(response.estadoEncuentro);
         } else {
-          const response = await actualizarEstadoTurno(selectedTurno.id, { estado: "ATENDIDO", motivo: "SALIDA_DESDE_ENCUENTRO" });
+          const response = await actualizarEstadoTurno(selectedTurno.id, { estado: ESTADO_ATENDIDO, motivo: "SALIDA_DESDE_ENCUENTRO" });
           updateTurnoState(selectedTurno.id, response.estado);
         }
         setAgendaMensaje("Se cambio el estado del turno a Atendido");
@@ -1073,14 +1081,14 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
         updateTurnoState(selectedTurno.id, response.estado);
         setAgendaMensaje("Se envio el paciente a lista de espera");
       }
-      if (accionSalidaEncuentro === "NO_ATENDIDO") {
+      if (accionSalidaEncuentro === ESTADO_NO_ATENDIDO) {
         if (selectedTurno.estado !== ESTADO_EN_ATENCION && selectedTurno.estado !== ESTADO_EN_SALA_ESPERA) { setError("No atendido requiere paciente en atencion o en sala de espera."); setWorking(false); return; }
         if (encuentroPacienteId) {
-          const response = await cerrarEncuentroTurno(selectedTurno.id, { estadoPacienteFinal: "NO_ATENDIDO" });
+          const response = await cerrarEncuentroTurno(selectedTurno.id, { estadoPacienteFinal: ESTADO_NO_ATENDIDO });
           updateTurnoState(selectedTurno.id, response.estadoPacienteFinal);
           setEncuentroEstado(response.estadoEncuentro);
         } else {
-          const response = await actualizarEstadoTurno(selectedTurno.id, { estado: "NO_ATENDIDO", motivo: "SALIDA_DESDE_ENCUENTRO" });
+          const response = await actualizarEstadoTurno(selectedTurno.id, { estado: ESTADO_NO_ATENDIDO, motivo: "SALIDA_DESDE_ENCUENTRO" });
           updateTurnoState(selectedTurno.id, response.estado);
         }
         setAgendaMensaje("Se cambio el estado del turno a No atendido");
@@ -1094,7 +1102,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
 
   function abrirRecetaDigital() {
     if (!selectedTurno) { setError("Debe seleccionar un paciente."); return; }
-    if (selectedTurno.paciente === "Por identificar" || selectedTurno.documento === "-") { setError("El paciente debe estar identificado."); return; }
+    if (selectedTurno.paciente === PACIENTE_POR_IDENTIFICAR || selectedTurno.documento === VALOR_GUION) { setError("El paciente debe estar identificado."); return; }
     setError(null);
     setShowPrescripcionModule(true);
     setPrescripcionModuleError(null);
@@ -1123,6 +1131,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     setPrescripcionFrecuencia("");
     setPrescripcionDuracion("");
     setPrescripcionIndicacion("");
+    setPrescripcionVia("Oral");
     setPrescripcionError(null);
     setPrescripcionExitosa(false);
     setShowPrescripcionFormModal(true);
@@ -1133,13 +1142,17 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     setPrescripcionGuardando(true);
     setPrescripcionError(null);
     try {
-      var pid = encuentroPacienteId;
-      if (!pid && selectedTurno.documento && selectedTurno.documento !== "-") {
-        const candidatos = await buscarPersonaPorDocumento("DNI", selectedTurno.documento.replace(/[^0-9]/g, ""));
+      var pid = encuentroPacienteId ?? selectedTurno.pacienteId ?? null;
+      if (!pid && selectedTurno.documento && selectedTurno.documento !== VALOR_GUION) {
+        const candidatos = await buscarPersonaPorDocumento(DEFAULT_DOCUMENT_TYPE, selectedTurno.documento.replace(/[^0-9]/g, ""));
         if (candidatos.length > 0) pid = candidatos[0].id;
       }
       if (!pid) { setPrescripcionError("No se pudo identificar el paciente."); setPrescripcionGuardando(false); return; }
       if (!encuentroPacienteId) setEncuentroPacienteId(pid);
+
+      const fullIndicacion = prescripcionVia 
+        ? `${prescripcionVia}. ${prescripcionIndicacion || ""}`.trim()
+        : prescripcionIndicacion;
 
       await crearPrescripcion({
         pacienteId: pid,
@@ -1149,13 +1162,13 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
         dosisTexto: prescripcionDosis || undefined,
         frecuenciaTexto: prescripcionFrecuencia || undefined,
         duracionDias: prescripcionDuracion ? parseInt(prescripcionDuracion, 10) : undefined,
-        indicacion: prescripcionIndicacion || undefined,
+        indicacion: fullIndicacion || undefined,
       });
       // Close form modal and reopen prescriptions list
       setShowPrescripcionFormModal(false);
       setShowPrescripcionModule(true);
       setPrescripcionModuleLoading(true);
-      void cargarRecetasPaciente();
+      void cargarRecetasPaciente(pid);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al guardar la prescripcion.";
       setPrescripcionError(message);
@@ -1164,12 +1177,12 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     }
   }
 
-  async function cargarRecetasPaciente() {
+  async function cargarRecetasPaciente(pidOverride?: string) {
     if (!selectedTurno) return;
-    var pid = encuentroPacienteId;
-    if (!pid && selectedTurno.documento && selectedTurno.documento !== "-") {
+    var pid = pidOverride ?? encuentroPacienteId ?? selectedTurno.pacienteId ?? null;
+    if (!pid && selectedTurno.documento && selectedTurno.documento !== VALOR_GUION) {
       try {
-        const candidatos = await buscarPersonaPorDocumento("DNI", selectedTurno.documento.replace(/[^0-9]/g, ""));
+        const candidatos = await buscarPersonaPorDocumento(DEFAULT_DOCUMENT_TYPE, selectedTurno.documento.replace(/[^0-9]/g, ""));
         if (candidatos.length > 0) pid = candidatos[0].id;
       } catch {}
     }
@@ -1177,6 +1190,17 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     try {
       const recetas = await listarRecetasPaciente(pid);
       setPrescripcionModuleRecetas(recetas);
+      const activas = recetas.filter(r => r.estado === ESTADO_ACTIVA);
+      if (activas.length > 0) {
+        const detalles: Record<string, RecetaDigitalDetalleResponse> = {};
+        const results = await Promise.allSettled(activas.map(r => obtenerRecetaDigital(r.recetaId)));
+        for (const result of results) {
+          if (result.status === "fulfilled") {
+            detalles[result.value.recetaId] = result.value;
+          }
+        }
+        if (Object.keys(detalles).length > 0) setRecetasDetalle(detalles);
+      }
     } catch {
       setPrescripcionModuleError("Error al cargar prescripciones.");
     } finally {
@@ -1200,10 +1224,10 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     Promise.all([
       obtenerRecetaDigital(receta.recetaId),
       (async () => {
-        var pid = encuentroPacienteId;
-        if (!pid && selectedTurno?.documento && selectedTurno.documento !== "-") {
+        var pid = encuentroPacienteId ?? selectedTurno?.pacienteId ?? null;
+        if (!pid && selectedTurno?.documento && selectedTurno.documento !== VALOR_GUION) {
           try {
-            const candidatos = await buscarPersonaPorDocumento("DNI", selectedTurno.documento.replace(/[^0-9]/g, ""));
+            const candidatos = await buscarPersonaPorDocumento(DEFAULT_DOCUMENT_TYPE, selectedTurno.documento.replace(/[^0-9]/g, ""));
             if (candidatos.length > 0) pid = candidatos[0].id;
           } catch {}
         }
@@ -1216,10 +1240,10 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       const items = detalle.items.map(item => `
         <tr>
           <td class="med-item">${item.medicamentoDisplay}</td>
-          <td>${item.dosisTexto ?? "-"}</td>
-          <td>${item.frecuenciaTexto ?? "-"}</td>
-          <td>${item.duracionDias ? item.duracionDias + " días" : "-"}</td>
-          <td>${item.indicacion ?? "-"}</td>
+          <td>${item.dosisTexto ?? VALOR_GUION}</td>
+          <td>${item.frecuenciaTexto ?? VALOR_GUION}</td>
+          <td>${item.duracionDias ? item.duracionDias + " días" : VALOR_GUION}</td>
+          <td>${item.indicacion ?? VALOR_GUION}</td>
         </tr>
       `).join("\n");
       const matriculaTexto = detalle.prescriptorMatricula ? `MP ${detalle.prescriptorMatricula}` : "";
@@ -1268,6 +1292,30 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       printWindow.focus();
       printWindow.print();
     }).catch(() => setPrescripcionModuleError("Error al obtener detalle de la prescripcion."));
+  }
+
+  async function handleEnviarEmail() {
+    if (!selectedTurno) return;
+    setEmailError(null);
+    setEmailSuccess(null);
+
+    var pid = encuentroPacienteId ?? selectedTurno.pacienteId ?? null;
+    if (!pid && selectedTurno.documento && selectedTurno.documento !== VALOR_GUION) {
+      try {
+        const candidatos = await buscarPersonaPorDocumento(DEFAULT_DOCUMENT_TYPE, selectedTurno.documento.replace(/[^0-9]/g, ""));
+        if (candidatos.length > 0) pid = candidatos[0].id;
+      } catch {}
+    }
+    if (!pid) { setEmailError("No se pudo identificar el paciente."); return; }
+
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const recetasHoy = prescripcionModuleRecetas.filter(r => r.creadoEn.slice(0, 10) === todayStr);
+    if (recetasHoy.length === 0) { setEmailError("No hay recetas prescriptas hoy para enviar."); return; }
+
+    setEmailModalPacienteId(pid);
+    setEmailModalRecetaIds(recetasHoy.map(r => r.recetaId));
+    setShowEmailModal(true);
   }
 
   async function ejecutarBusquedaMedicamento(query: string, page = 1) {
@@ -1346,7 +1394,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
           setEncuentroEstado(response.estado); setEncuentroPacienteId(response.pacienteId); setEncuentroCreadoEn(response.creadoEn);
           setEvolucionesAmbulatorias(evoluciones);
           setPrescripcionModuleRecetas(recetas);
-          const activas = recetas.filter(r => r.estado === "ACTIVA");
+          const activas = recetas.filter(r => r.estado === ESTADO_ACTIVA);
           if (activas.length > 0) {
             const detalles: Record<string, RecetaDigitalDetalleResponse> = {};
             const results = await Promise.allSettled(activas.map(r => obtenerRecetaDigital(r.recetaId)));
@@ -1366,7 +1414,27 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
           })));
         }
       } catch {
-        if (active) { setEncuentroEstado("SIN_ENCUENTRO"); setEncuentroPacienteId(null); setEvolucionesAmbulatorias([]); setProblemasCronicos([]); }
+        if (active) {
+          setEncuentroEstado("SIN_ENCUENTRO"); setEncuentroPacienteId(null); setEvolucionesAmbulatorias([]); setProblemasCronicos([]);
+          const fallbackPid = selectedTurno?.pacienteId ?? null;
+          if (fallbackPid) {
+            try {
+              const recetas = await listarRecetasPaciente(fallbackPid);
+              setPrescripcionModuleRecetas(recetas);
+              const activas = recetas.filter(r => r.estado === ESTADO_ACTIVA);
+              if (activas.length > 0) {
+                const detalles: Record<string, RecetaDigitalDetalleResponse> = {};
+                const results = await Promise.allSettled(activas.map(r => obtenerRecetaDigital(r.recetaId)));
+                for (const result of results) {
+                  if (result.status === "fulfilled") {
+                    detalles[result.value.recetaId] = result.value;
+                  }
+                }
+                if (Object.keys(detalles).length > 0) setRecetasDetalle(detalles);
+              }
+            } catch {}
+          }
+        }
       }
       if (active) void loadSolicitudesEstudios(selectedTurnoId);
     })();
@@ -1507,9 +1575,11 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     seleccionarMedicamento, showPrescripcionFormModal, setShowPrescripcionFormModal,
     prescripcionDosis, setPrescripcionDosis, prescripcionFrecuencia, setPrescripcionFrecuencia,
     prescripcionDuracion, setPrescripcionDuracion, prescripcionIndicacion, setPrescripcionIndicacion,
+    prescripcionVia, setPrescripcionVia,
     prescripcionGuardando, prescripcionError, prescripcionExitosa, guardarPrescripcion,
     showPrescripcionModule, setShowPrescripcionModule,
     prescripcionModuleRecetas, recetasDetalle, prescripcionModuleLoading, prescripcionModuleError,
-    prescripcionModuleAnulando, cargarRecetasPaciente, handleAnularReceta, imprimirReceta
+    prescripcionModuleAnulando, cargarRecetasPaciente, handleAnularReceta, imprimirReceta,
+    showEmailModal, setShowEmailModal, emailError, setEmailError, emailSuccess, setEmailSuccess, emailModalPacienteId, emailModalRecetaIds, handleEnviarEmail
   } as const;
 }
