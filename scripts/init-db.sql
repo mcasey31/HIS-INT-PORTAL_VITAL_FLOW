@@ -13,6 +13,65 @@ CREATE SCHEMA IF NOT EXISTS sch_seguridad;
 CREATE SCHEMA IF NOT EXISTS sch_hca;
 
 -- ================================================
+-- Security Tables (created first for FK dependencies)
+-- ================================================
+
+CREATE TABLE IF NOT EXISTS sch_seguridad.rol (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    descripcion TEXT,
+    activo BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS sch_seguridad.usuario_sistema (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    persona_id VARCHAR(100),
+    estado VARCHAR(50) DEFAULT 'ACTIVO', -- ACTIVO, INACTIVO, BLOQUEADO
+    ultimo_login TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS sch_seguridad.usuario_rol (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID NOT NULL REFERENCES sch_seguridad.usuario_sistema(id) ON DELETE CASCADE,
+    rol_id UUID NOT NULL REFERENCES sch_seguridad.rol(id) ON DELETE CASCADE,
+    centro_id UUID,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(usuario_id, rol_id, centro_id)
+);
+
+CREATE TABLE IF NOT EXISTS sch_seguridad.sesion_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID REFERENCES sch_seguridad.usuario_sistema(id) ON DELETE SET NULL,
+    accion VARCHAR(100), -- LOGIN, LOGOUT
+    ip VARCHAR(45),
+    user_agent TEXT,
+    resultado VARCHAR(50), -- EXITOSO, FALLIDO
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS sch_seguridad.refresh_token (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID NOT NULL REFERENCES sch_seguridad.usuario_sistema(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    replaced_by_token_hash VARCHAR(255),
+    created_ip VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_refresh_token_usuario ON sch_seguridad.refresh_token(usuario_id);
+CREATE INDEX idx_refresh_token_expires ON sch_seguridad.refresh_token(expires_at);
+
+-- ================================================
 -- HIS Agenda Tables
 -- ================================================
 
@@ -63,6 +122,7 @@ CREATE TABLE IF NOT EXISTS sch_agenda.efector (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     centro_id UUID NOT NULL REFERENCES sch_agenda.centro(id) ON DELETE CASCADE,
     servicio_id UUID NOT NULL REFERENCES sch_agenda.servicio(id) ON DELETE CASCADE,
+    usuario_id UUID REFERENCES sch_seguridad.usuario_sistema(id) ON DELETE SET NULL,
     codigo VARCHAR(50),
     nombre VARCHAR(255) NOT NULL,
     tipo_efector VARCHAR(50) DEFAULT 'PROFESIONAL', -- PROFESIONAL, ADMINISTRATIVO, etc.
@@ -101,10 +161,12 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_validar_profesional_con_usuario_persona ON sch_agenda.efector;
 
-CREATE TRIGGER trg_validar_profesional_con_usuario_persona
-BEFORE INSERT OR UPDATE ON sch_agenda.efector
-FOR EACH ROW
-EXECUTE FUNCTION sch_agenda.fn_validar_profesional_con_usuario_persona();
+-- TRIGGER DESHABILITADO: Depende de sch_seguridad.usuario_sistema que se crea después
+-- La validación de profesional con usuario_persona se puede implementar en la aplicación
+-- CREATE TRIGGER trg_validar_profesional_con_usuario_persona
+-- BEFORE INSERT OR UPDATE ON sch_agenda.efector
+-- FOR EACH ROW
+-- EXECUTE FUNCTION sch_agenda.fn_validar_profesional_con_usuario_persona();
 
 -- Agenda (Schedule)
 CREATE TABLE IF NOT EXISTS sch_agenda.agenda (
