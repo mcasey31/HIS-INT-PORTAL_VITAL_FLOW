@@ -109,7 +109,7 @@ public sealed record EfectorOptionResponse(Guid Id, string Nombre, string TipoEf
 
 public sealed record DiaSemanaOptionResponse(string Codigo, string Nombre);
 
-public sealed record PracticaOptionResponse(string Nombre, int? DuracionMinutosSugerida);
+public sealed record PracticaOptionResponse(Guid Id, string Nombre, int? DuracionMinutosSugerida, string? CodigoClinico);
 
 public sealed record CopyAgendaRequest(
     string Codigo,

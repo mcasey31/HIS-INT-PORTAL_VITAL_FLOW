@@ -260,6 +260,21 @@ public sealed class InMemoryAgendaRepository : IAgendaRepository
         return appointment;
     }
 
+    public IReadOnlyList<PracticaData> GetPracticas(string? query)
+    {
+        var all = new List<PracticaData>
+        {
+            new(Guid.NewGuid(), "Consulta general", 15, null),
+            new(Guid.NewGuid(), "Control clinico", 20, null),
+        };
+
+        if (string.IsNullOrWhiteSpace(query))
+            return all;
+
+        var q = query.Trim();
+        return all.Where(p => p.Nombre.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
     public IReadOnlyList<LugarAtencionAgenda> GetLugaresAtencion(string? query)
     {
         if (string.IsNullOrWhiteSpace(query))

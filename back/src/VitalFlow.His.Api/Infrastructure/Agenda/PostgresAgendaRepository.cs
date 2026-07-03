@@ -710,6 +710,50 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
         return result;
     }
 
+    public IReadOnlyList<PracticaData> GetPracticas(string? query)
+    {
+        var sql = """
+            select id, nombre, duracion_minutos_sugerida, codigo_clinico
+            from sch_agenda.practica
+            where activa = true
+            """;
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var q = query.Trim();
+            sql += """
+                 and (strpos(upper(nombre), upper(@q)) > 0 or strpos(upper(codigo_clinico), upper(@q)) > 0)
+                """;
+            sql += " order by nombre limit 50;";
+        }
+        else
+        {
+            sql += " order by nombre;";
+        }
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            cmd.Parameters.AddWithValue("q", query.Trim());
+        }
+
+        using var reader = cmd.ExecuteReader();
+        var result = new List<PracticaData>();
+        while (reader.Read())
+        {
+            result.Add(new PracticaData(
+                reader.GetGuid(0),
+                reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3)));
+        }
+
+        return result;
+    }
+
     public IReadOnlyList<LugarAtencionAgenda> GetLugaresAtencion(string? query)
     {
         var sql = """
