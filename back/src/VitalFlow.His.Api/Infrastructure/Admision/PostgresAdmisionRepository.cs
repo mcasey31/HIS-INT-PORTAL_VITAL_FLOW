@@ -123,8 +123,8 @@ public sealed class PostgresAdmisionRepository(string connectionString) : IAdmis
                    coalesce(nullif(trim(per.apellido || ', ' || per.nombre), ''), tp.paciente_id) as paciente_nombre,
                    coalesce(per.tipo_documento_codigo || ' ' || per.numero_documento, '-') as documento,
                    coalesce(f.nombre || ' | ' || fp.nombre, '-') as financiador,
-                   tp.servicio,
-                   tp.profesional,
+                     coalesce(nullif(trim(to_jsonb(tp)->>'servicio'), ''), '-') as servicio,
+                     coalesce(nullif(trim(to_jsonb(tp)->>'profesional'), ''), '-') as profesional,
                    tp.fecha_hora
             from sch_turno.turno_paciente tp
             left join sch_persona.persona per

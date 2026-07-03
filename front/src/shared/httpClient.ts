@@ -75,7 +75,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}, canRetryU
   let response = await doFetch(url, options);
 
   if (
-    response.status === 401
+    (response.status === 401 || response.status === 403)
     && canRetryUnauthorized
     && authRuntime
     && !isAuthEndpoint(endpoint)
@@ -83,7 +83,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}, canRetryU
     const refreshed = await authRuntime.refreshSession();
     if (refreshed) {
       response = await doFetch(url, options);
-    } else {
+    } else if (response.status === 401) {
       authRuntime.onAuthFailure();
     }
   }
