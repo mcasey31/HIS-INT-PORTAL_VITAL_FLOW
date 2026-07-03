@@ -108,11 +108,11 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
         const string sqlItem = """
             insert into sch_hca.receta_digital_item
                 (id, receta_id, medicamento_codigo, medicamento_sistema, medicamento_display,
-                 dosis_texto, frecuencia_texto, duracion_dias, indicacion, estado,
+                 dosis_texto, frecuencia_texto, duracion_dias, indicacion, via_administracion, estado,
                  activo, created_at, updated_at)
             values
                 (@id, @receta_id, @medicamento_codigo, @medicamento_sistema, @medicamento_display,
-                 @dosis_texto, @frecuencia_texto, @duracion_dias, @indicacion, @estado,
+                 @dosis_texto, @frecuencia_texto, @duracion_dias, @indicacion, @via_administracion, @estado,
                  true, now(), now());
             """;
 
@@ -156,6 +156,7 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
             cmdItem.Parameters.AddWithValue("frecuencia_texto", (object?)item.FrecuenciaTexto ?? DBNull.Value);
             cmdItem.Parameters.AddWithValue("duracion_dias", (object?)item.DuracionDias ?? DBNull.Value);
             cmdItem.Parameters.AddWithValue("indicacion", (object?)item.Indicacion ?? DBNull.Value);
+            cmdItem.Parameters.AddWithValue("via_administracion", (object?)item.ViaAdministracion ?? DBNull.Value);
             cmdItem.Parameters.AddWithValue("estado", item.Estado);
             cmdItem.ExecuteNonQuery();
         }
@@ -220,6 +221,7 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
                 frecuencia_texto,
                 duracion_dias,
                 indicacion,
+                via_administracion,
                 estado
             from sch_hca.receta_digital_item
             where receta_id = @receta_id
@@ -306,6 +308,9 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
                     Indicacion: itemReader.IsDBNull(itemReader.GetOrdinal("indicacion"))
                         ? null
                         : itemReader.GetString(itemReader.GetOrdinal("indicacion")),
+                    ViaAdministracion: itemReader.IsDBNull(itemReader.GetOrdinal("via_administracion"))
+                        ? null
+                        : itemReader.GetString(itemReader.GetOrdinal("via_administracion")),
                     Estado: itemReader.GetString(itemReader.GetOrdinal("estado"))));
             }
         }

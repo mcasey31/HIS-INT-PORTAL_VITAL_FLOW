@@ -119,6 +119,7 @@ public sealed class HistoriaClinicaService(IHistoriaClinicaRepository repository
                 FrecuenciaTexto: string.IsNullOrWhiteSpace(item.FrecuenciaTexto) ? null : item.FrecuenciaTexto.Trim(),
                 DuracionDias: item.DuracionDias,
                 Indicacion: string.IsNullOrWhiteSpace(item.Indicacion) ? null : item.Indicacion.Trim(),
+                ViaAdministracion: string.IsNullOrWhiteSpace(item.Via) ? null : item.Via.Trim(),
                 Estado: EstadoActivaItem));
         }
 
