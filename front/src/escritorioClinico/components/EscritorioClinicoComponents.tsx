@@ -243,19 +243,6 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
             </p>
           </div>
 
-          {selectedTurno && solicitudesEstudiosPorTurno[selectedTurno.id] && Object.keys(solicitudesEstudiosPorTurno[selectedTurno.id]).length > 0 ? (
-            <div className="hc-panoramica-solicitudes">
-              <h4>Estudios solicitados:</h4>
-              <ul className="hc-solicitudes-lista">
-                {Object.entries(solicitudesEstudiosPorTurno[selectedTurno.id]).map(([fecha, practicas]) =>
-                  practicas.map(practica => (
-                    <li key={`${fecha}-${practica}`} className="hc-tag-pill">{practica} <small>{fecha}</small></li>
-                  ))
-                )}
-              </ul>
-            </div>
-          ) : null}
-
           <div className="hc-panoramica-actions">
             <button type="button" className="btn-panoramica btn-panoramica-evoluciones" onClick={abrirEvoluciones} disabled={!puedeAbrirEvoluciones}>
               📝 Evoluciones
