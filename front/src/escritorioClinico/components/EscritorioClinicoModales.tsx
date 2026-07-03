@@ -295,16 +295,15 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
               <h4>Prácticas disponibles</h4>
               <input value={searchQueryPracticasIzquierda} onChange={event => setSearchQueryPracticasIzquierda(event.target.value)} placeholder="Buscar practica disponible..." className="hc-solicitudes-search" />
               <ul className="hc-solicitudes-custom-list">
-                {opcionesPracticasIzquierda.filter(p => p.nombre.toLowerCase().includes(searchQueryPracticasIzquierda.toLowerCase())).map(p => {
+                {searchQueryPracticasIzquierda.trim().length < 2 ? <li style={{ cursor: "default", color: "#7a92ab", fontStyle: "italic" }}>Escribí al menos 2 caracteres para buscar prácticas</li> : opcionesPracticasIzquierda.length === 0 ? <li style={{ cursor: "default", color: "#7a92ab", fontStyle: "italic" }}>No se encontraron prácticas</li> : opcionesPracticasIzquierda.map(p => {
                   const isSelected = selectedPracticasIzquierda.includes(p.id);
                   return <li key={p.id} className={isSelected ? "is-selected" : ""} onClick={() => {
                     setSelectedPracticasIzquierda(prev => isSelected ? prev.filter(id => id !== p.id) : [...prev, p.id]);
                   }}>
                     <span className="hc-practica-check">{isSelected ? "✓" : ""}</span>
-                    <span className="hc-practica-nombre">{p.nombre}</span>
+                    <span className="hc-practica-nombre">{p.codigoClinico ? <><strong>{p.codigoClinico}</strong> — {p.nombre}</> : p.nombre}</span>
                   </li>;
                 })}
-                {opcionesPracticasIzquierda.filter(p => p.nombre.toLowerCase().includes(searchQueryPracticasIzquierda.toLowerCase())).length === 0 ? <li style={{ cursor: "default", color: "#7a92ab", fontStyle: "italic" }}>No se encontraron prácticas</li> : null}
               </ul>
             </div>
 

@@ -38,3 +38,5 @@ pgdata/
 
 # Legacy git metadata backups
 _legacy_git_metadata/
+.vercel
+.env*

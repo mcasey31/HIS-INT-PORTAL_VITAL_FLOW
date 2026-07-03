@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { actualizarEstadoTurno, buscarTurnosAdmision, cerrarEncuentroTurno, getSelectoresAdmision, obtenerEncuentroTurno } from "../admision/admisionApi";
 import type { TurnoAdmision, SelectoresAdmision } from "../admision/admisionTypes";
+import { getPracticas } from "../agenda/agendaApi";
+import type { PracticaOption } from "../agenda/agendaTypes";
 import { anularRecetaDigital, asignarProblemaPaciente, buscarMedicamentos, buscarPersonaPorDocumento, buscarPersonaPorSetMinimo, crearPrescripcion, crearEvolucionAmbulatoria, guardarSolicitudesEstudiosTurno, listarRecetasPaciente, obtenerEvolucionesAmbulatoriasPaciente, obtenerFinanciadorActivo, obtenerProblemasCronicosPaciente, obtenerRecetaDigital, obtenerSolicitudesEstudiosTurno } from "./escritorioClinicoApi";
 import type { AsignarProblemaRequest, BuscarMedicamentosResponse, CrearEvolucionAmbulatoriaRequest, EvolucionAmbulatoriaResponse, FinanciadorActivoResponse, GuardarSolicitudesEstudiosRequest, MedicamentoResponse, PersonaCandidataBusqueda, ProblemaCronicoResponse, RecetaDigitalDetalleResponse, RecetaDigitalResumenResponse, RegistroPanoramica, SolicitudEstudioRecord } from "./escritorioClinicoTypes";
 import {
@@ -139,6 +141,8 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   const [emailModalPacienteId, setEmailModalPacienteId] = useState("");
   const [emailModalRecetaIds, setEmailModalRecetaIds] = useState<string[]>([]);
   const medicamentoSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const practicasSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [practicasResultados, setPracticasResultados] = useState<PracticaOption[]>([]);
   const evolucionEditorRef = useRef<HTMLDivElement | null>(null);
   const lugarAtencionPreguntadoRef = useRef(false);
 
@@ -270,14 +274,18 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   const esDiaActual = fechaAgenda === todayIsoDate();
   const serviciosDisponibles = selectores?.servicios ?? [];
 
-  const practicasDisponibles = useMemo(() => {
-    if (!servicioId) return [];
-    return (selectores?.practicas ?? [])
-      .filter((practica: { servicioId: string }) => practica.servicioId === servicioId)
-      .map((practica: { nombre: string }) => practica.nombre)
-      .filter((value: string, index: number, arr: string[]) => arr.indexOf(value) === index)
-      .sort((a: string, b: string) => a.localeCompare(b, "es", { sensitivity: "base" }));
-  }, [selectores, servicioId]);
+  useEffect(() => {
+    const q = busquedaPracticas.trim();
+    if (practicasSearchTimer.current) clearTimeout(practicasSearchTimer.current);
+    if (q.length < 2) { setPracticasResultados([]); return; }
+    practicasSearchTimer.current = setTimeout(async () => {
+      try {
+        const results = await getPracticas(q);
+        setPracticasResultados(results);
+      } catch { setPracticasResultados([]); }
+    }, 250);
+    return () => { if (practicasSearchTimer.current) clearTimeout(practicasSearchTimer.current); };
+  }, [busquedaPracticas]);
 
   const draftSolicitudScopeId = selectedTurno ? `draft-evol-${selectedTurno.id}` : "";
   const solicitudScopeId = solicitudScopeTurnoId ?? selectedTurno?.id ?? null;
@@ -290,12 +298,9 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   }, [solicitudScopeId, fechaSolicitudActiva, observacionesPorTurno]);
 
   const practicasFiltradasIzquierda = useMemo(() => {
-    const filtro = busquedaPracticas.trim().toLowerCase();
-    if (filtro.length < 3) return [];
-    return practicasDisponibles
-      .filter((practica: string) => !practicasFechaActiva.includes(practica))
-      .filter((practica: string) => practica.toLowerCase().includes(filtro));
-  }, [busquedaPracticas, practicasDisponibles, practicasFechaActiva]);
+    return practicasResultados
+      .filter((p: PracticaOption) => !practicasFechaActiva.includes(p.nombre));
+  }, [practicasResultados, practicasFechaActiva]);
 
   const totalEstudiosSolicitados = useMemo(() => Object.values(solicitudesTurnoSeleccionado).reduce((acc, list) => acc + list.length, 0), [solicitudesTurnoSeleccionado]);
   const totalEstudiosSolicitadosTurno = useMemo(() =>
@@ -1463,7 +1468,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   const showSolicitarEstudiosModal = showSolicitudEstudiosModal;
   const setShowSolicitarEstudiosModal = setShowSolicitudEstudiosModal;
   const isEstudioDesdeEvolucion = solicitudOrigen === "evolucion";
-  const opcionesPracticasIzquierda = practicasFiltradasIzquierda.map((practica: string) => ({ id: practica, nombre: practica }));
+  const opcionesPracticasIzquierda = practicasFiltradasIzquierda.map((p: PracticaOption) => ({ id: p.nombre, nombre: p.nombre, codigoClinico: p.codigoClinico }));
   const opcionesPracticasDerecha = practicasFechaActiva.map((practica: string) => ({ id: practica, nombre: practica }));
   const searchQueryPracticasIzquierda = busquedaPracticas;
   const setSearchQueryPracticasIzquierda = setBusquedaPracticas;
@@ -1520,7 +1525,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     formatDateTime, canIntegrarRecetario,
     PROFESIONAL_ACTUAL: profesionalActual,
     ESTADO_EN_ATENCION, ESTADO_EN_SALA_ESPERA,
-    serviciosDisponibles, practicasDisponibles, draftSolicitudScopeId, solicitudScopeId,
+    serviciosDisponibles, draftSolicitudScopeId, solicitudScopeId,
     solicitudesTurnoSeleccionado, fechasSolicitudesOrdenadas, practicasFechaActiva,
     observacionesFechaActiva, practicasFiltradasIzquierda, totalEstudiosSolicitados,
     totalEstudiosSolicitadosTurno, totalEstudiosSolicitadosDraftEvolucion,

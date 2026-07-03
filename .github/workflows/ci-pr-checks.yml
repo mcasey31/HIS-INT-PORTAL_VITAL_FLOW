@@ -3,6 +3,8 @@ name: PR Validation
 on:
   pull_request:
     branches:
+      - dev
+      - qa
       - develop
       - main
     types:
@@ -16,6 +18,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  db-schema-contract:
+    name: DB Schema Contract
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: vitalflow_his
+          POSTGRES_USER: vitalflow_user
+          POSTGRES_PASSWORD: secure_password_change_me
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vitalflow_user -d vitalflow_his"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply base init
+        env:
+          PGPASSWORD: secure_password_change_me
+        run: psql -h localhost -U vitalflow_user -d vitalflow_his -v ON_ERROR_STOP=1 -f scripts/init-db.sql
+
+      - name: Apply canonical migrations
+        env:
+          PGPASSWORD: secure_password_change_me
+        run: |
+          for file in db/migrations/*.sql; do
+            echo "Applying $file"
+            psql -h localhost -U vitalflow_user -d vitalflow_his -v ON_ERROR_STOP=1 -f "$file"
+          done
+
+      - name: Validate schema contract
+        env:
+          PGPASSWORD: secure_password_change_me
+        run: psql -h localhost -U vitalflow_user -d vitalflow_his -v ON_ERROR_STOP=1 -f db/scripts/assert_schema_contract.sql
+
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-latest

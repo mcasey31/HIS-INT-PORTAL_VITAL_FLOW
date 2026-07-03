@@ -12,14 +12,6 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
     private static readonly string[] FrecuenciasBloque = ["SEMANAL", "QUINCENAL", "ORDEN_MENSUAL"];
     private static readonly string[] DiasSemana = ["L", "M", "X", "J", "V", "S", "D"];
     private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
-    private static readonly PracticaOptionResponse[] PracticasCatalogo =
-    [
-        new("Consulta general", 15),
-        new("Control clinico", 20),
-        new("Electrocardiograma", 25),
-        new("Espirometria", 30),
-        new("Curaciones", null)
-    ];
 
     public IReadOnlyList<SelectorOptionResponse> GetCentros()
     {
@@ -81,14 +73,9 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
 
     public IReadOnlyList<PracticaOptionResponse> GetPracticas(string? query)
     {
-        var practicas = PracticasCatalogo.AsEnumerable();
-        if (!string.IsNullOrWhiteSpace(query))
-        {
-            var q = query.Trim();
-            practicas = practicas.Where(p => p.Nombre.Contains(q, StringComparison.OrdinalIgnoreCase));
-        }
-
-        return practicas.ToList();
+        return repository.GetPracticas(query)
+            .Select(p => new PracticaOptionResponse(p.Id, p.Nombre, p.DuracionMinutosSugerida, p.CodigoClinico))
+            .ToList();
     }
 
     public IReadOnlyList<string> GetFrecuenciasBloque() => FrecuenciasBloque;

@@ -218,7 +218,7 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
     setEvolucionesFiltroProfesional, setEvolucionesFiltroServicio, setShowEvolucionesListado,
     showAsignarProblemaModal, setShowAsignarProblemaModal,
     abrirSistemasClinicos, canIntegrarSistemasClinicos,
-    solicitudesEstudiosPorTurno,
+    solicitudesEstudiosPorTurno, observacionesPorTurno,
     prescripcionModuleRecetas, recetasDetalle, imprimirReceta,
     handleEnviarEmail, emailError
   } = state;
@@ -285,16 +285,22 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
         </header>
 
         <div className="hc-grid">
-          <article className="hc-card">
+          <article className={`hc-card${Object.keys((solicitudesEstudiosPorTurno[selectedTurno?.id ?? ""] ?? {})).length > 0 ? " hc-card-estudios" : ""}`}>
             <h4>Estudios complementarios {selectedTurno && solicitudesEstudiosPorTurno[selectedTurno.id] ? `(${Object.values(solicitudesEstudiosPorTurno[selectedTurno.id]).reduce((acc, arr) => acc + arr.length, 0)})` : ""}</h4>
             {!selectedTurno || !solicitudesEstudiosPorTurno[selectedTurno.id] ? <p className="hc-card-empty">No dispone datos</p> : Object.keys(solicitudesEstudiosPorTurno[selectedTurno.id]).length === 0 ? <p className="hc-card-empty">Sin estudios solicitados</p> : <ul>
               {Object.entries(solicitudesEstudiosPorTurno[selectedTurno.id]).flatMap(([fecha, practicas]) =>
-                practicas.map(practica => (
-                  <li key={`${fecha}-${practica}`}>
-                    <p className="hc-row-title">{practica}</p>
-                    <p className="hc-row-meta">Fecha: {fecha}</p>
-                  </li>
-                ))
+                practicas.map(practica => {
+                  const obs = (observacionesPorTurno[selectedTurno.id] ?? {})[fecha]?.[practica];
+                  return <li key={`${fecha}-${practica}`} style={{ borderBottom: "1px solid #eee", paddingBottom: "0.5rem", marginBottom: "0.5rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div>
+                        <p className="hc-row-title">{practica}</p>
+                        <p className="hc-row-meta">Fecha solicitada: {fecha}</p>
+                        {obs ? <p className="hc-row-meta" style={{ fontStyle: "italic", marginTop: "0.2rem" }}>Obs: {obs}</p> : null}
+                      </div>
+                    </div>
+                  </li>;
+                })
               )}
             </ul>}
           </article>

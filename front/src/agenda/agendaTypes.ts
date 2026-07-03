@@ -145,8 +145,10 @@ export type DiaSemanaOption = {
 };
 
 export type PracticaOption = {
+  id: string;
   nombre: string;
   duracionMinutosSugerida?: number;
+  codigoClinico?: string;
 };
 
 export type UpdateBloqueRequest = {

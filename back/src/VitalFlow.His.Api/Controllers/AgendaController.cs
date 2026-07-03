@@ -7,7 +7,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/agendas")]
-[Authorize(Roles = "Administrador,Administrativo,Cajero,Auditor")]
+[Authorize(Roles = "Administrador,Administrativo,Cajero,Auditor,Medico")]
 public sealed class AgendaController(IAgendaService agendaService) : ControllerBase
 {
     [HttpGet("selectores/centros")]
