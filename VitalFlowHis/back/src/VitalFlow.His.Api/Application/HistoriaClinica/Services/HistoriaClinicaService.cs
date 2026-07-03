@@ -119,6 +119,7 @@ public sealed class HistoriaClinicaService(IHistoriaClinicaRepository repository
                 FrecuenciaTexto: string.IsNullOrWhiteSpace(item.FrecuenciaTexto) ? null : item.FrecuenciaTexto.Trim(),
                 DuracionDias: item.DuracionDias,
                 Indicacion: string.IsNullOrWhiteSpace(item.Indicacion) ? null : item.Indicacion.Trim(),
+                ViaAdministracion: string.IsNullOrWhiteSpace(item.Via) ? null : item.Via.Trim(),
                 Estado: EstadoActivaItem));
         }
 
@@ -165,6 +166,56 @@ public sealed class HistoriaClinicaService(IHistoriaClinicaRepository repository
         }
 
         return repository.GetRecetasDigitalesByPaciente(pacienteId);
+    }
+
+    public IReadOnlyList<SolicitudEstudioResponse> ObtenerSolicitudesEstudio(Guid pacienteId, string turnoId)
+    {
+        if (pacienteId == Guid.Empty)
+        {
+            throw new ArgumentException("pacienteId es obligatorio.");
+        }
+
+        if (string.IsNullOrWhiteSpace(turnoId))
+        {
+            throw new ArgumentException("turnoId es obligatorio.");
+        }
+
+        return repository.GetSolicitudesEstudio(pacienteId, turnoId).ToList();
+    }
+
+    public void SincronizarSolicitudesEstudio(Guid pacienteId, string turnoId, SincronizarSolicitudesEstudioRequest request, Guid? createdBy)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (pacienteId == Guid.Empty)
+        {
+            throw new ArgumentException("pacienteId es obligatorio.");
+        }
+
+        if (string.IsNullOrWhiteSpace(turnoId))
+        {
+            throw new ArgumentException("turnoId es obligatorio.");
+        }
+
+        if (request.Solicitudes is null)
+        {
+            throw new ArgumentException("solicitudes es obligatorio.");
+        }
+
+        foreach (var item in request.Solicitudes)
+        {
+            if (string.IsNullOrWhiteSpace(item.PracticaNombre))
+            {
+                throw new ArgumentException("practicaNombre es obligatorio en cada solicitud.");
+            }
+
+            if (!DateOnly.TryParse(item.FechaSolicitada, out _))
+            {
+                throw new ArgumentException($"'{item.FechaSolicitada}' no es una fecha valida (yyyy-MM-dd).");
+            }
+        }
+
+        repository.SincronizarSolicitudesEstudio(pacienteId, turnoId, request.Solicitudes, createdBy);
     }
 
     public AnularRecetaDigitalResponse AnularRecetaDigital(Guid recetaId, AnularRecetaDigitalRequest request)

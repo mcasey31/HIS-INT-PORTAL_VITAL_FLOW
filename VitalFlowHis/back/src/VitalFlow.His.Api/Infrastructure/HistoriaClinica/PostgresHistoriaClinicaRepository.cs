@@ -108,11 +108,11 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
         const string sqlItem = """
             insert into sch_hca.receta_digital_item
                 (id, receta_id, medicamento_codigo, medicamento_sistema, medicamento_display,
-                 dosis_texto, frecuencia_texto, duracion_dias, indicacion, estado,
+                 dosis_texto, frecuencia_texto, duracion_dias, indicacion, via_administracion, estado,
                  activo, created_at, updated_at)
             values
                 (@id, @receta_id, @medicamento_codigo, @medicamento_sistema, @medicamento_display,
-                 @dosis_texto, @frecuencia_texto, @duracion_dias, @indicacion, @estado,
+                 @dosis_texto, @frecuencia_texto, @duracion_dias, @indicacion, @via_administracion, @estado,
                  true, now(), now());
             """;
 
@@ -156,6 +156,7 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
             cmdItem.Parameters.AddWithValue("frecuencia_texto", (object?)item.FrecuenciaTexto ?? DBNull.Value);
             cmdItem.Parameters.AddWithValue("duracion_dias", (object?)item.DuracionDias ?? DBNull.Value);
             cmdItem.Parameters.AddWithValue("indicacion", (object?)item.Indicacion ?? DBNull.Value);
+            cmdItem.Parameters.AddWithValue("via_administracion", (object?)item.ViaAdministracion ?? DBNull.Value);
             cmdItem.Parameters.AddWithValue("estado", item.Estado);
             cmdItem.ExecuteNonQuery();
         }
@@ -220,6 +221,7 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
                 frecuencia_texto,
                 duracion_dias,
                 indicacion,
+                via_administracion,
                 estado
             from sch_hca.receta_digital_item
             where receta_id = @receta_id
@@ -306,6 +308,9 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
                     Indicacion: itemReader.IsDBNull(itemReader.GetOrdinal("indicacion"))
                         ? null
                         : itemReader.GetString(itemReader.GetOrdinal("indicacion")),
+                    ViaAdministracion: itemReader.IsDBNull(itemReader.GetOrdinal("via_administracion"))
+                        ? null
+                        : itemReader.GetString(itemReader.GetOrdinal("via_administracion")),
                     Estado: itemReader.GetString(itemReader.GetOrdinal("estado"))));
             }
         }
@@ -387,6 +392,94 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
         }
 
         return result;
+    }
+
+    public IReadOnlyList<SolicitudEstudioResponse> GetSolicitudesEstudio(Guid pacienteId, string turnoId)
+    {
+        const string sql = """
+            select
+                id,
+                paciente_id,
+                turno_id,
+                practica,
+                fecha_solicitada,
+                observacion
+            from sch_hca.solicitud_estudio
+            where paciente_id = @paciente_id
+              and turno_id = @turno_id
+              and estado = 'ACTIVA'
+            order by fecha_solicitada, practica;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("paciente_id", pacienteId.ToString());
+        cmd.Parameters.AddWithValue("turno_id", turnoId);
+
+        var result = new List<SolicitudEstudioResponse>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            result.Add(new SolicitudEstudioResponse(
+                Id: reader.GetGuid(reader.GetOrdinal("id")).ToString(),
+                PacienteId: reader.IsDBNull(reader.GetOrdinal("paciente_id"))
+                    ? ""
+                    : reader.GetString(reader.GetOrdinal("paciente_id")),
+                TurnoId: reader.GetString(reader.GetOrdinal("turno_id")),
+                PracticaNombre: reader.GetString(reader.GetOrdinal("practica")),
+                FechaSolicitada: reader.GetDateTime(reader.GetOrdinal("fecha_solicitada")).ToString("yyyy-MM-dd"),
+                Observacion: reader.IsDBNull(reader.GetOrdinal("observacion"))
+                    ? null
+                    : reader.GetString(reader.GetOrdinal("observacion"))));
+        }
+
+        return result;
+    }
+
+    public void SincronizarSolicitudesEstudio(Guid pacienteId, string turnoId, IReadOnlyList<SolicitudEstudioItem> solicitudes, Guid? createdBy)
+    {
+        const string sqlDelete = """
+            update sch_hca.solicitud_estudio
+            set estado = 'INACTIVA', updated_at = now()
+            where paciente_id = @paciente_id
+              and turno_id = @turno_id
+              and estado = 'ACTIVA';
+            """;
+
+        const string sqlInsert = """
+            insert into sch_hca.solicitud_estudio
+                (id, paciente_id, turno_id, practica, fecha_solicitada, observacion, estado, created_at, created_by, updated_at)
+            values
+                (@id, @paciente_id, @turno_id, @practica, @fecha_solicitada, @observacion, 'ACTIVA', now(), @created_by, now());
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var tx = conn.BeginTransaction();
+
+        using (var cmdDel = new NpgsqlCommand(sqlDelete, conn, tx))
+        {
+            cmdDel.Parameters.AddWithValue("paciente_id", pacienteId.ToString());
+            cmdDel.Parameters.AddWithValue("turno_id", turnoId);
+            cmdDel.ExecuteNonQuery();
+        }
+
+        foreach (var item in solicitudes)
+        {
+            using var cmdIns = new NpgsqlCommand(sqlInsert, conn, tx);
+            cmdIns.Parameters.AddWithValue("id", Guid.NewGuid());
+            cmdIns.Parameters.AddWithValue("paciente_id", pacienteId.ToString());
+            cmdIns.Parameters.AddWithValue("turno_id", turnoId);
+            cmdIns.Parameters.AddWithValue("practica", item.PracticaNombre);
+            cmdIns.Parameters.AddWithValue("fecha_solicitada", DateOnly.Parse(item.FechaSolicitada));
+            cmdIns.Parameters.AddWithValue("observacion", (object?)item.Observacion ?? DBNull.Value);
+            cmdIns.Parameters.AddWithValue("created_by", createdBy?.ToString() ?? (object)DBNull.Value);
+            cmdIns.ExecuteNonQuery();
+        }
+
+        tx.Commit();
     }
 
     public AnularRecetaDigitalResponse? AnularRecetaDigital(Guid recetaId, string motivo, Guid usuarioId)

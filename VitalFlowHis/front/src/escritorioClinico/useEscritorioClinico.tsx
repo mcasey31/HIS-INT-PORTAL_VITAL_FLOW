@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { actualizarEstadoTurno, buscarTurnosAdmision, cerrarEncuentroTurno, getSelectoresAdmision, obtenerEncuentroTurno, SelectoresAdmision, TurnoAdmision } from "../admision/admisionApi";
-import { EvolucionAmbulatoriaResponse, obtenerEvolucionesAmbulatoriasPaciente } from "./escritorioClinicoApi";
+import { CrearEvolucionAmbulatoriaResponse, EvolucionAmbulatoriaResponse, PracticaCatalogoItem, SolicitudEstudioItem, crearEvolucionAmbulatoria, getSolicitudesEstudio, obtenerCatalogoPracticas, obtenerCategoriasCatalogo, obtenerEvolucionesAmbulatoriasPaciente, syncSolicitudesEstudio } from "./escritorioClinicoApi";
 import { useAuth } from "../auth/AuthContext";
 type UseEscritorioClinicoOptions = {
   onCancelSeleccionServicio?: () => void;
@@ -552,6 +552,7 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
   const [agendaMensaje, setAgendaMensaje] = useState<string | null>(null);
   const [showSinAgendaModal, setShowSinAgendaModal] = useState(false);
   const [encuentroEstado, setEncuentroEstado] = useState<string>("SIN_ENCUENTRO");
+  const [estadoPacienteId, setEstadoPacienteId] = useState<string | null>(null);
   const [evolucionesAmbulatorias, setEvolucionesAmbulatorias] = useState<EvolucionAmbulatoriaResponse[]>([]);
   const [fechaAgenda, setFechaAgenda] = useState(todayIsoDate());
   const [servicioId, setServicioId] = useState("");
@@ -603,6 +604,11 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
   const [solicitudToast, setSolicitudToast] = useState<string | null>(null);
   const [solicitudError, setSolicitudError] = useState<string | null>(null);
   const [solicitudesEstudiosPorTurno, setSolicitudesEstudiosPorTurno] = useState<Record<string, SolicitudesEstudiosPorFecha>>({});
+  const [catalogoPracticas, setCatalogoPracticas] = useState<PracticaCatalogoItem[]>([]);
+  const [catalogoCategorias, setCatalogoCategorias] = useState<string[]>([]);
+  const [catalogoLoading, setCatalogoLoading] = useState(false);
+  const [catalogoSearch, setCatalogoSearch] = useState("");
+  const [catalogoCategoriaFiltro, setCatalogoCategoriaFiltro] = useState("");
   const evolucionEditorRef = useRef<HTMLDivElement | null>(null);
   const lugarAtencionPreguntadoRef = useRef(false);
   const selectedTurno = useMemo(() => turnos.find(t => t.id === selectedTurnoId) ?? null, [selectedTurnoId, turnos]);
@@ -974,6 +980,23 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
       return next;
     });
   }
+  async function cargarCatalogoPracticas() {
+    setCatalogoLoading(true);
+    try {
+      const [practicas, categorias] = await Promise.all([
+        obtenerCatalogoPracticas(),
+        obtenerCategoriasCatalogo()
+      ]);
+      setCatalogoPracticas(practicas);
+      setCatalogoCategorias(categorias);
+    } catch (err) {
+      console.error("Error al cargar catálogo de prácticas:", err);
+      setCatalogoPracticas([]);
+      setCatalogoCategorias([]);
+    } finally {
+      setCatalogoLoading(false);
+    }
+  }
   function abrirSolicitudEstudiosConScope(scopeId: string, origen: "general" | "evolucion") {
     const existentes = solicitudesEstudiosPorTurno[scopeId] ?? {};
     const fechas = Object.keys(existentes).sort((a, b) => a.localeCompare(b));
@@ -1043,8 +1066,12 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     document.execCommand(comando, false);
     setEvolucionTextoDraft(sanitizeRichTextHtml(evolucionEditorRef.current.innerHTML));
   }
-  function guardarEvolucionNueva() {
+  async function guardarEvolucionNueva() {
     if (!selectedTurno) {
+      return;
+    }
+    if (!estadoPacienteId) {
+      setEvolucionFormError("Paciente no identificado. No se puede guardar la evolucion.");
       return;
     }
     if (!hasValidEvolucionContent(evolucionTextoDraft)) {
@@ -1095,26 +1122,27 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
         return next;
       });
     }
-    const nueva: EvolucionCreadaLocal = {
-      id: `local-evol-${Date.now()}`,
-      fechaAtencion: new Date().toISOString(),
-      especialidad: selectedTurno.servicio,
-      profesional: profesionalActual,
-      problemasAsociados: [...evolucionProblemasEtiquetas],
-      texto: sanitizeRichTextHtml(evolucionTextoDraft).trim()
-    };
-    const scopeKey = buildEvolucionScopeKey(selectedTurno);
-    const documentoRaw = (selectedTurno.documento ?? "").trim().toUpperCase();
-    const aliasKeys = Array.from(new Set([scopeKey, selectedTurno.id, documentoRaw])).filter(key => key && key !== "-");
-    setEvolucionesLocalesPorTurno(prev => {
-      const next = {
-        ...prev
-      };
-      for (const key of aliasKeys) {
-        next[key] = [nueva, ...(next[key] ?? [])];
-      }
-      return next;
-    });
+    const texto = sanitizeRichTextHtml(evolucionTextoDraft).trim();
+    try {
+      const response = await crearEvolucionAmbulatoria({
+        pacienteId: estadoPacienteId,
+        turnoId: selectedTurno.id,
+        texto,
+        problemas: [...evolucionProblemasEtiquetas],
+        especialidad: selectedTurno.servicio,
+        profesional: profesionalActual
+      });
+      setEvolucionesAmbulatorias(prev => [{
+        evolucionId: response.evolucionId,
+        fechaAtencion: response.fechaAtencion,
+        especialidad: selectedTurno.servicio,
+        profesional: profesionalActual,
+        problemasAsociados: [...evolucionProblemasEtiquetas]
+      }, ...prev]);
+    } catch {
+      setEvolucionFormError("Error al guardar la evolucion. Verifique la conexion e intente de nuevo.");
+      return;
+    }
     setShowAgregarEvolucionModal(false);
     setEvolucionTextoDraft("");
     setEvolucionProblemasTextoDraft("");
@@ -1293,6 +1321,48 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     setPracticasSeleccionadasDerecha([]);
     setSolicitudError(null);
   }
+  function togglePracticaCatalogo(item: PracticaCatalogoItem) {
+    if (!solicitudScopeId) {
+      return;
+    }
+    const fecha = fechaSolicitudActiva;
+    if (!fecha) {
+      setFechaSolicitudNueva(todayIsoDate());
+      setShowFechaPrimeraPracticaModal(true);
+      return;
+    }
+    const existentes = solicitudesTurnoSeleccionado[fecha] ?? [];
+    const yaSeleccionada = existentes.includes(item.nombre);
+    setSolicitudesEstudiosPorTurno(prev => {
+      const turnoMap = prev[solicitudScopeId] ?? {};
+      const prevPracticas = turnoMap[fecha] ?? [];
+      const nextPracticas = yaSeleccionada
+        ? prevPracticas.filter(p => p !== item.nombre)
+        : [...prevPracticas, item.nombre];
+      return {
+        ...prev,
+        [solicitudScopeId]: {
+          ...turnoMap,
+          [fecha]: nextPracticas
+        }
+      };
+    });
+    if (yaSeleccionada) {
+      setObservacionesPorTurno(prev => {
+        const turnoMap = prev[solicitudScopeId] ?? {};
+        const fechaMap = turnoMap[fecha] ?? {};
+        const nextFechaMap = { ...fechaMap };
+        delete nextFechaMap[item.nombre];
+        return {
+          ...prev,
+          [solicitudScopeId]: {
+            ...turnoMap,
+            [fecha]: nextFechaMap
+          }
+        };
+      });
+    }
+  }
   function abrirObservacionPractica(practica: string) {
     if (!solicitudScopeId || !fechaSolicitudActiva) {
       return;
@@ -1376,6 +1446,23 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     setPracticasSeleccionadasIzquierda([]);
     setShowFechaPrimeraPracticaModal(false);
     setSolicitudError(null);
+  }
+  async function guardarSolicitudesEstudio() {
+    if (!estadoPacienteId || !solicitudScopeId) return;
+    const scopeData = solicitudesEstudiosPorTurno[solicitudScopeId];
+    if (!scopeData) return;
+    const items: SolicitudEstudioItem[] = [];
+    for (const [fecha, practicas] of Object.entries(scopeData)) {
+      for (const nombre of practicas) {
+        const observacion = observacionesPorTurno[solicitudScopeId]?.[fecha]?.[nombre] ?? null;
+        items.push({ practicaNombre: nombre, fechaSolicitada: fecha, observacion });
+      }
+    }
+    try {
+      await syncSolicitudesEstudio(estadoPacienteId, solicitudScopeId, items);
+    } catch (err) {
+      console.error("Error al guardar solicitudes:", err);
+    }
   }
   async function loadTurnos() {
     setLoading(true);
@@ -1594,6 +1681,7 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
   useEffect(() => {
     if (!selectedTurnoId) {
       setEncuentroEstado("SIN_ENCUENTRO");
+      setEstadoPacienteId(null);
       setEvolucionesAmbulatorias([]);
       setShowEvolucionesListado(false);
       setShowAgregarEvolucionModal(false);
@@ -1603,14 +1691,34 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     void (async () => {
       try {
         const response = await obtenerEncuentroTurno(selectedTurnoId);
-        const evoluciones = await obtenerEvolucionesAmbulatoriasPaciente(response.pacienteId, 20);
+        const [evoluciones, solicitudes] = await Promise.all([
+          obtenerEvolucionesAmbulatoriasPaciente(response.pacienteId, 20),
+          getSolicitudesEstudio(response.pacienteId, selectedTurnoId)
+        ]);
         if (active) {
           setEncuentroEstado(response.estado);
+          setEstadoPacienteId(response.pacienteId);
           setEvolucionesAmbulatorias(evoluciones);
+          const scopeId = selectedTurnoId;
+          const solicitudesAgrupadas: Record<string, SolicitudesEstudiosPorFecha> = {};
+          const observacionesAgrupadas: Record<string, ObservacionesPorPracticaFecha> = {};
+          for (const s of solicitudes) {
+            if (!solicitudesAgrupadas[scopeId]) solicitudesAgrupadas[scopeId] = {};
+            if (!solicitudesAgrupadas[scopeId][s.fechaSolicitada]) solicitudesAgrupadas[scopeId][s.fechaSolicitada] = [];
+            solicitudesAgrupadas[scopeId][s.fechaSolicitada].push(s.practicaNombre);
+            if (s.observacion) {
+              if (!observacionesAgrupadas[scopeId]) observacionesAgrupadas[scopeId] = {};
+              if (!observacionesAgrupadas[scopeId][s.fechaSolicitada]) observacionesAgrupadas[scopeId][s.fechaSolicitada] = {};
+              observacionesAgrupadas[scopeId][s.fechaSolicitada][s.practicaNombre] = s.observacion;
+            }
+          }
+          setSolicitudesEstudiosPorTurno(solicitudesAgrupadas);
+          setObservacionesPorTurno(observacionesAgrupadas);
         }
       } catch {
         if (active) {
           setEncuentroEstado("SIN_ENCUENTRO");
+          setEstadoPacienteId(null);
           setEvolucionesAmbulatorias([]);
         }
       }
@@ -1631,6 +1739,14 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     };
   }, [solicitudToast]);
 
+  const prevModalRef = useRef(showSolicitudEstudiosModal);
+  useEffect(() => {
+    if (prevModalRef.current === true && showSolicitudEstudiosModal === false) {
+      void guardarSolicitudesEstudio();
+    }
+    prevModalRef.current = showSolicitudEstudiosModal;
+  }, [showSolicitudEstudiosModal]);
+
   const showLlamarMegafonoModal = pendingLlamadoTurnoId !== null;
   const showVistaRapidaModal = turnoVistaRapidaId !== null;
   const setLlamarMegafonoModal = (open: boolean) => {
@@ -1645,6 +1761,39 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
   };
   const showSolicitarEstudiosModal = showSolicitudEstudiosModal;
   const setShowSolicitarEstudiosModal = setShowSolicitudEstudiosModal;
+  useEffect(() => {
+    if (showSolicitudEstudiosModal) {
+      void cargarCatalogoPracticas();
+      setCatalogoSearch("");
+      setCatalogoCategoriaFiltro("");
+    }
+  }, [showSolicitudEstudiosModal]);
+  const catalogoFiltrado = useMemo(() => {
+    let items = catalogoPracticas;
+    if (catalogoCategoriaFiltro) {
+      items = items.filter(p => p.categoria === catalogoCategoriaFiltro);
+    }
+    const q = catalogoSearch.trim().toLowerCase();
+    if (q.length > 0) {
+      items = items.filter(p =>
+        p.nombre.toLowerCase().includes(q) ||
+        p.codigo.toLowerCase().includes(q) ||
+        (p.nombreCompleto && p.nombreCompleto.toLowerCase().includes(q))
+      );
+    }
+    return items;
+  }, [catalogoPracticas, catalogoCategoriaFiltro, catalogoSearch]);
+  const catalogoAgrupado = useMemo(() => {
+    const grupos = new Map<string, PracticaCatalogoItem[]>();
+    for (const item of catalogoFiltrado) {
+      const cat = item.categoria ?? "Sin categoria";
+      if (!grupos.has(cat)) {
+        grupos.set(cat, []);
+      }
+      grupos.get(cat)!.push(item);
+    }
+    return Array.from(grupos.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [catalogoFiltrado]);
   const isEstudioDesdeEvolucion = solicitudOrigen === "evolucion";
   const opcionesPracticasIzquierda = practicasFiltradasIzquierda.map(practica => ({
     id: practica,
@@ -1701,6 +1850,7 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     setShowSinAgendaModal,
     encuentroEstado,
     setEncuentroEstado,
+    estadoPacienteId,
     evolucionesAmbulatorias,
     setEvolucionesAmbulatorias,
     fechaAgenda,
@@ -1794,6 +1944,17 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     setSolicitudError,
     solicitudesEstudiosPorTurno,
     setSolicitudesEstudiosPorTurno,
+    catalogoPracticas,
+    catalogoCategorias,
+    catalogoLoading,
+    catalogoSearch,
+    setCatalogoSearch,
+    catalogoCategoriaFiltro,
+    setCatalogoCategoriaFiltro,
+    catalogoFiltrado,
+    catalogoAgrupado,
+    cargarCatalogoPracticas,
+    togglePracticaCatalogo,
     evolucionEditorRef,
     selectedTurno,
     pendingLlamadoTurno,
@@ -1869,6 +2030,7 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     confirmarServicioIngreso,
     confirmarCambioLugarAtencion,
     limpiarSolicitudesScope,
+    guardarSolicitudesEstudio,
     abrirSolicitudEstudiosConScope,
     abrirSolicitudEstudios,
     abrirSolicitudEstudiosDesdeEvolucion,

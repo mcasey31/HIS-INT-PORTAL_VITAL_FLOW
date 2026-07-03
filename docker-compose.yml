@@ -52,7 +52,7 @@ services:
   # ============================================
   his_backend:
     build:
-      context: ./VitalFlowHis/back/src/VitalFlow.His.Api
+      context: ./back/src/VitalFlow.His.Api
       dockerfile: Dockerfile
     container_name: vitalflow_his_backend
     environment:
@@ -150,7 +150,7 @@ services:
   # ============================================
   his_frontend:
     build:
-      context: ./VitalFlowHis/front
+      context: ./front
       dockerfile: Dockerfile
     container_name: vitalflow_his_frontend
     ports:

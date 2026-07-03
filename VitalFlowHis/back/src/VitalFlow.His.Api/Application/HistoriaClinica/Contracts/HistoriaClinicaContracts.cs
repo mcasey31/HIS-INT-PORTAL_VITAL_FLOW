@@ -22,7 +22,8 @@ public sealed record RegistrarRecetaDigitalItemRequest(
     string? DosisTexto,
     string? FrecuenciaTexto,
     int? DuracionDias,
-    string? Indicacion
+    string? Indicacion,
+    string? Via
 );
 
 public sealed record RegistrarRecetaDigitalRequest(
@@ -53,6 +54,7 @@ public sealed record RecetaDigitalItemResponse(
     string? FrecuenciaTexto,
     int? DuracionDias,
     string? Indicacion,
+    string? ViaAdministracion,
     string Estado
 );
 
@@ -92,6 +94,25 @@ public sealed record RecetaDigitalDetalleResponse(
     IReadOnlyList<RecetaDigitalEventoResponse> Eventos
 );
 
+public sealed record SolicitudEstudioResponse(
+    string Id,
+    string PacienteId,
+    string TurnoId,
+    string PracticaNombre,
+    string FechaSolicitada,
+    string? Observacion
+);
+
+public sealed record SolicitudEstudioItem(
+    string PracticaNombre,
+    string FechaSolicitada,
+    string? Observacion
+);
+
+public sealed record SincronizarSolicitudesEstudioRequest(
+    IReadOnlyList<SolicitudEstudioItem> Solicitudes
+);
+
 public sealed record AnularRecetaDigitalRequest(
     string Motivo,
     string UsuarioId
@@ -111,6 +132,7 @@ public sealed record RecetaDigitalItemCreate(
     string? FrecuenciaTexto,
     int? DuracionDias,
     string? Indicacion,
+    string? ViaAdministracion,
     string Estado
 );
 

@@ -74,17 +74,130 @@
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
 }
 
-.hc-solicitudes-modal {
-  width: min(760px, 96vw);
+.confirm-modal.hc-solicitudes-modal {
+  width: min(900px, 96vw) !important;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: hidden;
 }
 
-.hc-solicitudes-fecha-row,
-.hc-solicitudes-practica-row {
+/* ---- Two-column grid layout for study requests ---- */
+.hc-solicitudes-grid {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto;
-  gap: 0.55rem;
-  align-items: end;
-  margin-bottom: 0.65rem;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0.75rem;
+  flex: 1;
+  min-height: 420px;
+  overflow: hidden;
+}
+
+.hc-solicitudes-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid #cdd9e8;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fafcff;
+}
+
+.hc-solicitudes-panel h4 {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2a4f7a;
+  background: #eef4fb;
+  border-bottom: 1px solid #d8e6f3;
+}
+
+.hc-solicitudes-search {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #e0eaf5;
+  border-radius: 0;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.84rem;
+  box-sizing: border-box;
+  outline: none;
+  background: #fff;
+}
+
+.hc-solicitudes-search:focus {
+  border-bottom-color: #6aaee0;
+  background: #f7fbff;
+}
+
+.hc-solicitudes-listbox {
+  flex: 1;
+  width: 100%;
+  min-height: 320px;
+  border: 0;
+  border-radius: 0;
+  padding: 0.25rem 0;
+  font-size: 0.84rem;
+  color: #1f3a58;
+  background: #fafcff;
+  outline: none;
+  overflow-y: auto;
+}
+
+.hc-solicitudes-listbox option {
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
+  border-bottom: 1px solid #f0f4f9;
+}
+
+.hc-solicitudes-listbox option:checked {
+  background: linear-gradient(0deg, #d4eaff 0%, #d4eaff 100%);
+  color: #1040a0;
+}
+
+.hc-solicitudes-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0 0.2rem;
+}
+
+.hc-solicitudes-controls button {
+  width: 2.3rem;
+  height: 2.3rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  border: 1px solid #a8c4df;
+  border-radius: 7px;
+  background: #eef5ff;
+  color: #2a5a90;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.13s, color 0.13s;
+}
+
+.hc-solicitudes-controls button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.hc-solicitudes-observaciones {
+  border-top: 1px solid #dce8f5;
+  padding-top: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.hc-solicitudes-observaciones h4 {
+  margin: 0 0 0.4rem;
+  color: #294b72;
+  font-size: 0.88rem;
 }
 
 .hc-solicitudes-help {
@@ -334,58 +447,88 @@
   margin: 0.65rem 0 0;
   padding: 0;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.4rem;
 }
 
 .hc-pacientes-grid {
   display: grid;
-  grid-template-columns: minmax(92px, 0.9fr) minmax(72px, 0.65fr) minmax(190px, 1.45fr) minmax(140px, 1fr) minmax(120px, 0.95fr) minmax(140px, 0.95fr) auto;
-  gap: 0.45rem;
+  grid-template-columns: 130px 70px minmax(180px, 1.5fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(160px, 1.1fr) 108px;
+  gap: 0;
   align-items: center;
+  column-gap: 0.6rem;
 }
 
 .hc-pacientes-grid-header {
-  margin: 0.65rem 0 0.25rem;
-  padding: 0 0.35rem;
-  color: #406184;
-  font-size: 0.78rem;
+  margin: 0.75rem 0 0.3rem;
+  padding: 0.3rem 0.5rem 0.3rem 1.1rem;
+  color: #3a5878;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #d6e3f0;
+  background: #f4f8fd;
+  border-radius: 8px 8px 0 0;
 }
 
 .hc-cell {
   min-width: 0;
+  padding: 0 0.15rem;
 }
 
 .hc-cell p {
-  margin: 0.12rem 0;
+  margin: 0.1rem 0;
 }
 
 .hc-cell-main {
   font-weight: 700;
-  color: #234a72;
+  color: #1b3f66;
+  font-size: 0.87rem;
 }
 
 .hc-cell-meta {
-  color: #59738f;
-  font-size: 0.8rem;
+  color: #61789a;
+  font-size: 0.76rem;
 }
 
+/* ---- Row container with color-coded left border ---- */
 .hc-pacientes li {
-  border: 1px solid #d5deea;
-  border-radius: 10px;
-  background: #f9fbff;
-  padding: 0.55rem;
+  border: 1px solid #dbe5f0;
+  border-left-width: 4px;
+  border-left-color: #c5d3e0;
+  border-radius: 0 10px 10px 0;
+  background: #ffffff;
+  padding: 0.5rem 0.6rem 0.5rem 0.7rem;
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+  box-shadow: 0 1px 3px rgba(30,60,100,0.05);
+}
+
+.hc-pacientes li:hover {
+  background: #f7fbff;
+  box-shadow: 0 3px 10px rgba(30,60,100,0.1);
 }
 
 .hc-pacientes li.is-selected {
-  border-color: #8ebde8;
+  border-left-color: #2e86de;
   background: #eef7ff;
+  box-shadow: 0 3px 14px rgba(46,134,222,0.15);
 }
+
+/* ---- State-based left-border colors ---- */
+.hc-pacientes li.hc-row-en-sala-de-espera { border-left-color: #27ae60; }
+.hc-pacientes li.hc-row-en-atencion       { border-left-color: #2e86de; }
+.hc-pacientes li.hc-row-atendido          { border-left-color: #7f8c8d; }
+.hc-pacientes li.hc-row-programado        { border-left-color: #bdc3cb; }
+.hc-pacientes li.hc-row-en-observacion    { border-left-color: #8e44ad; }
+.hc-pacientes li.hc-row-pendiente-de-pago { border-left-color: #e67e22; }
+.hc-pacientes li.hc-row-ausente,
+.hc-pacientes li.hc-row-no-atendido,
+.hc-pacientes li.hc-row-no-admitido       { border-left-color: #c0392b; }
 
 .hc-paciente-title {
   font-weight: 700;
-  color: #1d3f63;
+  color: #1a3a5c;
+  font-size: 0.9rem;
 }
 
 .hc-paciente-chips {
@@ -395,71 +538,149 @@
   margin-top: 0.35rem;
 }
 
+/* ---- Status chips with dot indicator ---- */
 .hc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   border: 1px solid #b8c7da;
   border-radius: 999px;
-  padding: 0.14rem 0.5rem;
+  padding: 0.18rem 0.55rem 0.18rem 0.4rem;
   background: #eef3f9;
   color: #2f4d72;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
-.hc-chip-en-sala-de-espera,
-.hc-chip-en-atencion,
+.hc-chip::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+/* llamados chip: no dot */
+.hc-chip-llamados {
+  border: 1px solid #c9d3de;
+  background: #f3f6fa;
+  color: #4d6275;
+  font-size: 0.72rem;
+  padding: 0.12rem 0.45rem;
+}
+
+.hc-chip-llamados::before { display: none; }
+
+.hc-chip-en-sala-de-espera {
+  border-color: #82c99b;
+  background: #edfaf2;
+  color: #1a7a3e;
+}
+
+.hc-chip-en-atencion {
+  border-color: #6eaee8;
+  background: #e8f4ff;
+  color: #1550a0;
+}
+
 .hc-chip-atendido {
-  border-color: #97c9a5;
-  background: #ecf8ef;
-  color: #1f6a37;
+  border-color: #a3b4c4;
+  background: #eef2f5;
+  color: #3d5265;
 }
 
 .hc-chip-programado {
-  border-color: #cfd8e3;
-  background: #f3f6fa;
-  color: #526275;
+  border-color: #c5cdd7;
+  background: #f4f6f8;
+  color: #5a6675;
 }
 
 .hc-chip-en-observacion {
-  border-color: #bca9e8;
-  background: #f3edff;
-  color: #5b4293;
+  border-color: #b09adb;
+  background: #f4eeff;
+  color: #5b3e95;
 }
 
 .hc-chip-pendiente-de-pago {
-  border-color: #e7c26a;
-  background: #fff4d6;
-  color: #8c5a00;
+  border-color: #e0b860;
+  background: #fff8e6;
+  color: #7a4e00;
 }
 
 .hc-chip-no-atendido,
 .hc-chip-ausente,
 .hc-chip-no-admitido {
-  border-color: #e2a7a7;
-  background: #fff0f0;
-  color: #9a2f2f;
+  border-color: #da9090;
+  background: #fff2f2;
+  color: #8a2222;
 }
 
+/* ---- Estado cell layout ---- */
+.hc-cell-estado {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  align-items: flex-start;
+}
+
+/* ---- Action buttons ---- */
 .hc-paciente-actions {
   display: flex;
-  gap: 0.35rem;
+  gap: 0.28rem;
   flex-wrap: nowrap;
   justify-content: flex-end;
+  align-items: center;
 }
 
 .hc-icon-button {
-  min-width: 2.2rem;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid #8fb0d3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border: 1px solid #b8cfe8;
   border-radius: 8px;
-  background: #eef5ff;
-  color: #1e4f83;
-  font-size: 0.75rem;
-  font-weight: 700;
+  background: #f0f7ff;
+  color: #2255a0;
+  font-size: 0;
+  cursor: pointer;
+  transition: background 0.13s ease, border-color 0.13s ease, box-shadow 0.13s ease;
+  flex-shrink: 0;
 }
 
-.hc-icon-button:hover {
-  background: #ddecff;
+.hc-icon-button svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
 }
+
+.hc-icon-button:hover:not(:disabled) {
+  background: #daeeff;
+  border-color: #6aaee0;
+  box-shadow: 0 2px 6px rgba(34,85,160,0.12);
+}
+
+.hc-icon-button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  background: #f5f7fa;
+  border-color: #d0d8e2;
+  color: #8fa0b4;
+}
+
+/* Ver turno -> neutral blue */
+.hc-icon-btn-ver   { color: #2a6ab5; }
+/* Historia clínica -> teal/green */
+.hc-icon-btn-hc    { color: #1a7a5e; border-color: #8ec9b2; background: #f0fbf6; }
+.hc-icon-btn-hc:hover:not(:disabled) { background: #d6f5e8; border-color: #56b899; }
+/* Llamar -> amber/orange */
+.hc-icon-btn-call  { color: #b06a00; border-color: #e0b560; background: #fff8e8; }
+.hc-icon-btn-call:hover:not(:disabled) { background: #fff1c5; border-color: #d4a020; }
 
 .hc-panoramica {
   min-height: 620px;
