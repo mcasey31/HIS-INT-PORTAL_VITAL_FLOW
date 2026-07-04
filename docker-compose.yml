@@ -148,6 +148,28 @@ services:
       - "com.example.description=VitalFlow Portal - Patient Facing PWA"
 
   # ============================================
+  # Portal Frontend - Next.js (patient PWA)
+  # ============================================
+  portal_frontend:
+    build:
+      context: ./VitalFlowPortal/frontend
+      dockerfile: Dockerfile
+    container_name: vitalflow_portal_frontend
+    ports:
+      - "3000:80"
+    environment:
+      VITE_API_URL: http://localhost:3010/api
+      VITE_HIS_API_URL: ${VITE_HIS_API_URL:-http://localhost:3001/api}
+    depends_on:
+      portal_backend:
+        condition: service_started
+    networks:
+      - vitalflow_network
+    restart: unless-stopped
+    labels:
+      - "com.example.description=VitalFlow Portal Frontend"
+
+  # ============================================
   # HIS Frontend - React/Vite (admin HIS)
   # ============================================
   his_frontend:
