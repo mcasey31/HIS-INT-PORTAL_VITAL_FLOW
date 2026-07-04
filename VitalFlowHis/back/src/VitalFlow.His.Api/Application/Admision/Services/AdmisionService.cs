@@ -709,7 +709,8 @@ public sealed class AdmisionService(
 
         if (string.Equals(nuevoEstado, EstadoEnAtencion, StringComparison.OrdinalIgnoreCase))
         {
-            var turnosEnAtencion = admisionRepository.GetTurnosEnEstado(EstadoEnAtencion, turnoId);
+            var fechaControl = DateOnly.FromDateTime(GetBusinessNow().DateTime);
+            var turnosEnAtencion = admisionRepository.GetTurnosEnEstado(EstadoEnAtencion, turnoId, fechaControl);
             if (turnosEnAtencion.Count > 0)
             {
                 throw new ArgumentException($"Ya existe un paciente en atencion (turno {turnosEnAtencion[0]}).");
