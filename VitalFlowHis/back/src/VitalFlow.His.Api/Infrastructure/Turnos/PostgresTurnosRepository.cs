@@ -651,11 +651,29 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         FechaHora:   r.GetFieldValue<DateTimeOffset>(5),
         Estado:      r.GetString(6),
         Motivo:      r.IsDBNull(7) ? null : r.GetString(7),
-        CentroId:    r.IsDBNull(8) ? Guid.Empty : r.GetGuid(8),
-        ServicioId:  r.IsDBNull(9) ? Guid.Empty : r.GetGuid(9),
-        EfectorId:   r.IsDBNull(10) ? Guid.Empty : r.GetGuid(10),
-        CupoId:      r.IsDBNull(11) ? Guid.Empty : r.GetGuid(11)
+        CentroId:    ReadGuidOrEmpty(r, 8),
+        ServicioId:  ReadGuidOrEmpty(r, 9),
+        EfectorId:   ReadGuidOrEmpty(r, 10),
+        CupoId:      ReadGuidOrEmpty(r, 11)
     );
+
+    private static Guid ReadGuidOrEmpty(NpgsqlDataReader reader, int ordinal)
+    {
+        if (reader.IsDBNull(ordinal))
+        {
+            return Guid.Empty;
+        }
+
+        try
+        {
+            return reader.GetGuid(ordinal);
+        }
+        catch
+        {
+            // Compatibilidad con esquemas legacy (por ejemplo cupo_id int).
+            return Guid.Empty;
+        }
+    }
 
     private static void BindTurno(NpgsqlCommand cmd, TurnoPacienteRow t)
     {
