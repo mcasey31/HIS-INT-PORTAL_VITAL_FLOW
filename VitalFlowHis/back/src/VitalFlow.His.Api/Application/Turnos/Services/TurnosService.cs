@@ -330,22 +330,31 @@ public sealed class TurnosService(
                     continue;
                 }
 
-                var horaInicio = bloque.HoraInicio;
-                var horaFin = bloque.HoraFin;
                 var intervalo = bloque.IntervaloMinutos > 0 ? bloque.IntervaloMinutos : Math.Max(bloque.DuracionTurnoMinutos, 1);
                 if (intervalo <= 0)
                 {
                     continue;
                 }
 
+                var horaInicio = bloque.HoraInicio;
+                var horaFin = bloque.HoraFin;
+                var minutoInicio = horaInicio.Hour * 60 + horaInicio.Minute;
+                var minutoFin = horaFin.Hour * 60 + horaFin.Minute;
+                if (minutoFin <= minutoInicio)
+                {
+                    continue;
+                }
+
                 foreach (var fechaSlot in fechasSlot)
                 {
-                    for (var hora = horaInicio; hora < horaFin; hora = hora.AddMinutes(intervalo))
+                    for (var minuto = minutoInicio; minuto < minutoFin; minuto += intervalo)
                     {
                         if (slots.Count >= MaxSlotsRespuesta)
                         {
                             break;
                         }
+
+                        var hora = TimeOnly.MinValue.AddMinutes(minuto);
 
                         var horaSlot = hora.ToString("HH:mm", CultureInfo.InvariantCulture);
                         var slotId = $"slot:{agenda.Id:N}:{bloque.Id:N}:{fechaSlot:yyyyMMdd}:{hora:HHmm}";
