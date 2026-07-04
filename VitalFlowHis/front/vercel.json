@@ -4,6 +4,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://vitalflow-his-backend-production.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
     }
   ]
 }

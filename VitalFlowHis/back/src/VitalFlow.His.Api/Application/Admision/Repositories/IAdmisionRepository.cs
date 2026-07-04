@@ -34,7 +34,7 @@ public interface IAdmisionRepository
     void UpsertTurnoAdmision(TurnoAdmisionRow row);
 
     /// Devuelve los turnoIds que tienen el estado indicado (excluye excludeTurnoId).
-    IReadOnlyList<string> GetTurnosEnEstado(string estado, string? excludeTurnoId = null);
+    IReadOnlyList<string> GetTurnosEnEstado(string estado, string? excludeTurnoId = null, DateOnly? fecha = null);
 
     /// Devuelve turnos programados asignados (modulo Turnos) para una fecha, con datos de paciente y cobertura vigente.
     IReadOnlyList<TurnoProgramadoPacienteRow> GetTurnosProgramadosPacientePorFecha(DateOnly fecha);

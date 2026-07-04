@@ -233,12 +233,25 @@ public sealed class PostgresAdmisionRepository(string connectionString) : IAdmis
         cmd.ExecuteNonQuery();
     }
 
-    public IReadOnlyList<string> GetTurnosEnEstado(string estado, string? excludeTurnoId = null)
+        public IReadOnlyList<string> GetTurnosEnEstado(string estado, string? excludeTurnoId = null, DateOnly? fecha = null)
     {
         const string sql = """
             select turno_id from sch_admision.turno_admision
             where estado = @estado
               and (@excludeId is null or turno_id <> @excludeId)
+                            and (
+                                        @fecha is null
+                                        or exists (
+                                                select 1
+                                                from sch_turno.turno_paciente tp
+                                                where tp.id = case
+                                                        when sch_admision.turno_admision.turno_id like 'adm:tp:%'
+                                                                then substring(sch_admision.turno_admision.turno_id from 8)
+                                                        else sch_admision.turno_admision.turno_id
+                                                end
+                                                    and (tp.fecha_hora at time zone 'UTC')::date = @fecha
+                                        )
+                                    )
             """;
 
         using var conn = new NpgsqlConnection(connectionString);
@@ -246,6 +259,7 @@ public sealed class PostgresAdmisionRepository(string connectionString) : IAdmis
         using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("estado", estado);
         cmd.Parameters.AddWithValue("excludeId", (object?)excludeTurnoId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("fecha", (object?)fecha ?? DBNull.Value);
         using var reader = cmd.ExecuteReader();
 
         var result = new List<string>();
