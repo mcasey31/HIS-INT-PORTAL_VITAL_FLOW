@@ -43,8 +43,7 @@ export function HomePage() {
     hasRole("Administrador")
     || hasRole("Administrativo")
     || hasRole("Cajero")
-    || hasRole("Auditor")
-    || hasRole("Medico");
+    || hasRole("Auditor");
 
   const displayName = username
     ? username.charAt(0).toUpperCase() + username.slice(1).toLowerCase()
