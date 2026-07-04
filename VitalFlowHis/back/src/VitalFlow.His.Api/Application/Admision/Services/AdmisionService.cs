@@ -208,8 +208,16 @@ public sealed class AdmisionService(
                     continue;
                 }
 
-                for (var hora = bloque.HoraInicio; hora < bloque.HoraFin; hora = hora.AddMinutes(intervalo))
+                var minutoInicio = bloque.HoraInicio.Hour * 60 + bloque.HoraInicio.Minute;
+                var minutoFin = bloque.HoraFin.Hour * 60 + bloque.HoraFin.Minute;
+                if (minutoFin <= minutoInicio)
                 {
+                    continue;
+                }
+
+                for (var minuto = minutoInicio; minuto < minutoFin; minuto += intervalo)
+                {
+                    var hora = TimeOnly.MinValue.AddMinutes(minuto);
                     var turnoId = BuildTurnoId(agenda.Id, bloque.Id, fecha, hora);
                     var turnoDate = new DateTimeOffset(fecha.Year, fecha.Month, fecha.Day, hora.Hour, hora.Minute, 0, TimeSpan.Zero);
                     slots.Add((
