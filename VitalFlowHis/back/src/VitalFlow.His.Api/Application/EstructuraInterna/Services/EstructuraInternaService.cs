@@ -272,8 +272,13 @@ public sealed class EstructuraInternaService(
 
             if (Guid.TryParse(userIdRaw, out var userId) && userId != Guid.Empty)
             {
+                var newTemporaryPassword = request.Campos.TryGetValue("temporary_password", out var tempPassRaw)
+                    ? (tempPassRaw ?? string.Empty).Trim()
+                    : string.Empty;
+                    
                 var updated = authService.UpdateSystemUser(
-                    new UpdateSystemUserRequest(userId, personaId, username, centroId, servicioId, matriculaProvincial, matriculaNacional, roles, estadoInput),
+                    new UpdateSystemUserRequest(userId, personaId, username, centroId, servicioId, matriculaProvincial, matriculaNacional, roles, estadoInput, 
+                        string.IsNullOrWhiteSpace(newTemporaryPassword) ? null : newTemporaryPassword),
                     null,
                     null);
 

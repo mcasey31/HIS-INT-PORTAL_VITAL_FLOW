@@ -462,8 +462,8 @@ public sealed class TurnosService(
         }
 
         var filtered = historial
-            ? turnos.Where(item => item.FechaHora < ahora)
-            : turnos.Where(item => item.FechaHora >= ahora);
+            ? turnos.Where(item => item.FechaHora < ahora || item.Estado == "ANULADO")
+            : turnos.Where(item => item.FechaHora >= ahora && item.Estado != "ANULADO");
 
         var ordered = historial
             ? filtered.OrderByDescending(item => item.FechaHora)

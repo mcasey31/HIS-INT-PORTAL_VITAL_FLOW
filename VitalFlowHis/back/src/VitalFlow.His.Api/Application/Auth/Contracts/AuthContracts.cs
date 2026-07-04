@@ -51,7 +51,8 @@ public sealed record UpdateSystemUserRequest(
     string? MatriculaProvincial,
     string? MatriculaNacional,
     IReadOnlyList<string> Roles,
-    string Estado
+    string Estado,
+    string? TemporaryPassword = null
 );
 
 public sealed record UpdateSystemUserResponse(
