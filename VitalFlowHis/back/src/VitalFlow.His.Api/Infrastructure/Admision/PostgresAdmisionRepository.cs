@@ -5,6 +5,149 @@ namespace VitalFlow.His.Api.Infrastructure.Admision;
 
 public sealed class PostgresAdmisionRepository(string connectionString) : IAdmisionRepository
 {
+    // ── catalogos de admision ──────────────────────────────────────────────
+
+    public IReadOnlyList<string> GetEstadosAdmisionActivos()
+    {
+        const string sql = """
+            select codigo
+            from sch_admision.estado_admision_catalogo
+            where activo = true
+            order by orden, codigo;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        using var reader = cmd.ExecuteReader();
+
+        var result = new List<string>();
+        while (reader.Read())
+        {
+            result.Add(reader.GetString(0));
+        }
+
+        return result;
+    }
+
+    public bool IsTransicionAdmisionPermitida(string estadoActual, string nuevoEstado)
+    {
+        const string sql = """
+            select 1
+            from sch_admision.estado_admision_transicion
+            where activo = true
+              and upper(estado_origen_codigo) = upper(@estadoActual)
+              and upper(estado_destino_codigo) = upper(@nuevoEstado)
+            limit 1;
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("estadoActual", estadoActual);
+        cmd.Parameters.AddWithValue("nuevoEstado", nuevoEstado);
+        return cmd.ExecuteScalar() is not null;
+    }
+
+    public bool IsEstadoAdmisionFinal(string estado)
+    {
+        const string sql = """
+            select es_final
+            from sch_admision.estado_admision_catalogo
+            where upper(codigo) = upper(@estado)
+              and activo = true
+            limit 1;
+            """;
+
+                using var conn = new NpgsqlConnection(connectionString);
+                conn.Open();
+                using var cmd = new NpgsqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("estado", estado);
+                var result = cmd.ExecuteScalar();
+                return result is true || result?.ToString()?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        }
+
+        public string ResolveEstadoAdmisionByAccion(string accionCodigo)
+        {
+                const string sql = """
+                        select a.estado_codigo
+                        from sch_admision.accion_estado_admision a
+                        join sch_admision.estado_admision_catalogo c
+                            on c.codigo = a.estado_codigo
+                        where a.activo = true
+                            and c.activo = true
+                            and upper(a.accion_codigo) = upper(@accionCodigo)
+                        limit 1;
+                        """;
+
+                using var conn = new NpgsqlConnection(connectionString);
+                conn.Open();
+                using var cmd = new NpgsqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("accionCodigo", accionCodigo);
+                var result = cmd.ExecuteScalar()?.ToString();
+                if (string.IsNullOrWhiteSpace(result))
+                {
+                        throw new InvalidOperationException($"No se encontro estado de admision activo para la accion '{accionCodigo}'.");
+                }
+
+                return result;
+        }
+
+        public string ResolveEstadoTurnoByAccion(string accionCodigo)
+        {
+                const string sql = """
+                        select a.estado_codigo
+                        from sch_admision.accion_estado_turno a
+                        join sch_admision.estado_turno_catalogo c
+                            on c.codigo = a.estado_codigo
+                        where a.activo = true
+                            and c.activo = true
+                            and upper(a.accion_codigo) = upper(@accionCodigo)
+                        limit 1;
+                        """;
+
+                using var conn = new NpgsqlConnection(connectionString);
+                conn.Open();
+                using var cmd = new NpgsqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("accionCodigo", accionCodigo);
+                var result = cmd.ExecuteScalar()?.ToString();
+                if (string.IsNullOrWhiteSpace(result))
+                {
+                        throw new InvalidOperationException($"No se encontro estado de turno activo para la accion '{accionCodigo}'.");
+                }
+
+                return result;
+        }
+
+        public string ResolveEstadoTurnoByEstadoAdmision(string estadoAdmision)
+        {
+                const string sql = """
+                        select m.estado_turno_codigo
+                        from sch_admision.estado_admision_turno_mapeo m
+                        join sch_admision.estado_admision_catalogo ea
+                            on ea.codigo = m.estado_admision_codigo
+                        join sch_admision.estado_turno_catalogo et
+                            on et.codigo = m.estado_turno_codigo
+                        where m.activo = true
+                            and ea.activo = true
+                            and et.activo = true
+                            and upper(m.estado_admision_codigo) = upper(@estadoAdmision)
+                        limit 1;
+                        """;
+
+                using var conn = new NpgsqlConnection(connectionString);
+                conn.Open();
+                using var cmd = new NpgsqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("estadoAdmision", estadoAdmision);
+                var result = cmd.ExecuteScalar()?.ToString();
+                if (string.IsNullOrWhiteSpace(result))
+                {
+                        throw new InvalidOperationException($"No se encontro mapeo de estado turno para estado de admision '{estadoAdmision}'.");
+                }
+
+                return result;
+    }
+
     // ── turno_admision ──────────────────────────────────────────────────────
 
     public TurnoAdmisionRow? GetTurnoAdmision(string turnoId)
@@ -145,7 +288,13 @@ public sealed class PostgresAdmisionRepository(string connectionString) : IAdmis
                 on f.id = cov.financiador_id
             left join sch_persona.financiador_plan fp
                 on fp.id = cov.plan_financiador_id
-                        where upper(tp.estado) in ('AGENDADO', 'PROGRAMADO')
+                        where exists (
+                                select 1
+                                from sch_admision.estado_turno_catalogo etc
+                                where etc.activo = true
+                                    and etc.admite_en_admision = true
+                                    and upper(etc.codigo) = upper(tp.estado)
+                        )
               and (tp.fecha_hora at time zone 'UTC')::date = @fecha
             order by tp.fecha_hora;
             """;

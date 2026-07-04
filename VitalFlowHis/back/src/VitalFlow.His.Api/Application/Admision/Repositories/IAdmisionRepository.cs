@@ -2,6 +2,26 @@ namespace VitalFlow.His.Api.Application.Admision.Repositories;
 
 public interface IAdmisionRepository
 {
+    // ── catalogos de admision ──────────────────────────────────────────────
+
+    /// Devuelve estados de admision activos ordenados por prioridad.
+    IReadOnlyList<string> GetEstadosAdmisionActivos();
+
+    /// Devuelve true si la transicion entre estados esta permitida y activa.
+    bool IsTransicionAdmisionPermitida(string estadoActual, string nuevoEstado);
+
+    /// Devuelve true si el estado de admision es final.
+    bool IsEstadoAdmisionFinal(string estado);
+
+    /// Devuelve el estado de admision para una accion parametrizada.
+    string ResolveEstadoAdmisionByAccion(string accionCodigo);
+
+    /// Devuelve el estado de turno para una accion parametrizada.
+    string ResolveEstadoTurnoByAccion(string accionCodigo);
+
+    /// Devuelve el estado de turno mapeado para un estado de admision.
+    string ResolveEstadoTurnoByEstadoAdmision(string estadoAdmision);
+
     // ── turno_admision ──────────────────────────────────────────────────────
 
     /// Devuelve la fila de admision para el turnoId dado, o null si no existe aun.
