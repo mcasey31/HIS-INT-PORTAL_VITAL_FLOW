@@ -496,26 +496,40 @@ public sealed class AdmisionService(
         var rowActual = admisionRepository.GetTurnoAdmision(turnoId);
         var llegadaFinal = rowActual?.LlegadaEn ?? DateTimeOffset.UtcNow;
 
-        // ── Evento outbox CONV-FACT (solo si el módulo está activo; zero-impact si no) ──
-        TryPublicarEventoFacturacion(
-            turnoId, encuentroId, pacienteId,
-            request.Paciente.Trim(), request.Documento.Trim(), financiador,
-            request.FinanciadorId, request.PlanId,
-            request.ServicioNombre, request.CentroId,
-            llegadaFinal,
-            request.PracticaOrigenNombre, request.PracticaOrigenCodigo,
-            request.ProfesionalId, request.ProfesionalNombre,
-            request.TipoOrigen ?? "TURNO");
+        string? facturacionEventoEstado = null;
+        string? facturacionEventoDetalle = null;
 
-        var eventoFacturacion = admisionRepository.GetEventoFacturacionByTurnoId(turnoId);
+        // El arribo no debe fallar por incidencias de facturación: se admite y luego se reporta el estado del evento.
+        try
+        {
+            TryPublicarEventoFacturacion(
+                turnoId, encuentroId, pacienteId,
+                request.Paciente.Trim(), request.Documento.Trim(), financiador,
+                request.FinanciadorId, request.PlanId,
+                request.ServicioNombre, request.CentroId,
+                llegadaFinal,
+                request.PracticaOrigenNombre, request.PracticaOrigenCodigo,
+                request.ProfesionalId, request.ProfesionalNombre,
+                request.TipoOrigen ?? "TURNO");
+
+            var eventoFacturacion = admisionRepository.GetEventoFacturacionByTurnoId(turnoId);
+            facturacionEventoEstado = eventoFacturacion?.Estado;
+            facturacionEventoDetalle = eventoFacturacion?.ErrorDetalle;
+        }
+        catch (Exception ex)
+        {
+            facturacionEventoEstado = "ERROR_PUBLICACION";
+            facturacionEventoDetalle = ex.Message;
+            Console.WriteLine($"[AdmisionService] Advertencia facturacion turnoId={turnoId}: {ex.Message}");
+        }
 
         return new ConfirmarArriboTurnoResponse(
             turnoId, EstadoEnSalaEspera,
             llegadaFinal.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture),
             estadoTurnoFinal,
             encuentroId,
-            eventoFacturacion?.Estado,
-            eventoFacturacion?.ErrorDetalle);
+            facturacionEventoEstado,
+            facturacionEventoDetalle);
     }
 
     public EventoFacturacionTurnoResponse ObtenerEventoFacturacion(string turnoId)
