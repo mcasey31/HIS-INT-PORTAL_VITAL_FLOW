@@ -1519,15 +1519,30 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
             }
         }
 
+        var existing = new HashSet<(Guid, DateTimeOffset)>();
+        const string sqlExisting = """
+            select bloque_id, hora_inicio from sch_agenda.cupo
+            where estado <> 'libre'
+              and bloque_id in (
+                select id from sch_agenda.bloque_programacion where agenda_id = @agendaId
+            );
+            """;
+        using (var cmdExisting = new NpgsqlCommand(sqlExisting, conn))
+        {
+            cmdExisting.Parameters.AddWithValue("agendaId", agendaId);
+            using var reader = cmdExisting.ExecuteReader();
+            while (reader.Read())
+                existing.Add((reader.GetGuid(0), reader.GetFieldValue<DateTimeOffset>(1)));
+        }
+
         const string sqlInsert = """
-            insert into sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
-            values (@bloqueId, @horaInicio, @horaFin, 'libre', 1, false, 'SYSTEM', 'SYSTEM', now())
-            on conflict (bloque_id, hora_inicio)
-            do nothing;
+            insert into sch_agenda.cupo (id, bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
+            values (gen_random_uuid(), @bloqueId, @horaInicio, @horaFin, 'libre', 1, false, 'SYSTEM', 'SYSTEM', now());
             """;
 
         foreach (var (bloqueId, inicio, fin) in slots)
         {
+            if (existing.Contains((bloqueId, inicio))) continue;
             using var cmd = new NpgsqlCommand(sqlInsert, conn);
             cmd.Parameters.AddWithValue("bloqueId", bloqueId);
             cmd.Parameters.AddWithValue("horaInicio", inicio);

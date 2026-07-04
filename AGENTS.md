@@ -15,7 +15,7 @@ Fix all critical bugs in Agenda module (Fase 1), move hardcodeos to config (Fase
 |------|--------|
 | **Fase 1.1** — `CantidadBloques`/`CantidadBloqueos` | ✅ `AgendaAggregate.cs:21-22` |
 | **Fase 1.2** — `CopyAgenda` copia bloques | ✅ `AgendaService.cs:510-551` |
-| **Fase 1.3** — `RegenerateCupos` en DB | ✅ `PostgresAgendaRepository.cs:1459-1530` |
+| **Fase 1.3** — `RegenerateCupos` en DB | ✅ `PostgresAgendaRepository.cs:1459-1544` |
 | **Fase 1.4** — `GetTurnosByBloque` real | ✅ `PostgresAgendaRepository.cs:1532-1564` |
 | **Fase 1.5** — `DuracionTurnoMinutos` fallback 30 | ✅ `PostgresAgendaRepository.cs:987` |
 | **Fase 2** — Config en appsettings.json | ✅ `appsettings.json:39-48` |
