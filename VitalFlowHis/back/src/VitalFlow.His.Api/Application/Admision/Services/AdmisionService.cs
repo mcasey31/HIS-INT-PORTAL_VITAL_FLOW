@@ -237,8 +237,13 @@ public sealed class AdmisionService(
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Select(item => item!)
             .Distinct(StringComparer.OrdinalIgnoreCase);
+        var turnoProgramadoFallbackAdmisionIds = turnosProgramados
+            .Select(item => $"adm:tp:{item.TurnoProgramadoId}")
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
         var admisionRows = admisionRepository.GetTurnosAdmisionByIds(turnoIds
             .Concat(turnoProgramadoAdmisionIds)
+            .Concat(turnoProgramadoFallbackAdmisionIds)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList());
 
