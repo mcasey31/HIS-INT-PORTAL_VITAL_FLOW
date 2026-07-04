@@ -108,13 +108,12 @@ public sealed class TurnosService(
 
     public SelectoresDisponibilidadTurnoResponse GetSelectoresDisponibilidad()
     {
-        var agendas = GetAgendasElegiblesConBloques();
-
-        var centros = agendas
-            .GroupBy(item => item.CentroId)
-            .Select(group => new CentroTurnoResponse(group.Key.ToString(), group.First().CentroNombre))
-            .OrderBy(item => item.Nombre, StringComparer.OrdinalIgnoreCase)
+        var centros = agendaRepository.GetCentros()
+            .Select(c => new CentroTurnoResponse(c.Id.ToString(), c.Nombre))
+            .OrderBy(c => c.Nombre, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+        var agendas = GetAgendasElegiblesConBloques();
 
         var servicios = agendas
             .GroupBy(item => item.ServicioId)
