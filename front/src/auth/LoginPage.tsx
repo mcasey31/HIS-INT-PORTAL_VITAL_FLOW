@@ -5,13 +5,15 @@ import { ApiError } from "../shared/apiError";
 import { useAuth } from "./AuthContext";
 import { authApi, type LoginCentroOption } from "./authApi";
 
+type LoginStep = "credentials" | "select-centro";
+
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [step, setStep] = useState<LoginStep>("credentials");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [centros, setCentros] = useState<LoginCentroOption[]>([]);
-  const [centroId, setCentroId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingCentros, setIsLoadingCentros] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -24,11 +26,7 @@ export function LoginPage() {
         if (!active) {
           return;
         }
-
         setCentros(centrosResponse);
-        if (centrosResponse.length === 1) {
-          setCentroId(centrosResponse[0].id);
-        }
       } catch {
         if (active) {
           setErrorMessage("No se pudieron cargar los centros para iniciar sesion.");
@@ -57,7 +55,30 @@ export function LoginPage() {
     setErrorMessage(null);
 
     try {
-      await login(username.trim(), password, centroId || undefined);
+      await login(username.trim(), password);
+      navigate("/");
+    } catch (error) {
+      if (error instanceof ApiError) {
+        if (error.status === 401 && centros.length > 0) {
+          setStep("select-centro");
+          setErrorMessage(null);
+          return;
+        }
+        setErrorMessage(error.message || "No se pudo iniciar sesion.");
+      } else {
+        setErrorMessage("No se pudo iniciar sesion.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCentroSelect(centroId: string) {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      await login(username.trim(), password, centroId);
       navigate("/");
     } catch (error) {
       if (error instanceof ApiError) {
@@ -68,6 +89,55 @@ export function LoginPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (step === "select-centro") {
+    return (
+      <main className="login-shell" aria-label="Seleccion de centro">
+        <section className="login-panel">
+          <header className="login-header">
+            <p className="login-tag">VitalFlow HIS</p>
+            <h1>Seleccionar centro</h1>
+            <p>
+              El usuario <strong>{username}</strong> tiene acceso a multiples centros.
+              Seleccione uno para continuar.
+            </p>
+          </header>
+
+          <div className="centro-list">
+            {centros.length === 0 && !isLoadingCentros && (
+              <p className="login-error">No hay centros disponibles.</p>
+            )}
+            {isLoadingCentros && <p>Cargando centros...</p>}
+            {centros.map((centro) => (
+              <button
+                key={centro.id}
+                type="button"
+                className="centro-button"
+                disabled={isSubmitting}
+                onClick={() => handleCentroSelect(centro.id)}
+              >
+                {centro.nombre}
+              </button>
+            ))}
+          </div>
+
+          {errorMessage ? <p className="login-error">{errorMessage}</p> : null}
+
+          <button
+            type="button"
+            className="centro-back"
+            disabled={isSubmitting}
+            onClick={() => {
+              setStep("credentials");
+              setErrorMessage(null);
+            }}
+          >
+            Volver
+          </button>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -100,22 +170,6 @@ export function LoginPage() {
               autoComplete="current-password"
               disabled={isSubmitting}
             />
-          </label>
-
-          <label>
-            Centro
-            <select
-              value={centroId}
-              onChange={(event) => setCentroId(event.target.value)}
-              disabled={isSubmitting || isLoadingCentros}
-            >
-              <option value="">Sin seleccionar (solo administrador)</option>
-              {centros.map((centro) => (
-                <option key={centro.id} value={centro.id}>
-                  {centro.nombre}
-                </option>
-              ))}
-            </select>
           </label>
 
           {errorMessage ? <p className="login-error">{errorMessage}</p> : null}

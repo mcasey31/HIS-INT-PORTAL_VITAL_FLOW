@@ -60,9 +60,8 @@ Fix all critical bugs in Agenda module (Fase 1), move hardcodeos to config (Fase
 
 ### Blocked
 - Fase 3b (naming cleanup) skipped — would break frontend JSON contract without coordinated change
-- `personas/{id}/domicilio` PUT 500: FK `domicilio_localidad_id_fkey` violation
-- `auth/login` 401 sin `centroId`: flujo de selección de centro no implementado en frontend
-- PR #27 VitalFlowHis 8 tablas — pending review
+- `personas/{id}/domicilio` PUT 500: FK `domicilio_localidad_id_fkey` (catch 23503 → 400, code-only fix aplicado)
+- PR #27 VitalFlowHis 8 tablas — pending merge into ALL_IN_ONE_PRJ_VITALFLOW_V1
 
 ## Key Decisions
 - `CantidadBloques`/`CantidadBloqueos` as explicit properties instead of polluting lists with empty placeholder objects
