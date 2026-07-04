@@ -1,6 +1,5 @@
 {
-  "projectId": "prj_SVA6zY5OpkCDrzqQmW7CnhtSJmsx",
-  "orgId": "team_7EfQjf3hFhTic6THfPxLoqVM",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
       "source": "/api/:path*",
