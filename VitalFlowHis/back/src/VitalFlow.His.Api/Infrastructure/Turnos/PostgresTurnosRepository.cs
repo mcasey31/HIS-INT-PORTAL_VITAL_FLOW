@@ -567,12 +567,20 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
             select disponibles from sch_turno.sobreturno_disponibilidad where st_key = @stKey
             """;
 
-        using var conn = new NpgsqlConnection(connectionString);
-        conn.Open();
-        using var cmd = new NpgsqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("stKey", stKey);
-        cmd.Parameters.AddWithValue("capacidad", capacidadInicial);
-        return (int)cmd.ExecuteScalar()!;
+        try
+        {
+            using var conn = new NpgsqlConnection(connectionString);
+            conn.Open();
+            using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("stKey", stKey);
+            cmd.Parameters.AddWithValue("capacidad", capacidadInicial);
+            return (int)cmd.ExecuteScalar()!;
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UndefinedTable)
+        {
+            // Defensive fallback for environments where migration 013 is missing.
+            return Math.Max(capacidadInicial, 0);
+        }
     }
 
     public int DecrementarSobreturno(string stKey)
