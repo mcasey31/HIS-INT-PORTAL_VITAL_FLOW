@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Text;
 using VitalFlow.His.Api.Domain.Agenda;
 using VitalFlow.His.Api.Application.Personas.Repositories;
 using VitalFlow.His.Api.Application.Turnos.Contracts;
@@ -461,6 +462,21 @@ public sealed class TurnosService(
         }
 
         return slots
+            .GroupBy(
+                item => string.Join(
+                    "|",
+                    item.Fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    item.Hora,
+                    item.TipoSlot,
+                    NormalizeSlotText(item.Centro),
+                    NormalizeSlotText(item.Servicio),
+                    NormalizeSlotText(item.Practica),
+                    NormalizeSlotText(item.Profesional)),
+                StringComparer.OrdinalIgnoreCase)
+            .Select(group => group
+                .OrderBy(item => item.Estado == "DISPONIBLE" ? 0 : 1)
+                .ThenBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+                .First())
             .OrderBy(item => item.Fecha)
             .ThenBy(item => item.Hora)
             .ThenBy(item => item.Centro, StringComparer.OrdinalIgnoreCase)
@@ -815,11 +831,14 @@ public sealed class TurnosService(
             return [];
         }
 
-        var diasPermitidos = new HashSet<string>(
-            bloque.Dias.Select(item => item.Trim().ToUpperInvariant()).Where(item => item.Length > 0),
-            StringComparer.OrdinalIgnoreCase);
+        var diasPermitidos = bloque.Dias
+            .Select(NormalizeCodigoDia)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Cast<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var fechas = new List<DateOnly>();
+        var diaFecha = CodigoDiaSemana;
 
         for (var fecha = desde; fecha <= hasta; fecha = fecha.AddDays(1))
         {
@@ -829,7 +848,7 @@ public sealed class TurnosService(
                 continue;
             }
 
-            if (diasPermitidos.Contains(CodigoDiaSemana(fecha.DayOfWeek)))
+            if (diasPermitidos.Contains(diaFecha(fecha.DayOfWeek)))
             {
                 fechas.Add(fecha);
             }
@@ -855,6 +874,42 @@ public sealed class TurnosService(
             DayOfWeek.Sunday => "D",
             _ => string.Empty
         };
+    }
+
+    private static string? NormalizeCodigoDia(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var token = RemoveDiacritics(raw).Trim().ToUpperInvariant();
+        return token switch
+        {
+            "L" or "LU" or "LUN" or "LUNES" or "MON" or "MONDAY" => "L",
+            "M" or "MA" or "MAR" or "MARTES" or "TUE" or "TUESDAY" => "M",
+            "X" or "MI" or "MIE" or "MIERCOLES" or "WED" or "WEDNESDAY" => "X",
+            "J" or "JU" or "JUE" or "JUEVES" or "THU" or "THURSDAY" => "J",
+            "V" or "VI" or "VIE" or "VIERNES" or "FRI" or "FRIDAY" => "V",
+            "S" or "SA" or "SAB" or "SABADO" or "SAT" or "SATURDAY" => "S",
+            "D" or "DO" or "DOM" or "DOMINGO" or "SUN" or "SUNDAY" => "D",
+            _ => null
+        };
+    }
+
+    private static string RemoveDiacritics(string value)
+    {
+        var normalized = value.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(normalized.Length);
+        foreach (var ch in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
+            {
+                sb.Append(ch);
+            }
+        }
+
+        return sb.ToString().Normalize(NormalizationForm.FormC);
     }
 
     private static string BuildStKey(Guid agendaId, Guid bloqueId, DateOnly fecha) => $"{agendaId:N}:{bloqueId:N}:{fecha:yyyyMMdd}";
