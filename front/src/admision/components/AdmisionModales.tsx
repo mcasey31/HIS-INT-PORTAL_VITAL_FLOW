@@ -1,10 +1,10 @@
 import { useAdmisionController } from "../useAdmisionController";
 type useAdmisionState = ReturnType<typeof useAdmisionController>;
-import { CATALOGO_FINANCIADORES, isPrivadoFinanciador } from "../admisionTypes";
+import { isPrivadoFinanciador } from "../admisionTypes";
 
 export function AdmisionModales({ state }: { state: useAdmisionState }) {
   const {
-    modalProgramadoOpen, pasoModalProgramado, pacienteSeleccionado, edadPaciente, fechaNacimientoPaciente,
+    catalogoFinanciadores, modalProgramadoOpen, pasoModalProgramado, pacienteSeleccionado, edadPaciente, fechaNacimientoPaciente,
     setModalProgramadoOpen, setPasoModalProgramado, financiadorPlanId, setFinanciadorPlanId,
     financiadoresVigentes, financiadorSeleccionado, elegibilidadManual, setElegibilidadManual,
     elegibilidadCompleta, onConfirmarPacienteProgramado, arribandoId,
@@ -128,7 +128,7 @@ export function AdmisionModales({ state }: { state: useAdmisionState }) {
             Financiador
             <select value={financiadorFormId} onChange={event => setFinanciadorFormId(event.target.value)}>
               <option value="">Seleccione un financiador...</option>
-              {CATALOGO_FINANCIADORES.map(fin => <option key={fin.id} value={fin.id}>{fin.nombre}</option>)}
+              {catalogoFinanciadores.map(fin => <option key={fin.id} value={fin.id}>{fin.nombre}</option>)}
             </select>
           </label>
 

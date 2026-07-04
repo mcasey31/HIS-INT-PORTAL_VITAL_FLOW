@@ -694,17 +694,8 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
             });
 
             var agenda = result[^1];
-            var bloques = reader.GetInt32(16);
-            var bloqueos = reader.GetInt32(17);
-            for (var i = 0; i < bloques; i++)
-            {
-                agenda.Bloques.Add(new BloqueProgramacion { Id = Guid.Empty, IntervaloMinutos = 0 });
-            }
-
-            for (var i = 0; i < bloqueos; i++)
-            {
-                agenda.Bloqueos.Add(new BloqueoAgenda { Id = Guid.Empty, Tipo = "busy-unavailable" });
-            }
+            agenda.CantidadBloques = reader.GetInt32(16);
+            agenda.CantidadBloqueos = reader.GetInt32(17);
         }
 
         return result;
@@ -993,7 +984,7 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
                     Fecha = reader.GetFieldValue<DateOnly>(7),
                     HoraInicio = reader.GetFieldValue<TimeOnly>(8),
                     HoraFin = reader.GetFieldValue<TimeOnly>(9),
-                    DuracionTurnoMinutos = reader.IsDBNull(10) ? reader.GetInt32(11) : reader.GetInt32(10),
+                    DuracionTurnoMinutos = reader.IsDBNull(10) ? 30 : reader.GetInt32(10),
                     IntervaloMinutos = reader.GetInt32(11),
                     LugarAtencionId = reader.IsDBNull(12) ? Guid.Empty : reader.GetGuid(12),
                     LugarAtencionNombre = reader.IsDBNull(13) ? string.Empty : reader.GetString(13),
@@ -1062,6 +1053,9 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
                 });
             }
         }
+
+        agenda.CantidadBloques = agenda.Bloques.Count;
+        agenda.CantidadBloqueos = agenda.Bloqueos.Count;
 
         return agenda;
     }
@@ -1460,6 +1454,135 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
         {
             return false;
         }
+    }
+
+    public void RegenerateCupos(Guid agendaId)
+    {
+        const string sqlCupos = """
+            delete from sch_agenda.cupo
+            where estado = 'libre'
+              and bloque_id in (
+                select id from sch_agenda.bloque_programacion where agenda_id = @agendaId
+            );
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+
+        using (var cmdDelete = new NpgsqlCommand(sqlCupos, conn))
+        {
+            cmdDelete.Parameters.AddWithValue("agendaId", agendaId);
+            cmdDelete.ExecuteNonQuery();
+        }
+
+        var slots = new List<(Guid BloqueId, DateTimeOffset Inicio, DateTimeOffset Fin)>();
+
+        const string sqlBloques = """
+            select b.id, b.fecha_desde, b.fecha_hasta, b.dias_semana,
+                   b.hora_inicio, b.hora_fin, b.intervalo_minutos
+            from sch_agenda.bloque_programacion b
+            where b.agenda_id = @agendaId
+              and b.estado = 'ACTIVO';
+            """;
+
+        using (var cmdBloques = new NpgsqlCommand(sqlBloques, conn))
+        {
+            cmdBloques.Parameters.AddWithValue("agendaId", agendaId);
+            using var reader = cmdBloques.ExecuteReader();
+            while (reader.Read())
+            {
+                var dias = reader.IsDBNull(3) ? Array.Empty<string>() : reader.GetString(3).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (dias.Length == 0) continue;
+
+                var bloqueId = reader.GetGuid(0);
+                var fechaDesde = reader.GetFieldValue<DateOnly>(1);
+                var fechaHasta = reader.GetFieldValue<DateOnly>(2);
+                var horaInicio = reader.GetFieldValue<TimeOnly>(4);
+                var horaFin = reader.GetFieldValue<TimeOnly>(5);
+                var intervalo = reader.GetInt32(6);
+                if (intervalo <= 0) continue;
+
+                for (var fecha = fechaDesde; fecha <= fechaHasta; fecha = fecha.AddDays(1))
+                {
+                    var diaCodigo = CodigoDiaSemana(fecha.DayOfWeek);
+                    if (!dias.Contains(diaCodigo, StringComparer.OrdinalIgnoreCase)) continue;
+
+                    var slotStart = fecha.ToDateTime(horaInicio, DateTimeKind.Unspecified);
+                    var slotEnd = fecha.ToDateTime(horaFin, DateTimeKind.Unspecified);
+
+                    for (var time = slotStart; time.AddMinutes(intervalo) < slotEnd; time = time.AddMinutes(intervalo))
+                    {
+                        var cupoEnd = time.AddMinutes(intervalo) > slotEnd ? slotEnd : time.AddMinutes(intervalo);
+                        slots.Add((bloqueId, new DateTimeOffset(time, TimeSpan.Zero), new DateTimeOffset(cupoEnd, TimeSpan.Zero)));
+                    }
+                }
+            }
+        }
+
+        const string sqlInsert = """
+            insert into sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
+            values (@bloqueId, @horaInicio, @horaFin, 'libre', 1, false, 'SYSTEM', 'SYSTEM', now())
+            on conflict (bloque_id, hora_inicio)
+            do nothing;
+            """;
+
+        foreach (var (bloqueId, inicio, fin) in slots)
+        {
+            using var cmd = new NpgsqlCommand(sqlInsert, conn);
+            cmd.Parameters.AddWithValue("bloqueId", bloqueId);
+            cmd.Parameters.AddWithValue("horaInicio", inicio);
+            cmd.Parameters.AddWithValue("horaFin", fin);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<TurnoByBloqueRow> GetTurnosByBloque(Guid bloqueId)
+    {
+        const string sql = """
+            select tp.id,
+                   coalesce(p.apellido || ', ' || p.nombre, '') as paciente_nombre,
+                   tp.fecha_hora,
+                   tp.estado
+            from sch_turno.turno_paciente tp
+            inner join sch_agenda.cupo c on c.id = tp.cupo_id
+            left join sch_persona.persona p on p.id::text = tp.paciente_id
+            where c.bloque_id = @bloqueId
+            order by tp.fecha_hora
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("bloqueId", bloqueId);
+
+        var result = new List<TurnoByBloqueRow>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            result.Add(new TurnoByBloqueRow(
+                reader.GetString(0),
+                reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                reader.GetFieldValue<DateTimeOffset>(2),
+                reader.GetString(3)
+            ));
+        }
+
+        return result;
+    }
+
+    private static string CodigoDiaSemana(DayOfWeek dayOfWeek)
+    {
+        return dayOfWeek switch
+        {
+            DayOfWeek.Monday => "L",
+            DayOfWeek.Tuesday => "M",
+            DayOfWeek.Wednesday => "X",
+            DayOfWeek.Thursday => "J",
+            DayOfWeek.Friday => "V",
+            DayOfWeek.Saturday => "S",
+            DayOfWeek.Sunday => "D",
+            _ => ""
+        };
     }
 }
 

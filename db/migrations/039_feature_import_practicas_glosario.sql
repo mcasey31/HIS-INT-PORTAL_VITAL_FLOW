@@ -3,7 +3,10 @@ ALTER TABLE sch_agenda.practica ALTER COLUMN codigo_clinico TYPE varchar(60);
 
 -- Migration: Import practicas from glossary PDF
 INSERT INTO sch_agenda.practica (id, servicio_id, nombre, duracion_minutos_sugerida, codigo_clinico, activa)
-VALUES    ('f8f16ed1-eed8-4e8a-83e8-4b3da99900f5', '00000000-0000-0000-0000-000000000101', '17 HIDROXIPROGESTERONA', NULL, '17OHP4', true),
+VALUES    ('f8f16ed1-eed8-4e8a-83e8-4b3da99900f5', '00000000-0000-0000-0000-000000000101', '17 HIDROXIPROGESTERONA', NULL, '17OHP4', true)
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO sch_agenda.practica (id, servicio_id, nombre, duracion_minutos_sugerida, codigo_clinico, activa)
+VALUES    ('91d71dff-1bc8-4223-a657-10b757a134f0', '00000000-0000-0000-0000-000000000101', '2 RUIDOS', NULL, '2R', true),
     ('91d71dff-1bc8-4223-a657-10b757a134f0', '00000000-0000-0000-0000-000000000101', '2 RUIDOS', NULL, '2R', true),
     ('1d4b344e-88bc-4a94-9617-75ee5e42e50a', '00000000-0000-0000-0000-000000000101', '2 RUIDOS 4 FOCOS', NULL, '2R4F', true),
     ('cc59e229-35a9-4f40-a843-dcc351c09928', '00000000-0000-0000-0000-000000000101', '4 FOCOS', NULL, '4F', true),

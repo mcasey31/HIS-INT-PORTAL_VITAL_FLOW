@@ -148,6 +148,23 @@ public sealed class EstructuraInternaService(
 
     public IReadOnlyList<NodoEstructuraInternaResponse> GetNodos() => Nodos;
 
+    public IReadOnlyList<FinanciadorCatalogoResponse> GetCatalogoFinanciadores()
+    {
+        var rows = repository.GetCatalogoFinanciadores();
+        return rows
+            .GroupBy(r => (Id: r["financiador_id"] ?? string.Empty, Nombre: r["financiador_nombre"] ?? string.Empty))
+            .Select(g => new FinanciadorCatalogoResponse(
+                g.Key.Id,
+                g.Key.Nombre,
+                g
+                    .Where(r => r["plan_id"] is not null)
+                    .Select(r => new FinanciadorPlanCatalogoResponse(
+                        r["plan_id"] ?? string.Empty,
+                        r["plan_nombre"] ?? string.Empty))
+                    .ToArray()))
+            .ToArray();
+    }
+
     public IReadOnlyList<RegistroNodoResponse> GetRegistros(string nodoId)
     {
         ValidateNodo(nodoId);

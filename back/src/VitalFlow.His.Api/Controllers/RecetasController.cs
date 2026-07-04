@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
+using VitalFlow.His.Api;
 using VitalFlow.His.Api.Application.HistoriaClinica.Contracts;
 using VitalFlow.His.Api.Application.HistoriaClinica.Services;
 using VitalFlow.His.Api.Application.Turnos.Services;
@@ -9,7 +10,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/recetas")]
-[Authorize(Roles = "Medico,Auditor,Administrador,Administrativo,Cajero,Enrolamiento Persona")]
+[Authorize(Roles = Roles.RecetaAccess)]
 public sealed class RecetasController(
     IHistoriaClinicaService historiaClinicaService,
     IEmailService emailService,

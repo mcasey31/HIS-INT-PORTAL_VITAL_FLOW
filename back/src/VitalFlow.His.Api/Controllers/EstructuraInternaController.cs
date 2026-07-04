@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VitalFlow.His.Api;
 using VitalFlow.His.Api.Application.EstructuraInterna.Contracts;
 using VitalFlow.His.Api.Application.EstructuraInterna.Services;
 using VitalFlow.His.Api.Application.Personas.Contracts;
@@ -9,18 +10,19 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/estructura-interna")]
-[Authorize(Roles = "Administrador Seguridad")]
 public sealed class EstructuraInternaController(
     IEstructuraInternaService estructuraInternaService,
     IPersonaService personaService) : ControllerBase
 {
     [HttpGet("tipos-documento")]
+    [Authorize(Roles = Roles.AllRoles)]
     public ActionResult<IReadOnlyList<TipoDocumentoResponse>> GetTiposDocumento()
     {
         return Ok(personaService.GetTiposDocumento());
     }
 
     [HttpGet("personas/busqueda")]
+    [Authorize(Roles = Roles.AllRoles)]
     public ActionResult<IReadOnlyList<PersonaCandidataResponse>> BuscarPersonaPorDocumento(
         [FromQuery] string tipoDocumento,
         [FromQuery] string numeroDocumento)
@@ -33,13 +35,22 @@ public sealed class EstructuraInternaController(
         return Ok(personaService.BuscarPorTipoYNumeroDocumento(tipoDocumento, numeroDocumento));
     }
 
+    [HttpGet("financiadores/catalogo")]
+    [Authorize(Roles = Roles.AllRoles)]
+    public ActionResult<IReadOnlyList<FinanciadorCatalogoResponse>> GetCatalogoFinanciadores()
+    {
+        return Ok(estructuraInternaService.GetCatalogoFinanciadores());
+    }
+
     [HttpGet("nodos")]
+    [Authorize(Roles = Roles.SecurityAccess)]
     public ActionResult<IReadOnlyList<NodoEstructuraInternaResponse>> GetNodos()
     {
         return Ok(estructuraInternaService.GetNodos());
     }
 
     [HttpGet("{nodoId}/registros")]
+    [Authorize(Roles = Roles.SecurityAccess)]
     public ActionResult<IReadOnlyList<RegistroNodoResponse>> GetRegistros(string nodoId)
     {
         try
@@ -53,6 +64,7 @@ public sealed class EstructuraInternaController(
     }
 
     [HttpPost("{nodoId}/registros")]
+    [Authorize(Roles = Roles.SecurityAccess)]
     public ActionResult<RegistroNodoResponse> SaveRegistro(string nodoId, [FromBody] SaveRegistroNodoRequest request)
     {
         try
