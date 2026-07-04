@@ -14,6 +14,9 @@ public sealed class TurnosService(
     ITurnosRepository turnosRepository,
     IAdmisionRepository admisionRepository) : ITurnosService
 {
+    private const int MaxDiasDisponibilidad = 60;
+    private const int MaxSlotsRespuesta = 2000;
+
     private const string EstadoAgendado = "AGENDADO";
     private const string EstadoConsumido = "CONSUMIDO";
     private const string EstadoAusente = "AUSENTE";
@@ -338,6 +341,11 @@ public sealed class TurnosService(
                 {
                     for (var hora = horaInicio; hora < horaFin; hora = hora.AddMinutes(intervalo))
                     {
+                        if (slots.Count >= MaxSlotsRespuesta)
+                        {
+                            break;
+                        }
+
                         var horaSlot = hora.ToString("HH:mm", CultureInfo.InvariantCulture);
                         var slotId = $"slot:{agenda.Id:N}:{bloque.Id:N}:{fechaSlot:yyyyMMdd}:{hora:HHmm}";
                         SlotContextById[slotId] = new SlotContext(
@@ -381,6 +389,11 @@ public sealed class TurnosService(
                             null,
                             slotOcupado ? "Turno asignado" : null
                         ));
+                    }
+
+                    if (slots.Count >= MaxSlotsRespuesta)
+                    {
+                        break;
                     }
 
                     if (bloque.Sobreturnos <= 0)
@@ -428,7 +441,22 @@ public sealed class TurnosService(
                             ? "Slot ST disponible para asignacion de sobreturno"
                             : "Sin cupo de sobreturnos"
                     ));
+
+                    if (slots.Count >= MaxSlotsRespuesta)
+                    {
+                        break;
+                    }
                 }
+
+                if (slots.Count >= MaxSlotsRespuesta)
+                {
+                    break;
+                }
+            }
+
+            if (slots.Count >= MaxSlotsRespuesta)
+            {
+                break;
             }
         }
 
@@ -777,6 +805,10 @@ public sealed class TurnosService(
         var hastaAgenda = agenda.FechaHasta ?? DateOnly.MaxValue;
         var hastaBloque = bloque.FechaHasta == default ? bloque.Fecha : bloque.FechaHasta;
         var hasta = MinDate(hastaAgenda, hastaBloque);
+
+        // Evita recorridos enormes de fechas cuando hay agendas sin fecha fin acotada.
+        var tope = hoy.AddDays(MaxDiasDisponibilidad);
+        hasta = MinDate(hasta, tope);
 
         if (hasta < desde)
         {
