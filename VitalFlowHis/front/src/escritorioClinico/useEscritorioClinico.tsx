@@ -1556,15 +1556,6 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
       setPendingLlamadoTurnoId(null);
       return;
     }
-    const pacienteEnAtencion = turnos.find(turno => turno.id !== pendingLlamadoTurno.id && turno.estado === ESTADO_EN_ATENCION);
-    if (pacienteEnAtencion) {
-      setSelectedTurnoId(pacienteEnAtencion.id);
-      setModoIngreso("plantilla");
-      setOrigenPanoramica("historia");
-      setPendingLlamadoTurnoId(null);
-      setError(`Ya existe un paciente en atencion: ${pacienteEnAtencion.paciente}.`);
-      return;
-    }
     setModoIngreso("megafono");
     setOrigenPanoramica("megafono");
     setSelectedTurnoId(pendingLlamadoTurno.id);

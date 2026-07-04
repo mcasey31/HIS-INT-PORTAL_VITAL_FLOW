@@ -464,19 +464,58 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
             order by tp.fecha_hora
             """;
 
-        using var conn = new NpgsqlConnection(connectionString);
-        conn.Open();
-        using var cmd = new NpgsqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("fecha", fecha);
-        using var reader = cmd.ExecuteReader();
+        const string sqlLegacy = """
+            select tp.id,
+                   tp.paciente_id,
+                   coalesce(tp.profesional, '') as profesional,
+                   coalesce(tp.servicio, '') as servicio,
+                   coalesce(tp.centro, '') as centro,
+                   tp.fecha_hora,
+                   tp.estado,
+                   tp.motivo,
+                   null::uuid as centro_id,
+                   null::uuid as servicio_id,
+                   null::uuid as efector_id,
+                   null::uuid as cupo_id
+            from sch_turno.turno_paciente tp
+            where upper(tp.estado) in ('AGENDADO', 'PROGRAMADO')
+                and (tp.fecha_hora at time zone 'UTC')::date = @fecha
+            order by tp.fecha_hora
+            """;
 
-        var result = new List<TurnoPacienteRow>();
-        while (reader.Read())
+        try
         {
-            result.Add(ReadTurno(reader));
-        }
+            using var conn = new NpgsqlConnection(connectionString);
+            conn.Open();
+            using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("fecha", fecha);
+            using var reader = cmd.ExecuteReader();
 
-        return result;
+            var result = new List<TurnoPacienteRow>();
+            while (reader.Read())
+            {
+                result.Add(ReadTurno(reader));
+            }
+
+            return result;
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UndefinedColumn)
+        {
+            // Compatibilidad con esquemas legacy que aun no tienen FK normalizadas.
+            using var conn = new NpgsqlConnection(connectionString);
+            conn.Open();
+            using var cmd = new NpgsqlCommand(sqlLegacy, conn);
+            cmd.Parameters.AddWithValue("fecha", fecha);
+            using var reader = cmd.ExecuteReader();
+
+            var result = new List<TurnoPacienteRow>();
+            while (reader.Read())
+            {
+                result.Add(ReadTurno(reader));
+            }
+
+            return result;
+        }
     }
 
     public void InsertTurnos(IEnumerable<TurnoPacienteRow> turnos)
@@ -567,12 +606,20 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
             select disponibles from sch_turno.sobreturno_disponibilidad where st_key = @stKey
             """;
 
-        using var conn = new NpgsqlConnection(connectionString);
-        conn.Open();
-        using var cmd = new NpgsqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("stKey", stKey);
-        cmd.Parameters.AddWithValue("capacidad", capacidadInicial);
-        return (int)cmd.ExecuteScalar()!;
+        try
+        {
+            using var conn = new NpgsqlConnection(connectionString);
+            conn.Open();
+            using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("stKey", stKey);
+            cmd.Parameters.AddWithValue("capacidad", capacidadInicial);
+            return (int)cmd.ExecuteScalar()!;
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UndefinedTable)
+        {
+            // Defensive fallback for environments where migration 013 is missing.
+            return Math.Max(capacidadInicial, 0);
+        }
     }
 
     public int DecrementarSobreturno(string stKey)
@@ -604,11 +651,29 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         FechaHora:   r.GetFieldValue<DateTimeOffset>(5),
         Estado:      r.GetString(6),
         Motivo:      r.IsDBNull(7) ? null : r.GetString(7),
-        CentroId:    r.IsDBNull(8) ? Guid.Empty : r.GetGuid(8),
-        ServicioId:  r.IsDBNull(9) ? Guid.Empty : r.GetGuid(9),
-        EfectorId:   r.IsDBNull(10) ? Guid.Empty : r.GetGuid(10),
-        CupoId:      r.IsDBNull(11) ? Guid.Empty : r.GetGuid(11)
+        CentroId:    ReadGuidOrEmpty(r, 8),
+        ServicioId:  ReadGuidOrEmpty(r, 9),
+        EfectorId:   ReadGuidOrEmpty(r, 10),
+        CupoId:      ReadGuidOrEmpty(r, 11)
     );
+
+    private static Guid ReadGuidOrEmpty(NpgsqlDataReader reader, int ordinal)
+    {
+        if (reader.IsDBNull(ordinal))
+        {
+            return Guid.Empty;
+        }
+
+        try
+        {
+            return reader.GetGuid(ordinal);
+        }
+        catch
+        {
+            // Compatibilidad con esquemas legacy (por ejemplo cupo_id int).
+            return Guid.Empty;
+        }
+    }
 
     private static void BindTurno(NpgsqlCommand cmd, TurnoPacienteRow t)
     {

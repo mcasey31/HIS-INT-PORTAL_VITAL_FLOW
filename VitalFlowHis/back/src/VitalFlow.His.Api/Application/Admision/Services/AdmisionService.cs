@@ -208,8 +208,16 @@ public sealed class AdmisionService(
                     continue;
                 }
 
-                for (var hora = bloque.HoraInicio; hora < bloque.HoraFin; hora = hora.AddMinutes(intervalo))
+                var minutoInicio = bloque.HoraInicio.Hour * 60 + bloque.HoraInicio.Minute;
+                var minutoFin = bloque.HoraFin.Hour * 60 + bloque.HoraFin.Minute;
+                if (minutoFin <= minutoInicio)
                 {
+                    continue;
+                }
+
+                for (var minuto = minutoInicio; minuto < minutoFin; minuto += intervalo)
+                {
+                    var hora = TimeOnly.MinValue.AddMinutes(minuto);
                     var turnoId = BuildTurnoId(agenda.Id, bloque.Id, fecha, hora);
                     var turnoDate = new DateTimeOffset(fecha.Year, fecha.Month, fecha.Day, hora.Hour, hora.Minute, 0, TimeSpan.Zero);
                     slots.Add((
@@ -229,8 +237,13 @@ public sealed class AdmisionService(
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Select(item => item!)
             .Distinct(StringComparer.OrdinalIgnoreCase);
+        var turnoProgramadoFallbackAdmisionIds = turnosProgramados
+            .Select(item => $"adm:tp:{item.TurnoProgramadoId}")
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
         var admisionRows = admisionRepository.GetTurnosAdmisionByIds(turnoIds
             .Concat(turnoProgramadoAdmisionIds)
+            .Concat(turnoProgramadoFallbackAdmisionIds)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList());
 
@@ -496,26 +509,40 @@ public sealed class AdmisionService(
         var rowActual = admisionRepository.GetTurnoAdmision(turnoId);
         var llegadaFinal = rowActual?.LlegadaEn ?? DateTimeOffset.UtcNow;
 
-        // ── Evento outbox CONV-FACT (solo si el módulo está activo; zero-impact si no) ──
-        TryPublicarEventoFacturacion(
-            turnoId, encuentroId, pacienteId,
-            request.Paciente.Trim(), request.Documento.Trim(), financiador,
-            request.FinanciadorId, request.PlanId,
-            request.ServicioNombre, request.CentroId,
-            llegadaFinal,
-            request.PracticaOrigenNombre, request.PracticaOrigenCodigo,
-            request.ProfesionalId, request.ProfesionalNombre,
-            request.TipoOrigen ?? "TURNO");
+        string? facturacionEventoEstado = null;
+        string? facturacionEventoDetalle = null;
 
-        var eventoFacturacion = admisionRepository.GetEventoFacturacionByTurnoId(turnoId);
+        // El arribo no debe fallar por incidencias de facturación: se admite y luego se reporta el estado del evento.
+        try
+        {
+            TryPublicarEventoFacturacion(
+                turnoId, encuentroId, pacienteId,
+                request.Paciente.Trim(), request.Documento.Trim(), financiador,
+                request.FinanciadorId, request.PlanId,
+                request.ServicioNombre, request.CentroId,
+                llegadaFinal,
+                request.PracticaOrigenNombre, request.PracticaOrigenCodigo,
+                request.ProfesionalId, request.ProfesionalNombre,
+                request.TipoOrigen ?? "TURNO");
+
+            var eventoFacturacion = admisionRepository.GetEventoFacturacionByTurnoId(turnoId);
+            facturacionEventoEstado = eventoFacturacion?.Estado;
+            facturacionEventoDetalle = eventoFacturacion?.ErrorDetalle;
+        }
+        catch (Exception ex)
+        {
+            facturacionEventoEstado = "ERROR_PUBLICACION";
+            facturacionEventoDetalle = ex.Message;
+            Console.WriteLine($"[AdmisionService] Advertencia facturacion turnoId={turnoId}: {ex.Message}");
+        }
 
         return new ConfirmarArriboTurnoResponse(
             turnoId, EstadoEnSalaEspera,
             llegadaFinal.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture),
             estadoTurnoFinal,
             encuentroId,
-            eventoFacturacion?.Estado,
-            eventoFacturacion?.ErrorDetalle);
+            facturacionEventoEstado,
+            facturacionEventoDetalle);
     }
 
     public EventoFacturacionTurnoResponse ObtenerEventoFacturacion(string turnoId)
@@ -682,7 +709,8 @@ public sealed class AdmisionService(
 
         if (string.Equals(nuevoEstado, EstadoEnAtencion, StringComparison.OrdinalIgnoreCase))
         {
-            var turnosEnAtencion = admisionRepository.GetTurnosEnEstado(EstadoEnAtencion, turnoId);
+            var fechaControl = DateOnly.FromDateTime(GetBusinessNow().DateTime);
+            var turnosEnAtencion = admisionRepository.GetTurnosEnEstado(EstadoEnAtencion, turnoId, fechaControl);
             if (turnosEnAtencion.Count > 0)
             {
                 throw new ArgumentException($"Ya existe un paciente en atencion (turno {turnosEnAtencion[0]}).");
