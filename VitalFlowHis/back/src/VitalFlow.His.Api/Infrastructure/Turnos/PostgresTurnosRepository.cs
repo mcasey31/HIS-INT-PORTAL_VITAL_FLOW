@@ -464,19 +464,58 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
             order by tp.fecha_hora
             """;
 
-        using var conn = new NpgsqlConnection(connectionString);
-        conn.Open();
-        using var cmd = new NpgsqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("fecha", fecha);
-        using var reader = cmd.ExecuteReader();
+        const string sqlLegacy = """
+            select tp.id,
+                   tp.paciente_id,
+                   coalesce(tp.profesional, '') as profesional,
+                   coalesce(tp.servicio, '') as servicio,
+                   coalesce(tp.centro, '') as centro,
+                   tp.fecha_hora,
+                   tp.estado,
+                   tp.motivo,
+                   null::uuid as centro_id,
+                   null::uuid as servicio_id,
+                   null::uuid as efector_id,
+                   null::uuid as cupo_id
+            from sch_turno.turno_paciente tp
+            where upper(tp.estado) in ('AGENDADO', 'PROGRAMADO')
+                and (tp.fecha_hora at time zone 'UTC')::date = @fecha
+            order by tp.fecha_hora
+            """;
 
-        var result = new List<TurnoPacienteRow>();
-        while (reader.Read())
+        try
         {
-            result.Add(ReadTurno(reader));
-        }
+            using var conn = new NpgsqlConnection(connectionString);
+            conn.Open();
+            using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("fecha", fecha);
+            using var reader = cmd.ExecuteReader();
 
-        return result;
+            var result = new List<TurnoPacienteRow>();
+            while (reader.Read())
+            {
+                result.Add(ReadTurno(reader));
+            }
+
+            return result;
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UndefinedColumn)
+        {
+            // Compatibilidad con esquemas legacy que aun no tienen FK normalizadas.
+            using var conn = new NpgsqlConnection(connectionString);
+            conn.Open();
+            using var cmd = new NpgsqlCommand(sqlLegacy, conn);
+            cmd.Parameters.AddWithValue("fecha", fecha);
+            using var reader = cmd.ExecuteReader();
+
+            var result = new List<TurnoPacienteRow>();
+            while (reader.Read())
+            {
+                result.Add(ReadTurno(reader));
+            }
+
+            return result;
+        }
     }
 
     public void InsertTurnos(IEnumerable<TurnoPacienteRow> turnos)
