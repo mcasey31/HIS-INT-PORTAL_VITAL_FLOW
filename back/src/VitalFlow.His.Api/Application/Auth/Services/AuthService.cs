@@ -25,6 +25,7 @@ public sealed class AuthService(
 
     public AuthTokensResponse Login(LoginRequest request, string? ip, string? userAgent)
     {
+        Console.WriteLine($"DEBUG: Login() called with username={request.Username}");
         var username = (request.Username ?? string.Empty).Trim();
         var password = request.Password ?? string.Empty;
 
@@ -34,6 +35,16 @@ public sealed class AuthService(
         }
 
         var user = authRepository.GetUserByUsername(username);
+        Console.WriteLine($"DEBUG: GetUserByUsername('{username}') returned: {(user is null ? "NULL" : $"User {user.Username} Estado={user.Estado}")}");
+        
+        if (user is not null)
+        {
+            var passwordValid = passwordHasher.Verify(password, user.PasswordHash);
+            Console.WriteLine($"DEBUG: passwordHasher.Verify('{password}', hash) = {passwordValid}");
+            var canLogin = CanLogin(user.Estado);
+            Console.WriteLine($"DEBUG: CanLogin('{user.Estado}') = {canLogin}");
+        }
+
         if (user is null || !passwordHasher.Verify(password, user.PasswordHash) || !CanLogin(user.Estado))
         {
             authRepository.InsertSesionLog(new CreateSesionLogRow(

@@ -411,6 +411,13 @@ public sealed class AuthService(
 
         authRepository.UpdateSystemUser(request.UserId, username, estado, request.CentroId, request.ServicioId, matriculaProvincial, matriculaNacional, allCentros, roles);
 
+        // Si se proporciona una nueva contraseña, actualizarla
+        if (!string.IsNullOrWhiteSpace(request.TemporaryPassword))
+        {
+            var passwordHash = passwordHasher.Hash(request.TemporaryPassword.Trim());
+            authRepository.UpdatePassword(request.UserId, passwordHash, EstadoDebeCambiarPassword);
+        }
+
         authRepository.InsertSesionLog(new CreateSesionLogRow(
             Guid.NewGuid(),
             request.UserId,

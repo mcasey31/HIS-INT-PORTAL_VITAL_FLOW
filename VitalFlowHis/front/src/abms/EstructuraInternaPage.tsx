@@ -652,6 +652,11 @@ export function EstructuraInternaPage({}: EstructuraInternaPageProps) {
 
         if (editingUsuarioId) {
           campos.id = editingUsuarioId;
+          // Permitir cambiar contraseña al editar usuario
+          const newPassword = (formValues.temporary_password ?? "").trim();
+          if (newPassword) {
+            campos.temporary_password = newPassword;
+          }
         } else {
           campos.temporary_password = (formValues.temporary_password ?? "").trim();
         }
@@ -1407,9 +1412,8 @@ export function EstructuraInternaPage({}: EstructuraInternaPageProps) {
                       type="password"
                       value={formValues.temporary_password ?? ""}
                       onChange={(event) => setFormValues((prev) => ({ ...prev, temporary_password: event.target.value }))}
-                      placeholder={editingUsuarioId ? "Dejar vacio para mantener actual" : "Ingrese contrasena temporal"}
+                      placeholder={editingUsuarioId ? "Dejar vacio para mantener actual, o ingrese nueva contraseña" : "Ingrese contrasena temporal"}
                       aria-label="temporary_password"
-                      disabled={Boolean(editingUsuarioId)}
                     />
                   </label>
                   <label>

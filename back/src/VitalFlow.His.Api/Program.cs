@@ -41,10 +41,24 @@ using VitalFlow.His.Api.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Permitir todos los hosts (para que portal interno pueda conectar)
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    // Permitir cualquier host/hostname sin validación
+    serverOptions.Limits.MaxRequestHeadersTotalSize = 32768;
+});
+
+// Override AllowedHosts para permitir cualquier host
+builder.Configuration["AllowedHosts"] = "*";
+
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ProblemDetailsResultFilter>();
     options.Filters.Add(new AuthorizeFilter());
+});
+builder.Services.ConfigureHttpJsonOptions(o =>
+{
+    o.SerializerOptions.PropertyNameCaseInsensitive = true;
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
