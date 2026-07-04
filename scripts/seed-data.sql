@@ -1,132 +1,58 @@
 -- ================================================
 -- Seed Data - VitalFlow Test Data
+-- Solo datos, asume tablas creadas por migrations
 -- ================================================
 
 -- Test Centers
-INSERT INTO sch_agenda.centro (codigo, nombre, direccion, telefono, mail, activo)
-VALUES 
-  ('CENTRO-001', 'Centro Ambulatorio Central', 'Av. Rivadavia 1234, Buenos Aires', '+54-11-4543-1234', 'info@centro-central.com.ar', true),
-  ('CENTRO-002', 'Clínica San Roque', 'Calle Mitre 567, La Plata', '+54-221-555-6789', 'contacto@sanroque.com.ar', true),
-  ('CENTRO-003', 'Hospital Italiano', 'Gascón 450, CABA', '+54-11-4959-0000', 'info@hospitalitaliano.org.ar', true)
-ON CONFLICT (codigo) DO NOTHING;
+INSERT INTO sch_agenda.centro (id, nombre, activo) VALUES
+  ('00000000-0000-0000-0000-000000000001', 'Centro Ambulatorio Central', true),
+  ('00000000-0000-0000-0000-000000000002', 'Clinica San Roque', true),
+  ('00000000-0000-0000-0000-000000000003', 'Hospital Italiano', true)
+ON CONFLICT (id) DO NOTHING;
 
--- Test Services
-INSERT INTO sch_agenda.servicio (centro_id, codigo, nombre, descripcion, activo)
-SELECT id, 'SRV-CARDIO', 'Cardiología', 'Servicio de Cardiología', true 
-FROM sch_agenda.centro WHERE codigo = 'CENTRO-001'
+-- Test Services (solo centros 2 y 3; centro 1 ya tiene servicios de migraciones)
+INSERT INTO sch_agenda.servicio (id, centro_id, nombre, activo) VALUES
+  ('00000000-0000-0000-0000-000000000103', '00000000-0000-0000-0000-000000000002', 'Dermatologia', true),
+  ('00000000-0000-0000-0000-000000000104', '00000000-0000-0000-0000-000000000002', 'Traumatologia', true),
+  ('00000000-0000-0000-0000-000000000105', '00000000-0000-0000-0000-000000000003', 'Pediatria', true),
+  ('00000000-0000-0000-0000-000000000106', '00000000-0000-0000-0000-000000000003', 'Cirugia General', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Test Places (lugares de atencion)
+INSERT INTO sch_agenda.lugar_atencion (id, nombre, activo) VALUES
+  ('00000000-0000-0000-0000-000000000301', 'Consultorio 1', true),
+  ('00000000-0000-0000-0000-000000000302', 'Consultorio 2', true),
+  ('00000000-0000-0000-0000-000000000303', 'Sala de Espera', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Test Practitioners (efectores)
+INSERT INTO sch_agenda.efector (id, centro_id, servicio_id, tipo_efector, nombre, activo) VALUES
+  ('00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000101', 'PROFESIONAL', 'Diaz, Ana - MP123', true),
+  ('00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000103', 'PROFESIONAL', 'Dr. Juan Perez', true),
+  ('00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000104', 'PROFESIONAL', 'Dra. Maria Garcia', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Test Users
+INSERT INTO sch_seguridad.usuario_sistema (id, persona_id, username, password_hash, estado, matricula)
+SELECT '50000000-0000-0000-0000-000000000101', id, 'jperez', 'pbkdf2-sha256$100000$Yk57Iz4FMFMlFAH+a9hg7g==$uLMrXCafnoSDWkRmwMKIzmVOqfG7sPi+2/3JIAsgD7Y=', 'ACTIVO', 'MP123'
+FROM sch_persona.persona WHERE numero_documento = '12345678'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO sch_seguridad.usuario_rol (usuario_id, rol_id, centro_id)
+SELECT '50000000-0000-0000-0000-000000000101', r.id, c.id
+FROM sch_seguridad.rol r, sch_agenda.centro c
+WHERE r.nombre = 'Medico'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sch_agenda.servicio (centro_id, codigo, nombre, descripcion, activo)
-SELECT id, 'SRV-CLING', 'Clínica General', 'Servicio de Clínica General', true 
-FROM sch_agenda.centro WHERE codigo = 'CENTRO-001'
-ON CONFLICT DO NOTHING;
+UPDATE sch_agenda.efector SET usuario_id = '50000000-0000-0000-0000-000000000101'
+WHERE id = '00000000-0000-0000-0000-000000000202';
 
-INSERT INTO sch_agenda.servicio (centro_id, codigo, nombre, descripcion, activo)
-SELECT id, 'SRV-DERM', 'Dermatología', 'Servicio de Dermatología', true 
-FROM sch_agenda.centro WHERE codigo = 'CENTRO-002'
-ON CONFLICT DO NOTHING;
-
--- Test Places
-INSERT INTO sch_agenda.lugar_atencion (centro_id, codigo, nombre, tipo, activo)
-SELECT id, 'LUG-001', 'Consultorio 1', 'consultorio', true 
-FROM sch_agenda.centro WHERE codigo = 'CENTRO-001'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sch_agenda.lugar_atencion (centro_id, codigo, nombre, tipo, activo)
-SELECT id, 'LUG-002', 'Consultorio 2', 'consultorio', true 
-FROM sch_agenda.centro WHERE codigo = 'CENTRO-001'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sch_agenda.lugar_atencion (centro_id, codigo, nombre, tipo, activo)
-SELECT id, 'LUG-003', 'Sala de Espera', 'sala-espera', true 
-FROM sch_agenda.centro WHERE codigo = 'CENTRO-001'
-ON CONFLICT DO NOTHING;
-
--- Test Practitioners
-INSERT INTO sch_agenda.efector (centro_id, servicio_id, codigo, nombre, tipo_efector, licencia_numero, activo)
-SELECT c.id, s.id, 'PROF-001', 'Dr. Juan Pérez', 'PROFESIONAL', '12345678', true
-FROM sch_agenda.centro c, sch_agenda.servicio s 
-WHERE c.codigo = 'CENTRO-001' AND s.codigo = 'SRV-CARDIO'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sch_agenda.efector (centro_id, servicio_id, codigo, nombre, tipo_efector, licencia_numero, activo)
-SELECT c.id, s.id, 'PROF-002', 'Dra. María García', 'PROFESIONAL', '87654321', true
-FROM sch_agenda.centro c, sch_agenda.servicio s 
-WHERE c.codigo = 'CENTRO-001' AND s.codigo = 'SRV-CLING'
-ON CONFLICT DO NOTHING;
-
--- Test Schedules (Agendas)
-INSERT INTO sch_agenda.agenda (centro_id, servicio_id, efector_id, codigo, nombre, estado, tipo_agenda, fecha_desde, fecha_hasta, visible_contact_center)
-SELECT c.id, s.id, e.id, 'AGENDA-001', 'Cardiología - Dr. Pérez Junio', 'ACTIVA', 'PROGRAMADA', 
-       CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', true
-FROM sch_agenda.centro c, sch_agenda.servicio s, sch_agenda.efector e
-WHERE c.codigo = 'CENTRO-001' AND s.codigo = 'SRV-CARDIO' AND e.codigo = 'PROF-001'
-ON CONFLICT (codigo) DO NOTHING;
-
--- Test Programming Blocks
-INSERT INTO sch_agenda.bloque_programacion (agenda_id, lugar_atencion_id, fecha, hora_inicio, hora_fin, intervalo_minutos, duracion_turno_minutos, sobreturnos)
-SELECT a.id, l.id, CURRENT_DATE, '08:00'::time, '12:00'::time, 30, 30, 2
-FROM sch_agenda.agenda a, sch_agenda.lugar_atencion l
-WHERE a.codigo = 'AGENDA-001' AND l.codigo = 'LUG-001'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sch_agenda.bloque_programacion (agenda_id, lugar_atencion_id, fecha, hora_inicio, hora_fin, intervalo_minutos, duracion_turno_minutos, sobreturnos)
-SELECT a.id, l.id, CURRENT_DATE, '14:00'::time, '18:00'::time, 30, 30, 2
-FROM sch_agenda.agenda a, sch_agenda.lugar_atencion l
-WHERE a.codigo = 'AGENDA-001' AND l.codigo = 'LUG-002'
-ON CONFLICT DO NOTHING;
-
--- Test Slots for today (will auto-populate from block logic in real app)
--- For now, manually insert a few slots for demo
-INSERT INTO sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido)
-SELECT b.id, 
-       (CURRENT_DATE || ' 08:00:00')::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires',
-       (CURRENT_DATE || ' 08:30:00')::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires',
-       'libre', 1, false
-FROM sch_agenda.bloque_programacion b
-WHERE b.fecha = CURRENT_DATE AND b.hora_inicio = '08:00'::time
-LIMIT 1
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido)
-SELECT b.id, 
-       (CURRENT_DATE || ' 08:30:00')::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires',
-       (CURRENT_DATE || ' 09:00:00')::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires',
-       'libre', 1, false
-FROM sch_agenda.bloque_programacion b
-WHERE b.fecha = CURRENT_DATE AND b.hora_inicio = '08:00'::time
-LIMIT 1
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido)
-SELECT b.id, 
-       (CURRENT_DATE || ' 09:00:00')::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires',
-       (CURRENT_DATE || ' 09:30:00')::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires',
-       'libre', 1, false
-FROM sch_agenda.bloque_programacion b
-WHERE b.fecha = CURRENT_DATE AND b.hora_inicio = '08:00'::time
-LIMIT 1
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido)
-SELECT b.id, 
-       (CURRENT_DATE || ' 14:00:00')::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires',
-       (CURRENT_DATE || ' 14:30:00')::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires',
-       'libre', 1, false
-FROM sch_agenda.bloque_programacion b
-WHERE b.fecha = CURRENT_DATE AND b.hora_inicio = '14:00'::time
-LIMIT 1
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido)
-SELECT b.id, 
-       (CURRENT_DATE || ' 14:30:00')::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires',
-       (CURRENT_DATE || ' 15:00:00')::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires',
-       'libre', 1, false
-FROM sch_agenda.bloque_programacion b
-WHERE b.fecha = CURRENT_DATE AND b.hora_inicio = '14:00'::time
-LIMIT 1
-ON CONFLICT DO NOTHING;
+-- Admin user (created by migration 014, just set ACTIVO + known password)
+UPDATE sch_seguridad.usuario_sistema
+SET estado = 'ACTIVO',
+    password_hash = 'pbkdf2-sha256$100000$ArnfFTgfD7bRCto5P2V5og==$tVFSVWOs9paN0rM3pcVa8kzkuldOPe7+tf+3/Bk+6r8=',
+    updated_at = now()
+WHERE username = 'admin';
 
 -- Verify data loaded
 SELECT 'Centers' as entity, COUNT(*) as count FROM sch_agenda.centro
@@ -135,8 +61,4 @@ SELECT 'Services', COUNT(*) FROM sch_agenda.servicio
 UNION ALL
 SELECT 'Places', COUNT(*) FROM sch_agenda.lugar_atencion
 UNION ALL
-SELECT 'Practitioners', COUNT(*) FROM sch_agenda.efector
-UNION ALL
-SELECT 'Schedules', COUNT(*) FROM sch_agenda.agenda
-UNION ALL
-SELECT 'Slots', COUNT(*) FROM sch_agenda.cupo;
+SELECT 'Practitioners', COUNT(*) FROM sch_agenda.efector;

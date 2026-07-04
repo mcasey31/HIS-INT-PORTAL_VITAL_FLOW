@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
+using VitalFlow.His.Api;
 using VitalFlow.His.Api.Application.Personas.Contracts;
 using VitalFlow.His.Api.Application.Personas.Services;
 
@@ -8,7 +9,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/personas")]
-[Authorize(Roles = "Administrador,Enrolamiento Persona,Medico,Auditor,Administrativo,Cajero")]
+[Authorize(Roles = Roles.EnrolamientoAccess)]
 public sealed class PersonasController(
     IPersonaService personaService,
     IConfiguration configuration
@@ -56,7 +57,7 @@ public sealed class PersonasController(
     }
 
     [HttpPost("empadronar-set-minimo")]
-[Authorize(Roles = "Administrador,Enrolamiento Persona,Medico")]
+[Authorize(Roles = Roles.Administrador + "," + Roles.EnrolamientoPersona + "," + Roles.Medico)]
     public IActionResult EmpadronarConSetMinimo([FromBody] BuscarPersonaSetMinimoBody body)
     {
         try
@@ -167,6 +168,10 @@ public sealed class PersonasController(
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+        catch (PostgresException ex) when (ex.SqlState == "23503")
+        {
+            return BadRequest(new { message = $"El localidad_id '{request.LocalidadId}' no existe en el catalogo de localidades.", detail = ex.Message });
         }
     }
 

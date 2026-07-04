@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTurnosController } from "../useTurnosController";
-import { parseIsoDateTimeParts, formatFechaHora, estadoTurnoLabel, CATALOGO_FINANCIADORES } from "../turnosTypes";
+import { parseIsoDateTimeParts, formatFechaHora, estadoTurnoLabel } from "../turnosTypes";
 type useTurnosState = ReturnType<typeof useTurnosController>;
 
 export function TurnosIdentificacion({ state, navigate }: { state: useTurnosState, navigate: any }) {
@@ -498,7 +498,7 @@ export function TurnosResultados({ state }: { state: useTurnosState }) {
 
 export function TurnosModales({ state }: { state: useTurnosState }) {
   const {
-    error, info, warningAsignacion, sobreturnoModalOpen, selectedSlotSobreturno, horaSobreturno, setHoraSobreturno, sobreturnoError, onCerrarModalSobreturno, asignandoTurno, onConfirmarSobreturno,
+    catalogoFinanciadores, error, info, warningAsignacion, sobreturnoModalOpen, selectedSlotSobreturno, horaSobreturno, setHoraSobreturno, sobreturnoError, onCerrarModalSobreturno, asignandoTurno, onConfirmarSobreturno,
     financiadorModalOpen, financiadoresVigentes, financiadorPlanId, onEditarFinanciador, onFinalizarVigencia,
     esEdicionFinanciador, financiadorFormId, setFinanciadorFormId, setPlanFormId, planesDisponiblesForm, planFormId, numeroAfiliadoForm, setNumeroAfiliadoForm, esCombinacionDuplicada, financiadorModalError, financiadorModalInfo, resetFinanciadorForm, onGuardarFinanciador, puedeGuardarFinanciador, onCerrarModalFinanciador,
     confirmAsignacionModalOpen, selectedSlot, paciente, copagoEstimado, financiadorSeleccionado, contactoEmail, setContactoEmail, emailValido, contactoTelefono, setContactoTelefono, telefonoValido, contactoEditado, guardarContactoEnPerfil, setGuardarContactoEnPerfil, onCancelarAsignacion, onConfirmarAsignacion, puedeConfirmarAsignacion,
@@ -628,7 +628,7 @@ export function TurnosModales({ state }: { state: useTurnosState }) {
                 setPlanFormId("");
               }}>
                     <option value="">Seleccione</option>
-                    {CATALOGO_FINANCIADORES.map(item => <option key={item.id} value={item.id}>
+                    {catalogoFinanciadores.map(item => <option key={item.id} value={item.id}>
                         {item.nombre}
                       </option>)}
                   </select>

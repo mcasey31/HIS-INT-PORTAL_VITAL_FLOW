@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using VitalFlow.His.Api.Application.Agenda.Contracts;
 using VitalFlow.His.Api.Domain.Agenda;
 using System.Globalization;
@@ -5,13 +6,33 @@ using System.Text.RegularExpressions;
 
 namespace VitalFlow.His.Api.Application.Agenda.Services;
 
-public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
+public sealed class AgendaService : IAgendaService
 {
-    private static readonly string[] TiposEfector = ["PROFESIONAL", "GRUPO_PROFESIONALES", "DISPOSITIVO"];
-    private static readonly string[] TiposAgenda = ["PROGRAMADA", "DEMANDA_ESPONTANEA"];
-    private static readonly string[] FrecuenciasBloque = ["SEMANAL", "QUINCENAL", "ORDEN_MENSUAL"];
+    private readonly IAgendaRepository repository;
+    private readonly string codigoPrefix;
+    private readonly int defaultDuracionTurnoDemanda;
+    private readonly int defaultDuracionTurnoVariable;
+    private readonly int defaultDuracionPractica;
+    private readonly TimeZoneInfo businessTimeZone;
+    private readonly string[] tiposEfector;
+    private readonly string[] tiposAgenda;
+    private readonly string[] frecuenciasBloque;
+
     private static readonly string[] DiasSemana = ["L", "M", "X", "J", "V", "S", "D"];
-    private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
+
+    public AgendaService(IAgendaRepository repository, IConfiguration configuration)
+    {
+        this.repository = repository;
+        var section = configuration.GetSection("Agenda");
+        codigoPrefix = section.GetValue<string>("CodigoPrefix") ?? "AGD-";
+        defaultDuracionTurnoDemanda = section.GetValue("DefaultDuracionTurnoDemanda", 20);
+        defaultDuracionTurnoVariable = section.GetValue("DefaultDuracionTurnoVariable", 5);
+        defaultDuracionPractica = section.GetValue("DefaultDuracionPractica", 15);
+        businessTimeZone = ResolveBusinessTimeZone(section.GetValue<string>("BusinessTimeZone"));
+        tiposEfector = section.GetSection("TiposEfector").Get<string[]>() ?? ["PROFESIONAL", "GRUPO_PROFESIONALES", "DISPOSITIVO"];
+        tiposAgenda = section.GetSection("TiposAgenda").Get<string[]>() ?? ["PROGRAMADA", "DEMANDA_ESPONTANEA"];
+        frecuenciasBloque = section.GetSection("FrecuenciasBloque").Get<string[]>() ?? ["SEMANAL", "QUINCENAL", "ORDEN_MENSUAL"];
+    }
 
     public IReadOnlyList<SelectorOptionResponse> GetCentros()
     {
@@ -25,7 +46,7 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
 
     public IReadOnlyList<EfectorOptionResponse> GetEfectores(Guid centroId, Guid servicioId, string tipoEfector, string? query)
     {
-        if (!TiposEfector.Contains(tipoEfector, StringComparer.OrdinalIgnoreCase))
+        if (!tiposEfector.Contains(tipoEfector, StringComparer.OrdinalIgnoreCase))
         {
             throw new ArgumentException("TipoEfector invalido.");
         }
@@ -78,11 +99,11 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
             .ToList();
     }
 
-    public IReadOnlyList<string> GetFrecuenciasBloque() => FrecuenciasBloque;
+    public IReadOnlyList<string> GetFrecuenciasBloque() => frecuenciasBloque;
 
-    public IReadOnlyList<string> GetTiposEfector() => TiposEfector;
+    public IReadOnlyList<string> GetTiposEfector() => tiposEfector;
 
-    public IReadOnlyList<string> GetTiposAgenda() => TiposAgenda;
+    public IReadOnlyList<string> GetTiposAgenda() => tiposAgenda;
 
     public GrupoProfesionalResponse CreateGrupoProfesional(CreateGrupoProfesionalRequest request)
     {
@@ -283,12 +304,12 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
             throw new ArgumentException("Centro, servicio y efector son obligatorios.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.TipoEfector) || !TiposEfector.Contains(request.TipoEfector.Trim(), StringComparer.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(request.TipoEfector) || !tiposEfector.Contains(request.TipoEfector.Trim(), StringComparer.OrdinalIgnoreCase))
         {
             throw new ArgumentException("TipoEfector invalido.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.TipoAgenda) || !TiposAgenda.Contains(request.TipoAgenda.Trim(), StringComparer.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(request.TipoAgenda) || !tiposAgenda.Contains(request.TipoAgenda.Trim(), StringComparer.OrdinalIgnoreCase))
         {
             throw new ArgumentException("TipoAgenda invalido.");
         }
@@ -348,7 +369,7 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
     private string GenerateAgendaCodigo()
     {
         var seed = DateTime.UtcNow;
-        var prefix = $"AGD-{seed:yyyyMMdd}";
+        var prefix = $"{codigoPrefix}{seed:yyyyMMdd}";
 
         for (var seq = 1; seq <= 9999; seq++)
         {
@@ -374,12 +395,12 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
             throw new ArgumentException("Centro, servicio y efector son obligatorios.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.TipoEfector) || !TiposEfector.Contains(request.TipoEfector.Trim(), StringComparer.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(request.TipoEfector) || !tiposEfector.Contains(request.TipoEfector.Trim(), StringComparer.OrdinalIgnoreCase))
         {
             throw new ArgumentException("TipoEfector invalido.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.TipoAgenda) || !TiposAgenda.Contains(request.TipoAgenda.Trim(), StringComparer.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(request.TipoAgenda) || !tiposAgenda.Contains(request.TipoAgenda.Trim(), StringComparer.OrdinalIgnoreCase))
         {
             throw new ArgumentException("TipoAgenda invalido.");
         }
@@ -485,6 +506,50 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
         };
 
         repository.AddAgenda(clone);
+
+        foreach (var bloque in source.Bloques)
+        {
+            var bloqueClone = new BloqueProgramacion
+            {
+                Id = Guid.NewGuid(),
+                Nombre = bloque.Nombre,
+                TipoBloque = bloque.TipoBloque,
+                FechaDesde = bloque.FechaDesde,
+                FechaHasta = bloque.FechaHasta,
+                AtiendeFeriados = bloque.AtiendeFeriados,
+                Fecha = bloque.Fecha,
+                HoraInicio = bloque.HoraInicio,
+                HoraFin = bloque.HoraFin,
+                DuracionTurnoMinutos = bloque.DuracionTurnoMinutos,
+                IntervaloMinutos = bloque.IntervaloMinutos,
+                LugarAtencionId = bloque.LugarAtencionId,
+                LugarAtencionNombre = bloque.LugarAtencionNombre,
+                Frecuencia = bloque.Frecuencia,
+                Sobreturnos = bloque.Sobreturnos,
+                Activo = bloque.Activo
+            };
+            bloqueClone.Dias.AddRange(bloque.Dias);
+            bloqueClone.OrdenMensualSemanas.AddRange(bloque.OrdenMensualSemanas);
+            bloqueClone.Practicas.AddRange(bloque.Practicas);
+
+            repository.AddBloque(clone.Id, bloqueClone);
+        }
+
+        clone.CantidadBloques = source.Bloques.Count;
+        clone.CantidadBloqueos = source.Bloqueos.Count;
+
+        foreach (var bloqueo in source.Bloqueos)
+        {
+            var bloqueoClone = new BloqueoAgenda
+            {
+                Id = Guid.NewGuid(),
+                Inicio = bloqueo.Inicio,
+                Fin = bloqueo.Fin,
+                Tipo = bloqueo.Tipo
+            };
+            repository.AddBloqueo(clone.Id, bloqueoClone);
+        }
+
         return MapSummary(clone);
     }
 
@@ -588,12 +653,12 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
         var duracionTurno = request.DuracionTurnoMinutos;
         if (esAgendaDemanda && duracionTurno <= 0)
         {
-            duracionTurno = 20;
+            duracionTurno = defaultDuracionTurnoDemanda;
         }
 
         if (esAgendaProgramada && string.Equals(tipoBloque, "VARIABLE", StringComparison.OrdinalIgnoreCase))
         {
-            duracionTurno = 5;
+            duracionTurno = defaultDuracionTurnoVariable;
         }
 
         var practicasNormalizadas = new List<BloquePractica>();
@@ -615,7 +680,7 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
                 practicasNormalizadas.Add(new BloquePractica
                 {
                     Nombre = nombrePractica,
-                    DuracionMinutos = practica.DuracionMinutos.GetValueOrDefault() > 0 ? practica.DuracionMinutos!.Value : 15
+                    DuracionMinutos = practica.DuracionMinutos.GetValueOrDefault() > 0 ? practica.DuracionMinutos!.Value : defaultDuracionPractica
                 });
             }
         }
@@ -642,7 +707,7 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
         }
 
         var frecuencia = string.IsNullOrWhiteSpace(request.Frecuencia) ? "SEMANAL" : request.Frecuencia.Trim().ToUpperInvariant();
-        if (!FrecuenciasBloque.Contains(frecuencia, StringComparer.OrdinalIgnoreCase))
+        if (!frecuenciasBloque.Contains(frecuencia, StringComparer.OrdinalIgnoreCase))
         {
             throw new ArgumentException("Frecuencia invalida.");
         }
@@ -882,8 +947,13 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
             return null;
         }
 
-        // HU 7795 necesita integracion con modulo Turnos para traer datos reales.
-        return Array.Empty<TurnoACancelarResponse>();
+        var turnos = repository.GetTurnosByBloque(bloqueId);
+        return turnos.Select(t => new TurnoACancelarResponse(
+            Guid.TryParse(t.TurnoId, out var guid) ? guid : Guid.Empty,
+            t.PacienteNombre,
+            t.FechaHora,
+            t.Estado
+        )).ToList();
     }
 
     public bool AddBloqueo(Guid agendaId, CreateBloqueoRequest request)
@@ -1026,6 +1096,7 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
 
     public DisponibilidadResponse? RecalcularCupos(Guid agendaId)
     {
+        repository.RegenerateCupos(agendaId);
         return GetDisponibilidad(agendaId);
     }
 
@@ -1076,8 +1147,8 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
             agenda.FechaDesde,
             agenda.FechaHasta,
             agenda.Observacion,
-            agenda.Bloques.Count,
-            agenda.Bloqueos.Count
+            agenda.CantidadBloques,
+            agenda.CantidadBloqueos
         );
     }
 
@@ -1265,11 +1336,12 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
         throw new ArgumentException($"{fieldName} invalida.");
     }
 
-    private static TimeZoneInfo ResolveBusinessTimeZone()
+    private static TimeZoneInfo ResolveBusinessTimeZone(string? timezoneId)
     {
+        timezoneId ??= "America/Argentina/Buenos_Aires";
         try
         {
-            return TimeZoneInfo.FindSystemTimeZoneById("America/Argentina/Buenos_Aires");
+            return TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
         }
         catch (TimeZoneNotFoundException)
         {
@@ -1284,9 +1356,9 @@ public sealed class AgendaService(IAgendaRepository repository) : IAgendaService
         }
     }
 
-    private static DateTimeOffset GetBusinessNow()
+    private DateTimeOffset GetBusinessNow()
     {
-        return TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, BusinessTimeZone);
+        return TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, businessTimeZone);
     }
 
     private static string ToFhirSlotStatus(string estado)

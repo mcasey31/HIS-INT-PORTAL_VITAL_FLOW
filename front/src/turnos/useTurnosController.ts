@@ -1,12 +1,14 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { getTiposDocumento } from "../shared/catalogosApi";
+import { getCatalogoFinanciadores } from "../shared/financiadoresApi";
+import type { FinanciadorCatalogoItem } from "../shared/financiadoresApi";
 import { actualizarEstadoTurno } from "../admision/admisionApi";
 import type {
   TipoDocumento, SelectoresDisponibilidad, PacienteIdentificado, FinanciadorPlan,
   DisponibilidadSlot, TurnoPaciente,
   BuscarDisponibilidadRequest, AsignarTurnoRequest, AsignarSobreturnoRequest, AsignarTurnoResponse,
 } from "./turnosTypes";
-import { SELECTORES_VACIOS, CATALOGO_FINANCIADORES } from "./turnosTypes";
+import { SELECTORES_VACIOS } from "./turnosTypes";
 import {
   identificarPacientePorDocumento, getSelectoresDisponibilidad,
   getTurnosPaciente, buscarDisponibilidadHoraria,
@@ -61,16 +63,18 @@ export function useTurnosController() {
   const [financiadorModalInfo, setFinanciadorModalInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [catalogoFinanciadores, setCatalogoFinanciadores] = useState<FinanciadorCatalogoItem[]>([]);
 
   useEffect(() => {
     const run = async () => {
-      const [tiposResult, selectoresResult] = await Promise.allSettled([getTiposDocumento(), getSelectoresDisponibilidad()]);
+      const [tiposResult, selectoresResult, catalogoResult] = await Promise.allSettled([getTiposDocumento(), getSelectoresDisponibilidad(), getCatalogoFinanciadores()]);
       if (tiposResult.status === "fulfilled") {
         const tipos = tiposResult.value;
         setTiposDocumento(tipos);
         if (tipos.length > 0 && !tipos.some(item => item.codigo === tipoDocumento)) setTipoDocumento(tipos[0].codigo);
       }
       if (selectoresResult.status === "fulfilled") setSelectores(selectoresResult.value);
+      if (catalogoResult.status === "fulfilled") setCatalogoFinanciadores(catalogoResult.value);
       if (tiposResult.status === "rejected" && selectoresResult.status === "rejected") {
         const tiposError = tiposResult.reason instanceof Error ? tiposResult.reason.message : "tipos-documento";
         const selectoresError = selectoresResult.reason instanceof Error ? selectoresResult.reason.message : "selectores";
@@ -117,7 +121,7 @@ export function useTurnosController() {
     if (!paciente) return [];
     return financiadoresPaciente.filter(i => i.vigente);
   }, [paciente, financiadoresPaciente]);
-  const financiadorCatalogoSeleccionado = useMemo(() => CATALOGO_FINANCIADORES.find(i => i.id === financiadorFormId) ?? null, [financiadorFormId]);
+  const financiadorCatalogoSeleccionado = useMemo(() => catalogoFinanciadores.find(i => i.id === financiadorFormId) ?? null, [financiadorFormId, catalogoFinanciadores]);
   const planesDisponiblesForm = financiadorCatalogoSeleccionado?.planes ?? [];
   const esEdicionFinanciador = financiadorEditandoId !== null;
   const esCombinacionDuplicada = useMemo(() => {
@@ -209,7 +213,7 @@ export function useTurnosController() {
 
   const onGuardarFinanciador = async () => {
     if (!paciente || !puedeGuardarFinanciador) return;
-    const fc = CATALOGO_FINANCIADORES.find(i => i.id === financiadorFormId);
+    const fc = catalogoFinanciadores.find(i => i.id === financiadorFormId);
     const pc = fc?.planes.find(i => i.id === planFormId);
     if (!fc || !pc) { setFinanciadorModalError("Seleccione financiador y plan validos."); return; }
     let persisted: FinanciadorPlan;
@@ -316,7 +320,7 @@ export function useTurnosController() {
   };
 
   return {
-    tiposDocumento, tipoDocumento, numeroDocumento, paciente,
+    catalogoFinanciadores, tiposDocumento, tipoDocumento, numeroDocumento, paciente,
     financiadoresPaciente, financiadorPlanId, resultadoIdentificacion, loadingIdentificacion,
     centrosSeleccionados, servicioId, practicaId, profesionalId,
     loadingDisponibilidad, asignandoTurno, slots, selectedSlotId,

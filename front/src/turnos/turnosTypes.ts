@@ -163,35 +163,6 @@ export type GuardarPacienteFinanciadorRequest = {
   reemplazarFinanciadorPlanId?: string;
 };
 
-export type FinanciadorCatalogoItem = {
-  id: string;
-  nombre: string;
-  planes: Array<{ id: string; nombre: string }>;
-};
-
-export const CATALOGO_FINANCIADORES: FinanciadorCatalogoItem[] = [
-  { id: "30000000-0000-0000-0000-000000000001", nombre: "OSDE", planes: [
-    { id: "30000000-0000-0000-0000-000000000102", nombre: "210" },
-    { id: "30000000-0000-0000-0000-000000000101", nombre: "310" },
-    { id: "30000000-0000-0000-0000-000000000103", nombre: "410" },
-  ]},
-  { id: "30000000-0000-0000-0000-000000000002", nombre: "IOMA", planes: [
-    { id: "30000000-0000-0000-0000-000000000201", nombre: "GOLD" },
-    { id: "30000000-0000-0000-0000-000000000202", nombre: "I700" },
-  ]},
-  { id: "30000000-0000-0000-0000-000000000004", nombre: "Swiss Medical", planes: [
-    { id: "30000000-0000-0000-0000-000000000401", nombre: "SMG20" },
-    { id: "30000000-0000-0000-0000-000000000402", nombre: "SMG50" },
-  ]},
-  { id: "30000000-0000-0000-0000-000000000005", nombre: "PAMI", planes: [
-    { id: "30000000-0000-0000-0000-000000000501", nombre: "General" },
-    { id: "30000000-0000-0000-0000-000000000502", nombre: "Plus" },
-  ]},
-  { id: "30000000-0000-0000-0000-000000000003", nombre: "Privado Particular", planes: [
-    { id: "30000000-0000-0000-0000-000000000301", nombre: "Privado Particular" },
-  ]},
-];
-
 export const SELECTORES_VACIOS: SelectoresDisponibilidad = {
   centros: [], servicios: [], practicas: [], profesionales: [],
 };

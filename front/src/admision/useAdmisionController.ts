@@ -1,11 +1,13 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { getTiposDocumento } from "../shared/catalogosApi";
 import type { TipoDocumento } from "../shared/catalogosApi";
+import { getCatalogoFinanciadores } from "../shared/financiadoresApi";
+import type { FinanciadorCatalogoItem } from "../shared/financiadoresApi";
 import { getAgendaById, getAgendas } from "../agenda/agendaApi";
 import type { AgendaDetail, AgendaSummary } from "../agenda/agendaTypes";
 import { actualizarEstadoTurno, buscarTurnosAdmision, confirmarArriboTurno, getSelectoresAdmision, identificarPacienteAdmision } from "./admisionApi";
-import type { PacienteIdentificadoAdmision, SelectoresAdmision, TurnoAdmision, FinanciadorPacienteAdmision, FinanciadorCatalogoItem } from "./admisionTypes";
-import { CATALOGO_FINANCIADORES, SELECTORES_EMPTY, toIsoDate, isAgendaVigenteEnFecha, isPrivadoFinanciador, mapFinanciadoresPaciente, normalizarAfiliado, normalizarDocumento, normalizarFinanciador, normalizarNombre, parseDocumentoTurno } from "./admisionTypes";
+import type { PacienteIdentificadoAdmision, SelectoresAdmision, TurnoAdmision, FinanciadorPacienteAdmision } from "./admisionTypes";
+import { SELECTORES_EMPTY, toIsoDate, isAgendaVigenteEnFecha, isPrivadoFinanciador, mapFinanciadoresPaciente, normalizarAfiliado, normalizarDocumento, normalizarFinanciador, normalizarNombre, parseDocumentoTurno } from "./admisionTypes";
 
 export function useAdmisionController() {
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumento[]>([]);
@@ -68,6 +70,7 @@ export function useAdmisionController() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [admissionSuccessMessage, setAdmissionSuccessMessage] = useState<string | null>(null);
+  const [catalogoFinanciadores, setCatalogoFinanciadores] = useState<FinanciadorCatalogoItem[]>([]);
 
   const fechaSistemaHoy = toIsoDate(new Date());
   const fechaEsHoy = fecha === fechaSistemaHoy;
@@ -89,7 +92,7 @@ export function useAdmisionController() {
 
   const financiadoresVigentes = useMemo(() => financiadoresPaciente.filter(item => item.vigente), [financiadoresPaciente]);
   const financiadorSeleccionado = useMemo(() => financiadoresVigentes.find(item => item.id === financiadorPlanId) ?? null, [financiadorPlanId, financiadoresVigentes]);
-  const financiadorCatalogoSeleccionado = useMemo(() => CATALOGO_FINANCIADORES.find(item => item.id === financiadorFormId) ?? null, [financiadorFormId]);
+  const financiadorCatalogoSeleccionado = useMemo(() => catalogoFinanciadores.find(item => item.id === financiadorFormId) ?? null, [financiadorFormId, catalogoFinanciadores]);
   const planesDisponiblesForm = financiadorCatalogoSeleccionado?.planes ?? [];
   const esEdicionFinanciador = financiadorEditandoId !== null;
   const esCombinacionDuplicada = useMemo(() => {
@@ -303,7 +306,7 @@ export function useAdmisionController() {
   };
 
   const inicializarCoberturaPaciente = (paciente: PacienteIdentificadoAdmision) => {
-    const mapped = mapFinanciadoresPaciente(paciente.financiadores ?? []);
+    const mapped = mapFinanciadoresPaciente(paciente.financiadores ?? [], catalogoFinanciadores);
     setFinanciadoresPaciente(mapped);
     const primerVigente = mapped.find(item => item.vigente);
     setFinanciadorPlanId(primerVigente?.id ?? "");
@@ -368,7 +371,7 @@ export function useAdmisionController() {
     if (!puedeGuardarFinanciador) {
       return;
     }
-    const financiadorCatalogo = CATALOGO_FINANCIADORES.find(item => item.id === financiadorFormId);
+    const financiadorCatalogo = catalogoFinanciadores.find(item => item.id === financiadorFormId);
     const planCatalogo = financiadorCatalogo?.planes.find(item => item.id === planFormId);
     if (!financiadorCatalogo || !planCatalogo) {
       setFinanciadorModalError("Seleccione financiador y plan validos.");
@@ -435,12 +438,13 @@ export function useAdmisionController() {
       setLoading(true);
       setError(null);
       try {
-        const [tipos, data] = await Promise.all([getTiposDocumento(), getSelectoresAdmision()]);
+        const [tipos, data, catalogo] = await Promise.all([getTiposDocumento(), getSelectoresAdmision(), getCatalogoFinanciadores()]);
         setTiposDocumento(tipos);
         if (tipos.length > 0 && !tipos.some(item => item.codigo === tipoDocumento)) {
           setTipoDocumento(tipos[0].codigo);
         }
         setSelectores(data);
+        setCatalogoFinanciadores(catalogo);
       } catch (e) {
         const message = e instanceof Error ? e.message : "No se pudo inicializar admision.";
         setError(message);
@@ -975,7 +979,7 @@ export function useAdmisionController() {
     error, setError,
     info, setInfo,
     admissionSuccessMessage, setAdmissionSuccessMessage,
-    fechaEsHoy,
+    catalogoFinanciadores, fechaEsHoy,
     practicasDisponibles, efectoresDisponibles,
     financiadoresVigentes, financiadorSeleccionado,
     financiadorCatalogoSeleccionado, planesDisponiblesForm,
