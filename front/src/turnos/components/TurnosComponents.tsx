@@ -8,78 +8,105 @@ export function TurnosIdentificacion({ state, navigate }: { state: useTurnosStat
     tiposDocumento, setTipoDocumento, tipoDocumento, setNumeroDocumento, numeroDocumento, loadingIdentificacion, onConsultarPaciente,
     resultadoIdentificacion, paciente, financiadorPlanId, setFinanciadorPlanId, financiadoresVigentes, onAbrirModalFinanciador
   } = state;
+
   return (
     <section className="turnos-step-card" aria-label="Paso 1 identificacion paciente">
-      <h3>1. Identificación de paciente</h3>
+      <div className="turnos-card-header-row">
+        <h3>1. Identificación de paciente</h3>
+        <button type="button" className="turnos-header-link" onClick={() => navigate('/personas')}>
+          Ir a identificación de personas
+        </button>
+      </div>
+
       <p className="turnos-step-help">
-        La busqueda de disponibilidad horaria inicia solo cuando la persona esta identificada como paciente y tiene financiador seleccionado.
+        La búsqueda de disponibilidad horaria inicia solo cuando la persona está identificada como paciente y tiene financiador seleccionado.
       </p>
 
-      <form onSubmit={onConsultarPaciente}>
-        <div className="turnos-grid-2">
-          <label>
-            Tipo de documento
-            <select value={tipoDocumento} onChange={event => setTipoDocumento(event.target.value)}>
-              {tiposDocumento.map(tipo => <option key={tipo.codigo} value={tipo.codigo}>{tipo.nombre}</option>)}
-            </select>
-          </label>
-          <label>
-            Numero de documento
-            <input value={numeroDocumento} onChange={event => setNumeroDocumento(event.target.value.toUpperCase())} placeholder="Ingrese numero" />
-          </label>
-        </div>
-        <div className="personas-actions">
-          <button type="submit" disabled={loadingIdentificacion || numeroDocumento.trim().length === 0}>
-            {loadingIdentificacion ? "Consultando..." : "Consultar paciente"}
-          </button>
-          <button type="button" className="btn-outline" onClick={() => navigate('/personas')}>
-            Ir a Identificacion de personas
-          </button>
-        </div>
-      </form>
+      <form onSubmit={onConsultarPaciente} className="turnos-step1-form">
+        <div className="turnos-step1-grid">
+          {/* Row 1: Tipo Doc, Num Doc, Paciente display */}
+          <div className="turnos-grid-row-1">
+            <label className="turnos-input-col">
+              Tipo de documento
+              <select value={tipoDocumento} onChange={event => setTipoDocumento(event.target.value)}>
+                {tiposDocumento.map(tipo => <option key={tipo.codigo} value={tipo.codigo}>{tipo.nombre}</option>)}
+              </select>
+            </label>
 
-      {resultadoIdentificacion === "single" && paciente && (
-        <div className="turnos-paciente-ok">
-          <p>
-            <strong>Paciente:</strong> {paciente.apellidosNombres} - {paciente.tipoDocumento} {paciente.numeroDocumento}
-          </p>
-          <div className="turnos-financiador-head">
-            <label>
-              Financiador y plan
-              <div className="turnos-financiador-edit-wrap">
-                <select value={financiadorPlanId} onChange={event => setFinanciadorPlanId(event.target.value)}>
-                  {financiadoresVigentes.map(fin => (
-                    <option key={fin.id} value={fin.id}>
-                      {fin.financiador} - {fin.plan}
-                      {fin.numeroAfiliado ? ` - ${fin.numeroAfiliado}` : ""}
-                    </option>
-                  ))}
-                </select>
-                <button type="button" className="icon-edit-btn" onClick={onAbrirModalFinanciador} title="Editar financiador/plan" aria-label="Editar financiador/plan">
-                  ✏
-                </button>
+            <label className="turnos-input-col">
+              Número de documento
+              <div className="turnos-search-input-wrapper">
+                <input
+                  value={numeroDocumento}
+                  onChange={event => setNumeroDocumento(event.target.value.toUpperCase())}
+                  placeholder="28171003"
+                />
+                {!paciente && (
+                  <button type="submit" className="btn-search-inline" disabled={loadingIdentificacion || numeroDocumento.trim().length === 0}>
+                    {loadingIdentificacion ? "..." : "🔍"}
+                  </button>
+                )}
               </div>
             </label>
-            <div className="turnos-pills-row">
-              {financiadoresVigentes.map(fin => (
-                <span key={fin.id} className={`turnos-pill ${fin.id === financiadorPlanId ? "turnos-pill-selected" : ""}`}>
-                  {fin.financiador} {fin.plan}
-                </span>
-              ))}
-            </div>
-            <p className="turnos-step-help">Para cambiar financiador/plan use el icono de edicion y gestione vigencias desde el modal.</p>
-          </div>
-        </div>
-      )}
 
+            <div className="turnos-input-col turnos-paciente-display-col">
+              <span className="turnos-input-label">Paciente</span>
+              {paciente ? (
+                <div className="turnos-paciente-box-selected">
+                  <span className="turnos-paciente-name">
+                    {paciente.apellidosNombres} <span className="separator">•</span> DNI: {paciente.numeroDocumento}
+                  </span>
+                  <span className="turnos-checkmark-circle">✓</span>
+                </div>
+              ) : (
+                <div className="turnos-paciente-box-empty">
+                  <span>No se ha seleccionado ningún paciente</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 2: Financiador y Plan (only show when patient is selected) */}
+          {paciente && (
+            <div className="turnos-grid-row-2">
+              <label className="turnos-input-col turnos-financiador-col">
+                Financiador y plan
+                <div className="turnos-financiador-selector-row">
+                  <select value={financiadorPlanId} onChange={event => setFinanciadorPlanId(event.target.value)}>
+                    {financiadoresVigentes.map(fin => (
+                      <option key={fin.id} value={fin.id}>
+                        {fin.financiador} - {fin.plan} {fin.numeroAfiliado ? ` - ${fin.numeroAfiliado}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="button" className="btn-edit-financiador" onClick={onAbrirModalFinanciador} title="Editar financiador/plan">
+                    ✏️
+                  </button>
+                </div>
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* Buttons for desktop if not patient selected yet */}
+        {!paciente && (
+          <div className="personas-actions">
+            <button type="submit" disabled={loadingIdentificacion || numeroDocumento.trim().length === 0}>
+              {loadingIdentificacion ? "Consultando..." : "Consultar paciente"}
+            </button>
+          </div>
+        )}
+      </form>
+
+      {/* Warnings & Alerts */}
       {resultadoIdentificacion === "multiple" && (
         <div className="turnos-alert turnos-alert-warn">
-          <p>La identificacion no devolvio un candidato unico. Continua por Identificacion de personas para resolverlo.</p>
+          <p>La identificación no devolvió un candidato único. Continúe por Identificación de personas para resolverlo.</p>
         </div>
       )}
       {resultadoIdentificacion === "none" && (
         <div className="turnos-alert turnos-alert-warn">
-          <p>La identificacion no devolvio un candidato unico. Continua por Identificacion de personas para resolverlo.</p>
+          <p>La identificación no devolvió un candidato único. Continúe por Identificación de personas para resolverlo.</p>
         </div>
       )}
     </section>

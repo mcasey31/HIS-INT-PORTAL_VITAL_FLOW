@@ -61,11 +61,10 @@ export function TurnosPage() {
       <h2>Asignar turno</h2>
       
       <TurnosIdentificacion state={wrappedState} navigate={navigate} />
-      <TurnosProximosPaciente state={wrappedState} />
       <TurnosBusqueda state={wrappedState} />
       <TurnosResultados state={wrappedState} />
+      <TurnosProximosPaciente state={wrappedState} />
       <TurnosModales state={wrappedState} />
-      
     </section>
   );
 }
