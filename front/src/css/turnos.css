@@ -845,22 +845,304 @@
   text-transform: capitalize;
 }
 
-/* Adjust table vertical spacing */
+/* Clean table styling (no vertical borders) */
 .turnos-grid {
   border-collapse: collapse;
   width: 100%;
 }
 
-.turnos-grid th {
-  background: #eaeef2;
-  color: #43474c;
-  font-weight: 700;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  border-bottom: 2px solid #dfe3e7;
+.turnos-grid th,
+.turnos-grid td {
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 0.8rem 0.7rem !important; /* taller cells */
+  font-size: 0.8rem !important;
+  background: transparent !important;
 }
 
-.turnos-grid td {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+.turnos-grid th {
+  background: #f8fafc !important; /* light clean header */
+  color: #64748b !important;
+  font-weight: 700 !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  border-bottom: 2px solid #e2e8f0 !important;
 }
+
+.turnos-grid tbody tr {
+  background: transparent !important;
+}
+
+.turnos-grid tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+.turnos-grid tr.turnos-row-st {
+  background-color: rgba(1, 99, 151, 0.04) !important; /* soft primary-container/secondary-like */
+}
+
+.turnos-grid tr.turnos-row-st:hover {
+  background-color: rgba(1, 99, 151, 0.08) !important;
+}
+
+.turnos-grid tr.turnos-row-occupied {
+  background-color: #ffffff !important;
+  opacity: 0.9 !important;
+}
+
+.turnos-grid tr.turnos-row-occupied:hover {
+  background-color: #f8fafc !important;
+}
+
+/* Horizontal Filters layout matching step 2 mockup */
+.turnos-busqueda-horizontal-layout {
+  display: grid;
+  grid-template-columns: 260px 180px 1fr 160px;
+  gap: 1rem;
+  align-items: start;
+  margin-top: 0.6rem;
+}
+
+@media (max-width: 1024px) {
+  .turnos-busqueda-horizontal-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.turnos-busqueda-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.turnos-busqueda-col-dropdowns {
+  gap: 0.6rem;
+}
+
+.turnos-busqueda-col-dropdowns label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #4b5563;
+  letter-spacing: 0.03em;
+}
+
+.turnos-busqueda-col-dropdowns select {
+  font-weight: normal;
+  padding: 0.45rem;
+  border-radius: 6px;
+  border: 1px solid #d5deea;
+}
+
+/* Checkboxes panel */
+.turnos-multi-select-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #d5deea;
+  border-radius: 8px;
+  background: #ffffff;
+  height: 135px;
+  overflow-y: auto;
+}
+
+/* Inline Almanac modifications */
+.inline-almanaque {
+  border: 1px solid #d5deea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.45rem 0.55rem;
+}
+
+.inline-almanaque .turnos-almanaque-nav {
+  margin-bottom: 0.35rem;
+}
+
+.inline-almanaque .turnos-mes-titulo {
+  font-size: 0.85rem;
+  color: #1e3a5f;
+  text-transform: capitalize;
+}
+
+.inline-almanaque .btn-outline-small {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.65rem;
+}
+
+.inline-almanaque .btn-outline-small:hover {
+  background: #f1f5f9;
+}
+
+.inline-almanaque .turnos-almanaque-grid-head {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 0.25rem;
+}
+
+.inline-almanaque .turnos-almanaque-grid-head span {
+  font-size: 0.7rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.inline-almanaque .turnos-almanaque-grid-body {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.inline-almanaque .turnos-dia-btn {
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.inline-almanaque .turnos-dia-btn.is-available {
+  background: rgba(1, 99, 151, 0.05);
+  color: #0f6cab;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+}
+
+.inline-almanaque .turnos-dia-btn.is-available:hover {
+  background: rgba(1, 99, 151, 0.15);
+  color: #00517d;
+}
+
+.inline-almanaque .turnos-dia-btn.is-selected {
+  background: #016397 !important;
+  color: #ffffff !important;
+  border-color: #016397 !important;
+}
+
+/* Button columns */
+.turnos-busqueda-col-button {
+  align-self: end;
+  width: 100%;
+}
+
+.btn-filtrar-agenda {
+  width: 100%;
+  background: #016397;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.65rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(1, 99, 151, 0.15);
+}
+
+.btn-filtrar-agenda:hover:not(:disabled) {
+  background: #00517d;
+}
+
+.btn-filtrar-agenda:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Results header layout */
+.turnos-resultados-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.turnos-resultados-titulo {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e3a5f;
+}
+
+.btn-forzar-sobreturno {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: none !important; /* Keep mixed case like mockup */
+  letter-spacing: 0.03em;
+}
+
+.btn-forzar-sobreturno:hover {
+  background: #fecaca;
+  box-shadow: 0 2px 4px rgba(185, 28, 28, 0.15);
+}
+
+.btn-forzar-sobreturno .plus-sign {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+/* Footer layout matching mockup table footer */
+.turnos-tabla-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.85rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.turnos-footer-info {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.turnos-ver-mas-btn {
+  background: transparent;
+  border: none;
+  color: #016397;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.turnos-ver-mas-btn:hover {
+  color: #00517d;
+}
+
+.turnos-ver-mas-btn .arrow {
+  font-size: 0.65rem;
+}
+

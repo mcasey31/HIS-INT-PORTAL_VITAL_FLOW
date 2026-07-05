@@ -34,6 +34,23 @@ export function useTurnosController() {
   const [asignandoTurno, setAsignandoTurno] = useState(false);
   const [slots, setSlots] = useState<DisponibilidadSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState("");
+
+  const fechasDisponibles = useMemo(() => {
+    return Array.from(new Set((slots ?? []).map(slot => slot.fecha)))
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+  }, [slots]);
+
+  useEffect(() => {
+    if (fechasDisponibles.length === 0) {
+      setFechaSeleccionada("");
+      return;
+    }
+    if (!fechaSeleccionada || !fechasDisponibles.includes(fechaSeleccionada)) {
+      setFechaSeleccionada(fechasDisponibles[0]);
+    }
+  }, [fechasDisponibles, fechaSeleccionada]);
+
   const [confirmAsignacionModalOpen, setConfirmAsignacionModalOpen] = useState(false);
   const [contactoEmailOriginal, setContactoEmailOriginal] = useState("");
   const [contactoTelefonoOriginal, setContactoTelefonoOriginal] = useState("");
@@ -331,6 +348,7 @@ export function useTurnosController() {
     financiadorModalOpen, financiadorFormId, planFormId, numeroAfiliadoForm,
     financiadorModalError, financiadorModalInfo, error, info,
     turnoACancelarId, cancelandoTurnoId, cancelacionExitosa,
+    fechaSeleccionada, setFechaSeleccionada, fechasDisponibles,
 
     setTipoDocumento, setNumeroDocumento, setFinanciadorPlanId,
     setServicioId, setPracticaId, setProfesionalId, setVerHistorialTurnos,
