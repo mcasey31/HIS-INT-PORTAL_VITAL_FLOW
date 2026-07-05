@@ -339,7 +339,7 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
   const {
     turnosVisibles, puedeGestionarPracticasTurno, turnoSeleccionado, onAbrirAgregarPracticas,
     loadingPracticasModal, practicasTurnoSeleccionado, onSolicitarEliminarPractica, turnoSeleccionadoId,
-    setTurnoSeleccionadoId, fechaEsHoy
+    setTurnoSeleccionadoId, fechaEsHoy, onLlamarPaciente, llamandoId
   } = state;
 
   const [recetaModalOpen, setRecetaModalOpen] = useState(false);
@@ -873,6 +873,7 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
                 <th>Efector</th>
                 <th>Estado</th>
                 <th>Receta</th>
+                <th>[Llamar]</th>
               </tr>
             </thead>
             <tbody>
@@ -905,6 +906,16 @@ export function AdmisionListado({ state }: { state: useAdmisionState }) {
                   <td>
                     <button type="button" className="btn-icon-receta" onClick={() => void handleVerRecetas(item)} disabled={!item.documento || item.documento === "-"} title={hasRecetas ? "Tiene recetas activas" : "Sin recetas activas"} style={{ color: iconColor }}>
                       💊
+                    </button>
+                  </td>
+                  <td>
+                    <button type="button"
+                      className="btn-llamar"
+                      onClick={() => void onLlamarPaciente(item.id)}
+                      disabled={llamandoId === item.id || item.estado !== "EN_SALA_DE_ESPERA"}
+                      title="Llamar paciente a consulta"
+                    >
+                      {llamandoId === item.id ? "..." : "📣"}
                     </button>
                   </td>
                 </tr>;

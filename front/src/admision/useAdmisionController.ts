@@ -5,7 +5,7 @@ import { getCatalogoFinanciadores } from "../shared/financiadoresApi";
 import type { FinanciadorCatalogoItem } from "../shared/financiadoresApi";
 import { getAgendaById, getAgendas } from "../agenda/agendaApi";
 import type { AgendaDetail, AgendaSummary } from "../agenda/agendaTypes";
-import { actualizarEstadoTurno, buscarTurnosAdmision, confirmarArriboTurno, getSelectoresAdmision, identificarPacienteAdmision } from "./admisionApi";
+import { actualizarEstadoTurno, buscarTurnosAdmision, confirmarArriboTurno, getSelectoresAdmision, identificarPacienteAdmision, llamarPacienteTurnera } from "./admisionApi";
 import type { PacienteIdentificadoAdmision, SelectoresAdmision, TurnoAdmision, FinanciadorPacienteAdmision } from "./admisionTypes";
 import { SELECTORES_EMPTY, toIsoDate, isAgendaVigenteEnFecha, isPrivadoFinanciador, mapFinanciadoresPaciente, normalizarAfiliado, normalizarDocumento, normalizarFinanciador, normalizarNombre, parseDocumentoTurno } from "./admisionTypes";
 
@@ -38,6 +38,7 @@ export function useAdmisionController() {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [arribandoId, setArribandoId] = useState<string | null>(null);
+  const [llamandoId, setLlamandoId] = useState<string | null>(null);
   const [actualizandoEstadoId, setActualizandoEstadoId] = useState<string | null>(null);
   const [modoArriboProgramado, setModoArriboProgramado] = useState(false);
   const [turnosPacienteDia, setTurnosPacienteDia] = useState<TurnoAdmision[]>([]);
@@ -765,6 +766,22 @@ export function useAdmisionController() {
     }
   };
 
+  const onLlamarPaciente = async (turnoId: string) => {
+    setLlamandoId(turnoId);
+    setError(null);
+    setInfo(null);
+    try {
+      const result = await llamarPacienteTurnera(turnoId);
+      setInfo(`Llamando a paciente: ${result.paciente}`);
+      await loadTurnos();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "No se pudo llamar al paciente.";
+      setError(message);
+    } finally {
+      setLlamandoId(null);
+    }
+  };
+
   const onIniciarAtencionTurnoSeleccionado = async () => {
     await onCambiarEstadoTurnoSeleccionado("EN_ATENCION", "Paciente enviado a atencion.");
   };
@@ -1004,6 +1021,7 @@ export function useAdmisionController() {
     onAdmitirPacienteProgramado, requiereConfirmacionDiscrepancia,
     onAdmitirTurnoSeleccionado, onAceptarDiscrepanciaFinanciador,
     onIniciarAtencionTurnoSeleccionado, onFinalizarAtencionTurnoSeleccionado,
+    llamandoId, onLlamarPaciente,
     onMoverFechaAdmision, onAbrirDemandaEspontanea,
     onConfirmarDemandaEspontanea, onCerrarAdmissionSuccess,
     onAbrirAgregarPracticas, onConfirmarAgregarPracticas,

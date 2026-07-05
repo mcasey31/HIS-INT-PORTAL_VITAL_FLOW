@@ -256,7 +256,7 @@ export function useTurnosController() {
   const onCancelarAsignacion = () => { setConfirmAsignacionModalOpen(false); setGuardarContactoEnPerfil(false); };
   const onCerrarAsignacionExitosaModal = () => setAsignacionExitosaModalOpen(false);
 
-  const onAbrirModalSobreturno = (slot: DisponibilidadSlot) => { setSlotSobreturnoId(slot.id); setHoraSobreturno(slot.rangoHoraInicio); setSobreturnoError(null); setSobreturnoModalOpen(true); };
+  const onAbrirModalSobreturno = (slot: DisponibilidadSlot) => { setSlotSobreturnoId(slot.id); setHoraSobreturno(slot.tipoSlot === "ST" ? slot.rangoHoraInicio : slot.hora); setSobreturnoError(null); setSobreturnoModalOpen(true); };
   const onCerrarModalSobreturno = () => { setSobreturnoModalOpen(false); setSlotSobreturnoId(null); setHoraSobreturno(""); setSobreturnoError(null); };
 
   const horaDentroDeRango = (hora: string, desde: string, hasta: string) => {

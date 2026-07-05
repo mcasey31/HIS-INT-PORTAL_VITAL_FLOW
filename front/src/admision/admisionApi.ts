@@ -45,3 +45,7 @@ export async function cerrarEncuentroTurno(
 ): Promise<CerrarEncuentroResponse> {
   return httpClient.post<CerrarEncuentroResponse>(`/api/v1/admision/turnos/${encodeURIComponent(turnoId)}/encuentro/cerrar`, request);
 }
+
+export async function llamarPacienteTurnera(turnoId: string): Promise<{ ok: boolean; paciente: string; estado: string }> {
+  return httpClient.post<{ ok: boolean; paciente: string; estado: string }>("/api/v1/turnera/llamar", { turnoId });
+}

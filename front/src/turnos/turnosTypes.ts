@@ -68,13 +68,13 @@ export type BuscarDisponibilidadRequest = {
   profesionalId?: string;
 };
 
-export type DisponibilidadEstado = "DISPONIBLE" | "CON_CUPO" | "SIN_COBERTURA" | "ASIGNADO";
+export type DisponibilidadEstado = "DISPONIBLE" | "CON_CUPO" | "SIN_COBERTURA" | "ASIGNADO" | "SOBRETURNO";
 
 export type DisponibilidadSlot = {
   id: string;
   fecha: string;
   hora: string;
-  tipoSlot: "NORMAL" | "ST";
+  tipoSlot: "NORMAL" | "ST" | "Virtual";
   rangoHoraInicio: string;
   rangoHoraFin: string;
   centro: string;

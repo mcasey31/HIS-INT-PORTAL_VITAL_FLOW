@@ -18,6 +18,7 @@ using VitalFlow.His.Api.Application.Personas.Repositories;
 using VitalFlow.His.Api.Application.Personas.Services;
 using VitalFlow.His.Api.Application.Turnos.Repositories;
 using VitalFlow.His.Api.Application.Turnos.Services;
+using VitalFlow.His.Api.Application.Turnera.Services;
 using VitalFlow.His.Api.Domain.Agenda;
 using VitalFlow.His.Api.Filters;
 using VitalFlow.His.Api.Infrastructure.Admision;
@@ -164,6 +165,12 @@ builder.Services.AddScoped<PostgresPrescripcionRepository>(_ =>
 });
 builder.Services.AddScoped<IPrescripcionService, PrescripcionService>();
 builder.Services.AddScoped<IUbicacionService, UbicacionService>();
+builder.Services.AddScoped<ITurneraService>(_ =>
+{
+    var cs = builder.Configuration.GetConnectionString("VitalFlowHisDb")
+        ?? throw new InvalidOperationException("ConnectionStrings:VitalFlowHisDb is required.");
+    return new TurneraService(cs);
+});
 builder.Services.AddScoped<IFhirService, FhirService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHostedService<ClearingDiarioBackgroundService>();

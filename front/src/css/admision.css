@@ -478,6 +478,25 @@
   cursor: default;
 }
 
+.btn-llamar {
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  line-height: 1;
+}
+.btn-llamar:hover:not(:disabled) {
+  background: #bbdefb;
+  border-color: #42a5f5;
+}
+.btn-llamar:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .admision-row-select-btn {
   min-width: 92px;
   background: #fff;

@@ -380,7 +380,7 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
                    coalesce(c.nombre, tp.centro, '') as centro,
                    tp.fecha_hora,
                    tp.estado,
-                   tp.motivo,
+                   coalesce(p.apellido || ', ' || p.nombre || ' • DNI ' || p.numero_documento, tp.motivo, '') as motivo,
                    tp.centro_id,
                    tp.servicio_id,
                    tp.efector_id,
@@ -389,6 +389,7 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
             left join sch_agenda.efector e on e.id = tp.efector_id
             left join sch_agenda.servicio s on s.id = tp.servicio_id
             left join sch_agenda.centro c on c.id = tp.centro_id
+            left join sch_persona.persona p on p.id::text = tp.paciente_id
             where upper(tp.estado) in ('AGENDADO', 'PROGRAMADO')
                 and (tp.fecha_hora at time zone 'UTC')::date = @fecha
             order by tp.fecha_hora

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import "./login/Login.css";
+import "./css/turnera.css";
 import { AdmisionPage } from "./admision/AdmisionPage";
 import { AgendaPage } from "./agenda/AgendaPage";
 import { ChangePasswordPage } from "./auth/ChangePasswordPage";
@@ -14,6 +15,8 @@ import { useUnsavedChanges } from "./navigation/UnsavedChangesContext";
 import { PersonasPage } from "./personas/PersonasPage";
 import { TurnosPage } from "./turnos/TurnosPage";
 import { XdWorkspace } from "./ui/XdWorkspace";
+import { TurneraPage } from "./turnera/TurneraPage";
+import { KioscoPage } from "./turnera/KioscoPage";
 
 type BreadcrumbItem = {
   label: string;
@@ -165,6 +168,8 @@ export function App() {
   }, []);
 
   const isLoginRoute = location.pathname === "/login";
+  const isTurneraRoute = location.pathname === "/turnera";
+  const isKioscoRoute = location.pathname === "/kiosco";
 
   if (isInitializing) {
     return (
@@ -178,6 +183,14 @@ export function App() {
         </section>
       </main>
     );
+  }
+
+  if (isTurneraRoute) {
+    return <TurneraPage />;
+  }
+
+  if (isKioscoRoute) {
+    return <KioscoPage />;
   }
 
   if (isLoginRoute) {

@@ -266,14 +266,20 @@ export function TurnosProximosPaciente({ state }: { state: useTurnosState }) {
             </div>}
         </div>}
     </section>;
-}
-
-export function TurnosResultados({ state }: { state: useTurnosState }) {
+}export function TurnosResultados({ state }: { state: useTurnosState }) {
   const {
     slots, selectedSlotId, onAbrirConfirmacionAsignacion, onAbrirModalSobreturno,
     verHistorialTurnos, setVerHistorialTurnos, loadingTurnosPaciente, turnosPaciente, totalTurnosPaciente,
     cargarTurnosPaciente, paciente, setTurnoACancelarId, cancelandoTurnoId
   } = state;
+
+  const tieneStDisponible = (slot: any) => {
+    if (slot.tipoSlot === "ST") {
+      return (slot.sobreTurnosDisponibles ?? 0) > 0;
+    }
+    const stSlot = slots.find(s => s.tipoSlot === "ST" && s.fecha === slot.fecha && s.profesional === slot.profesional);
+    return stSlot ? (stSlot.sobreTurnosDisponibles ?? 0) > 0 : false;
+  };
 
   const fechasDisponibles = useMemo(() => {
     return Array.from(new Set((slots ?? []).map(slot => slot.fecha)))
@@ -351,88 +357,208 @@ export function TurnosResultados({ state }: { state: useTurnosState }) {
     });
   }
 
+  const firstSlot = slots && slots.length > 0 ? slots[0] : null;
+  const profesionalNombre = firstSlot ? firstSlot.profesional : "";
+  const servicioNombre = firstSlot ? firstSlot.servicio : "";
+  const practicaNombre = firstSlot ? firstSlot.practica : "";
+  const centroNombre = firstSlot ? firstSlot.centro : "";
+
+  const formatTarjetaDiaSemana = (isoDate: string) => {
+    if (!isoDate) return "";
+    const date = new Date(`${isoDate}T00:00:00`);
+    return new Intl.DateTimeFormat("es-AR", { weekday: "long" }).format(date);
+  };
+
+  const formatTarjetaFecha = (isoDate: string) => {
+    if (!isoDate) return "";
+    const date = new Date(`${isoDate}T00:00:00`);
+    return new Intl.DateTimeFormat("es-AR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric"
+    }).format(date);
+  };
+
   return (
     <>
       <section className="turnos-step-card" aria-label="Resultados disponibilidad">
         <h3>Resultados de disponibilidad, seleccion y sobreturnos</h3>
-        {(!slots || slots.length === 0) ? <p>Sin resultados para mostrar.</p> : <div className="turnos-disponibilidad-layout">
-            <aside className="turnos-almanaque-card" aria-label="Almanaque de disponibilidad">
-              <p className="turnos-almanaque-selected">{fechaSeleccionada ? formatFechaTitulo(fechaSeleccionada) : "Seleccione un dia"}</p>
-              <div className="turnos-almanaque-nav">
-                <button type="button" className="btn-outline" onClick={() => setMesVisible(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}>
-                  ◀
-                </button>
-                <strong>{nombreMesVisible}</strong>
-                <button type="button" className="btn-outline" onClick={() => setMesVisible(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}>
-                  ▶
-                </button>
+        {(!slots || slots.length === 0) ? (
+          <p>Sin resultados para mostrar.</p>
+        ) : (
+          <>
+            {firstSlot && (
+              <div className="turnos-context-card">
+                <div className="turnos-context-left">
+                  <div className="turnos-context-avatar-container">
+                    <img
+                      className="turnos-context-avatar"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuAOfE-mYKiN6EtF6MMsHxHm3MoW4BjD0IpRvUBaDQXiZUtvDojO8FdOrDGSCALcVlwiOT19xNp_xmEYE23PklJWlhTBUgJ74L4wQ0zYZ2AQ0BUQXLRarc4pO_wlQt5teGr8l8w1CqGa5uK55SS2fXOTL3ysqgmrANsO8F5dUNrMw8xHhQz8WmHT7yeJ7YXHmAL6b2RHh61lCJ_Wfi4a0q3a9OJBZyiXFIb_q09r-6YOk6ocKDJPYzA"
+                      alt={profesionalNombre}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                    <span className="material-symbols-outlined turnos-context-avatar-fallback">account_circle</span>
+                  </div>
+                  <div className="turnos-context-details">
+                    <h4>{profesionalNombre}</h4>
+                    <div className="turnos-context-badges">
+                      <span className="turnos-context-badge">{servicioNombre}</span>
+                      <span className="turnos-context-separator">•</span>
+                      <span className="turnos-context-badge">{practicaNombre}</span>
+                      <span className="turnos-context-separator">•</span>
+                      <span className="turnos-context-centro">{centroNombre}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="turnos-context-right">
+                  <p className="turnos-context-weekday">{fechaSeleccionada ? formatTarjetaDiaSemana(fechaSeleccionada) : ""}</p>
+                  <p className="turnos-context-date">{fechaSeleccionada ? formatTarjetaFecha(fechaSeleccionada) : ""}</p>
+                </div>
               </div>
-              <div className="turnos-almanaque-grid-head">
-                <span>L</span>
-                <span>M</span>
-                <span>M</span>
-                <span>J</span>
-                <span>V</span>
-                <span>S</span>
-                <span>D</span>
-              </div>
-              <div className="turnos-almanaque-grid-body">
-                {celdasCalendario.map(celda => <button key={celda.key} type="button" className={`turnos-dia-btn ${celda.disponible ? "is-available" : ""} ${celda.selected ? "is-selected" : ""}`} onClick={() => celda.iso && celda.disponible ? setFechaSeleccionada(celda.iso) : undefined} disabled={!celda.disponible || !celda.iso}>
-                    {celda.label}
-                  </button>)}
-              </div>
-              <p className="turnos-almanaque-foot">Horarios disponibles</p>
-            </aside>
+            )}
 
-            <div>
-              {!fechaSeleccionada ? <p>Seleccione un dia en el almanaque.</p> : slotsFiltrados.length === 0 ? <p>No hay horarios para el dia seleccionado.</p> : <div className="personas-grid-wrap">
-                  <table className="personas-grid turnos-grid">
-                    <thead>
-                      <tr>
-                        <th>Accion</th>
-                        <th>Sobreturno</th>
-                        <th>Tipo slot</th>
-                        <th>Fecha</th>
-                        <th>Hora</th>
-                        <th>Centro</th>
-                        <th>Servicio</th>
-                        <th>Practica</th>
-                        <th>Profesional</th>
-                        <th>Estado</th>
-                        <th>ST disponibles</th>
-                        <th>Leyenda</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {slotsFiltrados.map(slot => <tr key={slot.id} className={selectedSlotId === slot.id ? "is-selected" : ""}>
-                          <td>
-                            <button type="button" className="row-select-btn" onClick={() => onAbrirConfirmacionAsignacion(slot)} disabled={slot.estado !== "DISPONIBLE" || slot.tipoSlot === "ST"}>
-                              Seleccionar
-                            </button>
-                          </td>
-                          <td>
-                            <button type="button" className="row-select-btn turnos-st-btn" onClick={() => onAbrirModalSobreturno(slot)} disabled={slot.tipoSlot !== "ST" || (slot.sobreTurnosDisponibles ?? 0) <= 0 || slot.estado === "ASIGNADO"}>
-                              Sobreturno
-                            </button>
-                          </td>
-                          <td>{slot.tipoSlot}</td>
-                          <td>{slot.fecha}</td>
-                          <td>{slot.hora}</td>
-                          <td>{slot.centro}</td>
-                          <td>{slot.servicio}</td>
-                          <td>{slot.practica}</td>
-                          <td>{slot.profesional}</td>
-                          <td>
-                            <span className={`turnos-estado turnos-estado-${slot.estado.toLowerCase()}`}>{slot.estado}</span>
-                          </td>
-                          <td>{slot.tipoSlot === "ST" ? slot.sobreTurnosDisponibles ?? 0 : "-"}</td>
-                          <td>{slot.mensaje ?? "-"}</td>
-                        </tr>)}
-                    </tbody>
-                  </table>
-                </div>}
+            <div className="turnos-disponibilidad-layout">
+              <aside className="turnos-almanaque-card" aria-label="Almanaque de disponibilidad">
+                <p className="turnos-almanaque-selected">{fechaSeleccionada ? formatFechaTitulo(fechaSeleccionada) : "Seleccione un dia"}</p>
+                <div className="turnos-almanaque-nav">
+                  <button type="button" className="btn-outline" onClick={() => setMesVisible(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}>
+                    ◀
+                  </button>
+                  <strong>{nombreMesVisible}</strong>
+                  <button type="button" className="btn-outline" onClick={() => setMesVisible(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}>
+                    ▶
+                  </button>
+                </div>
+                <div className="turnos-almanaque-grid-head">
+                  <span>L</span>
+                  <span>M</span>
+                  <span>M</span>
+                  <span>J</span>
+                  <span>V</span>
+                  <span>S</span>
+                  <span>D</span>
+                </div>
+                <div className="turnos-almanaque-grid-body">
+                  {celdasCalendario.map(celda => <button key={celda.key} type="button" className={`turnos-dia-btn ${celda.disponible ? "is-available" : ""} ${celda.selected ? "is-selected" : ""}`} onClick={() => celda.iso && celda.disponible ? setFechaSeleccionada(celda.iso) : undefined} disabled={!celda.disponible || !celda.iso}>
+                      {celda.label}
+                    </button>)}
+                </div>
+                <p className="turnos-almanaque-foot">Horarios disponibles</p>
+              </aside>
+
+              <div>
+                {!fechaSeleccionada ? <p>Seleccione un dia en el almanaque.</p> : slotsFiltrados.length === 0 ? <p>No hay horarios para el dia seleccionado.</p> : <div className="personas-grid-wrap">
+                    <table className="personas-grid turnos-grid">
+                      <thead>
+                        <tr>
+                          <th>Accion</th>
+                          <th>Sobreturno</th>
+                          <th>Tipo slot</th>
+                          <th>Fecha</th>
+                          <th>Hora</th>
+                          <th>Centro</th>
+                          <th>Servicio</th>
+                          <th>Practica</th>
+                          <th>Profesional</th>
+                          <th>Estado</th>
+                          <th>ST disp.</th>
+                          <th>Leyenda</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {slotsFiltrados.map(slot => {
+                          const isStRow = slot.tipoSlot === "ST";
+                          const isOccupiedRow = slot.estado === "ASIGNADO" || slot.estado === "CON_CUPO";
+                          const isDisponible = slot.estado === "DISPONIBLE" || slot.estado === "SOBRETURNO";
+                          const labelSeleccionar = slot.estado === "ASIGNADO" ? "Ocupado" : "Seleccionar";
+                          const seleccionarBtnClass = isDisponible ? "row-select-btn btn-seleccionar-active" : "row-select-btn";
+                          const isStRowSelected = selectedSlotId === slot.id;
+
+                          let labelSobreturno = "Sobreturno";
+                          let isStEnabled = false;
+                          let stBtnClass = "row-select-btn";
+
+                          if (slot.tipoSlot === "ST") {
+                            labelSobreturno = "Sobreturno";
+                            isStEnabled = (slot.sobreTurnosDisponibles ?? 0) > 0 && slot.estado !== "ASIGNADO";
+                            stBtnClass = isStEnabled ? "row-select-btn turnos-st-btn-active" : "row-select-btn";
+                          } else if (slot.tipoSlot === "Virtual" || slot.estado === "SOBRETURNO") {
+                            labelSobreturno = "Asignar ST";
+                            isStEnabled = tieneStDisponible(slot);
+                            stBtnClass = isStEnabled ? "row-select-btn turnos-st-btn-virtual" : "row-select-btn";
+                          } else if (slot.tipoSlot === "NORMAL" && slot.estado === "ASIGNADO") {
+                            labelSobreturno = "+ Sobreturno";
+                            isStEnabled = tieneStDisponible(slot);
+                            stBtnClass = isStEnabled ? "row-select-btn turnos-st-btn-add" : "row-select-btn";
+                          } else {
+                            labelSobreturno = "Sobreturno";
+                            isStEnabled = false;
+                            stBtnClass = "row-select-btn";
+                          }
+
+                          // Determine row className
+                          let rowClassName = isStRowSelected ? "is-selected" : "";
+                          if (!rowClassName) {
+                            if (isStRow) rowClassName = "turnos-row-st";
+                            else if (isOccupiedRow) rowClassName = "turnos-row-occupied";
+                          }
+
+                          return (
+                            <tr key={slot.id} className={rowClassName}>
+                              <td>
+                                <button
+                                  type="button"
+                                  className={seleccionarBtnClass}
+                                  onClick={() => slot.tipoSlot === "ST" ? onAbrirModalSobreturno(slot) : onAbrirConfirmacionAsignacion(slot)}
+                                  disabled={!isDisponible}
+                                >
+                                  {labelSeleccionar}
+                                </button>
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className={stBtnClass}
+                                  onClick={() => onAbrirModalSobreturno(slot)}
+                                  disabled={!isStEnabled}
+                                >
+                                  {labelSobreturno}
+                                </button>
+                              </td>
+                              <td>
+                                {slot.tipoSlot === "ST" ? (
+                                  <span className="turnos-tipo-slot-st">ST</span>
+                                ) : slot.tipoSlot === "Virtual" ? (
+                                  <span className="turnos-tipo-slot-virtual">Virtual</span>
+                                ) : (
+                                  <span className="turnos-tipo-slot-normal">Normal</span>
+                                )}
+                              </td>
+                              <td>{slot.fecha}</td>
+                              <td>{slot.hora}</td>
+                              <td>{slot.centro}</td>
+                              <td>{slot.servicio}</td>
+                              <td>{slot.practica}</td>
+                              <td>{slot.profesional}</td>
+                              <td>
+                                <span className={`turnos-estado turnos-estado-${slot.estado.toLowerCase()}`}>
+                                  {slot.estado}
+                                </span>
+                              </td>
+                              <td>{slot.tipoSlot === "ST" || slot.tipoSlot === "Virtual" || slot.estado === "SOBRETURNO" ? slot.sobreTurnosDisponibles ?? 0 : "-"}</td>
+                              <td>{slot.mensaje ?? "-"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>}
+              </div>
             </div>
-          </div>}
+          </>
+        )}
       </section>
 
       <section className="turnos-step-card" aria-label="Turnos del paciente">

@@ -277,9 +277,9 @@ public sealed class TurnosService(
 
         var hoy = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var slots = new List<DisponibilidadSlotTurnoResponse>();
-        var ocupadosPorFecha = new Dictionary<DateOnly, HashSet<string>>();
+        var ocupadosPorFecha = new Dictionary<DateOnly, Dictionary<string, TurnoPacienteRow>>();
 
-        HashSet<string> GetOcupados(DateOnly fecha)
+        Dictionary<string, TurnoPacienteRow> GetOcupados(DateOnly fecha)
         {
             if (ocupadosPorFecha.TryGetValue(fecha, out var ocupados))
             {
@@ -287,17 +287,20 @@ public sealed class TurnosService(
             }
 
             var rows = turnosRepository.GetTurnosAgendadosPorFecha(fecha);
-            ocupados = rows
-                .Select(row => BuildSlotOcupadoKey(
-                    DateOnly.FromDateTime(row.FechaHora.UtcDateTime),
-                    row.FechaHora.UtcDateTime.ToString("HH:mm", CultureInfo.InvariantCulture),
-                    row.Centro,
-                    row.Servicio,
-                    row.Profesional))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var dict = new Dictionary<string, TurnoPacienteRow>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in rows)
+            {
+                var key = BuildSlotOcupadoKey(
+                    DateOnly.FromDateTime(r.FechaHora.UtcDateTime),
+                    r.FechaHora.UtcDateTime.ToString("HH:mm", CultureInfo.InvariantCulture),
+                    r.Centro,
+                    r.Servicio,
+                    r.Profesional);
+                dict[key] = r;
+            }
 
-            ocupadosPorFecha[fecha] = ocupados;
-            return ocupados;
+            ocupadosPorFecha[fecha] = dict;
+            return dict;
         }
 
         var practicaNombre = ExtractPracticaNombre(request.PracticaId);
@@ -374,12 +377,15 @@ public sealed class TurnosService(
                         row.DuracionTurnoMinutos
                     );
 
-                    var slotOcupado = GetOcupados(fechaSlot).Contains(BuildSlotOcupadoKey(
+                    var keyOcupado = BuildSlotOcupadoKey(
                         fechaSlot,
                         horaSlot,
                         row.CentroNombre,
                         row.ServicioNombre,
-                        row.EfectorNombre));
+                        row.EfectorNombre);
+
+                    var dictOcupados = GetOcupados(fechaSlot);
+                    var slotOcupado = dictOcupados.TryGetValue(keyOcupado, out var turnoAsignado);
 
                     slots.Add(new DisponibilidadSlotTurnoResponse(
                         slotId,
@@ -394,7 +400,7 @@ public sealed class TurnosService(
                         row.EfectorNombre,
                         slotOcupado ? "ASIGNADO" : "DISPONIBLE",
                         null,
-                        slotOcupado ? "Turno asignado" : null
+                        slotOcupado ? (turnoAsignado!.Motivo ?? "Turno asignado") : null
                     ));
                 }
 
