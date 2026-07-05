@@ -10,12 +10,14 @@ type AuthSession = {
   roles: string[];
   centroId: string;
   mustChangePassword: boolean;
+  profesionalNombre?: string;
 };
 
 type AuthContextValue = {
   isAuthenticated: boolean;
   isInitializing: boolean;
   username: string | null;
+  profesionalNombre?: string | null;
   centroId: string | null;
   roles: string[];
   mustChangePassword: boolean;
@@ -38,6 +40,7 @@ function toSession(tokens: AuthTokensResponse): AuthSession {
     roles: tokens.roles,
     centroId: tokens.centroId,
     mustChangePassword: Boolean(tokens.mustChangePassword),
+    profesionalNombre: tokens.profesionalNombre,
   };
 }
 
@@ -176,6 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: Boolean(session?.accessToken),
       isInitializing,
       username: session?.username ?? null,
+      profesionalNombre: session?.profesionalNombre ?? null,
       centroId: session?.centroId ?? null,
       roles: session?.roles ?? [],
       mustChangePassword: Boolean(session?.mustChangePassword),
@@ -184,7 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshSession,
       changePassword,
     }),
-    [changePassword, isInitializing, login, logout, refreshSession, session?.accessToken, session?.centroId, session?.mustChangePassword, session?.roles, session?.username],
+    [changePassword, isInitializing, login, logout, refreshSession, session?.accessToken, session?.centroId, session?.mustChangePassword, session?.profesionalNombre, session?.roles, session?.username],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

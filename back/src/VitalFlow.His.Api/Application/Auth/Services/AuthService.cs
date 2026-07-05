@@ -78,7 +78,8 @@ public sealed class AuthService(
             user.Username,
             user.Roles,
             user.CentroId ?? "global",
-            string.Equals(user.Estado, EstadoDebeCambiarPassword, StringComparison.OrdinalIgnoreCase));
+            string.Equals(user.Estado, EstadoDebeCambiarPassword, StringComparison.OrdinalIgnoreCase),
+            user.ProfesionalNombre);
     }
 
     public AuthTokensResponse Refresh(RefreshRequest request, string? ip, string? userAgent)
@@ -178,7 +179,8 @@ public sealed class AuthService(
             user.Username,
             user.Roles,
             user.CentroId ?? "global",
-            string.Equals(user.Estado, EstadoDebeCambiarPassword, StringComparison.OrdinalIgnoreCase));
+            string.Equals(user.Estado, EstadoDebeCambiarPassword, StringComparison.OrdinalIgnoreCase),
+            user.ProfesionalNombre);
     }
 
     private AuthUserRow ResolveCentroLogin(AuthUserRow user, string? centroIdRaw)

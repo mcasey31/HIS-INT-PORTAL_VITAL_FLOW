@@ -64,6 +64,7 @@ public sealed class AdmisionService(
             [EstadoProgramado] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 EstadoEnSalaEspera,
+                EstadoEnAtencion,
                 EstadoAusente,
                 EstadoNoAdmitido,
                 EstadoPendientePago
@@ -398,14 +399,14 @@ public sealed class AdmisionService(
     {
         return string.Join(
             "|",
-            fechaHora.DateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+            fechaHora.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
             NormalizeTurnoProgramadoText(servicio),
             NormalizeTurnoProgramadoText(profesional));
     }
 
     private static string FormatTurnoProgramadoLabel(DateTimeOffset fechaHora)
     {
-        var local = fechaHora.DateTime;
+        var local = fechaHora.UtcDateTime;
         return $"{local:dd/MM/yyyy HH:mm}";
     }
 
@@ -413,7 +414,7 @@ public sealed class AdmisionService(
     {
         return string.Join(
             "|",
-            fechaHora.DateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+            fechaHora.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
             NormalizeTurnoProgramadoText(servicio));
     }
 
@@ -426,30 +427,26 @@ public sealed class AdmisionService(
 
         var marker = "slot:";
         var markerIndex = turnoProgramadoId.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-        if (markerIndex < 0)
+        if (markerIndex >= 0)
         {
-            return null;
+            var slotPayload = turnoProgramadoId[(markerIndex + marker.Length)..];
+            var parts = slotPayload.Split(':', StringSplitOptions.TrimEntries);
+            if (parts.Length >= 4)
+            {
+                var agendaId = parts[0];
+                var bloqueId = parts[1];
+                var fecha = parts[2];
+                var horaSegment = parts[3];
+                var hora = horaSegment.Split('-', 2, StringSplitOptions.TrimEntries)[0];
+
+                if (agendaId.Length > 0 && bloqueId.Length > 0 && fecha.Length > 0 && hora.Length > 0)
+                {
+                    return $"adm:{agendaId}:{bloqueId}:{fecha}:{hora}";
+                }
+            }
         }
 
-        var slotPayload = turnoProgramadoId[(markerIndex + marker.Length)..];
-        var parts = slotPayload.Split(':', StringSplitOptions.TrimEntries);
-        if (parts.Length < 4)
-        {
-            return null;
-        }
-
-        var agendaId = parts[0];
-        var bloqueId = parts[1];
-        var fecha = parts[2];
-        var horaSegment = parts[3];
-        var hora = horaSegment.Split('-', 2, StringSplitOptions.TrimEntries)[0];
-
-        if (agendaId.Length == 0 || bloqueId.Length == 0 || fecha.Length == 0 || hora.Length == 0)
-        {
-            return null;
-        }
-
-        return $"adm:{agendaId}:{bloqueId}:{fecha}:{hora}";
+        return $"adm:tp:{turnoProgramadoId}";
     }
 
     private static string NormalizeTurnoProgramadoText(string value)
@@ -578,7 +575,10 @@ public sealed class AdmisionService(
 
         var motivo = string.IsNullOrWhiteSpace(request.Motivo) ? null : request.Motivo.Trim();
         var llegadaFinal = rowActual?.LlegadaEn;
-        if (string.Equals(nuevoEstado, EstadoEnSalaEspera, StringComparison.OrdinalIgnoreCase) && llegadaFinal is null)
+        if (llegadaFinal is null
+            && string.Equals(estadoActual, EstadoProgramado, StringComparison.OrdinalIgnoreCase)
+            && (string.Equals(nuevoEstado, EstadoEnSalaEspera, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(nuevoEstado, EstadoEnAtencion, StringComparison.OrdinalIgnoreCase)))
         {
             llegadaFinal = DateTimeOffset.UtcNow;
         }

@@ -655,10 +655,10 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                         </div>
                         <div className="hc-receta-item-text">
                           <h4 style={{ fontSize: "0.92rem", fontWeight: 700, color: "#162839", margin: 0 }}>
-                            {new Date(receta.creadoEn).toLocaleDateString("es-AR")} — {receta.cantidadItems} ítem(s)
+                            {receta.medicamentoDisplay ?? `${receta.cantidadItems} ítem(s)`}
                           </h4>
-                          <p style={{ margin: "0.15rem 0 0", fontSize: "0.8rem", color: "#666" }}>
-                            Estado: <span className={`hc-chip hc-chip-${receta.estado.toLowerCase()}`} style={{ fontSize: "0.72rem", padding: "0.1rem 0.35rem" }}>{receta.estado}</span>
+                          <p style={{ margin: "0.15rem 0 0", fontSize: "0.8rem", color: "#555" }}>
+                            {new Date(receta.creadoEn).toLocaleDateString("es-AR")} — {receta.cantidadItems} ítem(s) — Estado: <span className={`hc-chip hc-chip-${receta.estado.toLowerCase()}`} style={{ fontSize: "0.72rem", padding: "0.1rem 0.35rem" }}>{receta.estado}</span>
                           </p>
                         </div>
                       </div>

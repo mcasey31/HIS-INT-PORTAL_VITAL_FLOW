@@ -1213,9 +1213,22 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
     public IReadOnlyList<Guid> GetEfectorIdsByUsuario(Guid userId)
     {
         const string sql = """
-            select id
-            from sch_agenda.efector
-            where usuario_id = @usuario_id
+            select e.id
+            from sch_agenda.efector e
+            where e.usuario_id = @usuario_id
+            union
+            select e.id
+            from sch_agenda.efector e
+            join sch_seguridad.usuario_sistema u on u.id = @usuario_id
+            left join sch_persona.persona p on p.id = u.persona_id
+            where e.usuario_id is null
+              and (
+                  (p.nombre is not null and p.apellido is not null
+                   and (e.nombre ilike '%' || p.apellido || '%'
+                        or e.nombre ilike '%' || p.nombre || '%'))
+                  or
+                  (p.nombre is null and e.nombre ilike '%' || u.username || '%')
+              )
             """;
 
         using var conn = new NpgsqlConnection(connectionString);
@@ -1579,6 +1592,113 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
                 reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
                 reader.GetFieldValue<DateTimeOffset>(2),
                 reader.GetString(3)
+            ));
+        }
+
+        return result;
+    }
+
+    public IReadOnlyList<(Guid Id, Guid CentroId, string Nombre)> GetAllServicios()
+    {
+        const string sql = "select id, centro_id, nombre from sch_agenda.servicio order by nombre;";
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        using var reader = cmd.ExecuteReader();
+        var result = new List<(Guid, Guid, string)>();
+        while (reader.Read())
+            result.Add((reader.GetGuid(0), reader.GetGuid(1), reader.GetString(2)));
+        return result;
+    }
+
+    public IReadOnlyList<(Guid Id, Guid ServicioId, string Nombre)> GetAllPracticasActivas()
+    {
+        const string sql = "select id, servicio_id, nombre from sch_agenda.practica where activa = true order by nombre;";
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        using var reader = cmd.ExecuteReader();
+        var result = new List<(Guid, Guid, string)>();
+        while (reader.Read())
+            result.Add((reader.GetGuid(0), reader.GetGuid(1), reader.GetString(2)));
+        return result;
+    }
+
+    public IReadOnlyList<(Guid Id, Guid CentroId, Guid ServicioId, string Nombre)> GetAllEfectoresActivos()
+    {
+        const string sql = "select id, centro_id, servicio_id, nombre from sch_agenda.efector where activo = true order by nombre;";
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        using var reader = cmd.ExecuteReader();
+        var result = new List<(Guid, Guid, Guid, string)>();
+        while (reader.Read())
+            result.Add((reader.GetGuid(0), reader.GetGuid(1), reader.GetGuid(2), reader.GetString(3)));
+        return result;
+    }
+
+    public IReadOnlyList<AgendaBloqueDisponibilidadRow> GetAgendasConBloquesParaDisponibilidad(
+        Guid[] centroIds, Guid servicioId, string practicaNombreNormalized, Guid? profesionalId)
+    {
+        const string sql = """
+            select
+                a.id, a.centro_id, c.nombre, a.servicio_id, s.nombre, a.efector_id, e.nombre,
+                a.fecha_desde, a.fecha_hasta,
+                bp.id, bp.hora_inicio, bp.hora_fin, bp.intervalo_minutos,
+                coalesce(bp.duracion_turno_minutos, bp.intervalo_minutos, 30),
+                bp.practicas_json,
+                coalesce(bp.fecha_desde, bp.fecha),
+                coalesce(bp.fecha_hasta, bp.fecha),
+                bp.atiende_feriados, bp.sobreturnos,
+                bp.dias_semana
+            from sch_agenda.agenda a
+            join sch_agenda.centro c on c.id = a.centro_id
+            join sch_agenda.servicio s on s.id = a.servicio_id
+            join sch_agenda.efector e on e.id = a.efector_id
+            join sch_agenda.bloque_programacion bp on bp.agenda_id = a.id
+            where a.visible_contact_center = true
+              and bp.estado = 'ACTIVO'
+              and a.centro_id = any(@centro_ids)
+              and a.servicio_id = @servicio_id
+              and bp.practicas_json ilike '%' || @practica_nombre || '%'
+              and (@profesional_id is null or a.efector_id = @profesional_id)
+            order by c.nombre, s.nombre, e.nombre, bp.hora_inicio
+            """;
+
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("centro_ids", NpgsqlDbType.Array | NpgsqlDbType.Uuid, centroIds);
+        cmd.Parameters.AddWithValue("servicio_id", NpgsqlDbType.Uuid, servicioId);
+        cmd.Parameters.AddWithValue("practica_nombre", NpgsqlDbType.Text, practicaNombreNormalized);
+        cmd.Parameters.AddWithValue("profesional_id", NpgsqlDbType.Uuid, (object?)profesionalId ?? DBNull.Value);
+
+        using var reader = cmd.ExecuteReader();
+        var result = new List<AgendaBloqueDisponibilidadRow>();
+        while (reader.Read())
+        {
+            var diasRaw = reader.IsDBNull(19) ? "" : reader.GetString(19);
+            result.Add(new AgendaBloqueDisponibilidadRow(
+                reader.GetGuid(0),
+                reader.GetGuid(1),
+                reader.GetString(2),
+                reader.GetGuid(3),
+                reader.GetString(4),
+                reader.GetGuid(5),
+                reader.GetString(6),
+                reader.GetFieldValue<DateOnly>(7),
+                reader.IsDBNull(8) ? null : reader.GetFieldValue<DateOnly>(8),
+                reader.GetGuid(9),
+                reader.GetFieldValue<TimeOnly>(10),
+                reader.GetFieldValue<TimeOnly>(11),
+                reader.GetInt32(12),
+                reader.GetInt32(13),
+                reader.IsDBNull(14) ? "[]" : reader.GetString(14),
+                reader.GetFieldValue<DateOnly>(15),
+                reader.GetFieldValue<DateOnly>(16),
+                reader.GetBoolean(17),
+                reader.GetInt32(18),
+                diasRaw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             ));
         }
 

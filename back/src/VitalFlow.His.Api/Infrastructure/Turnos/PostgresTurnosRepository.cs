@@ -491,11 +491,21 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
     public Guid UpsertCupoAndGetId(Guid bloqueId, DateTimeOffset horaInicio, DateTimeOffset horaFin)
     {
         const string sql = """
-            insert into sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
-            values (@bloqueId, @horaInicio, @horaFin, 'libre', 1, false, 'SYSTEM', 'SYSTEM', now())
-            on conflict (bloque_id, hora_inicio)
-            do update set hora_fin = excluded.hora_fin, updated_at = now()
-            returning id
+            with updated as (
+                update sch_agenda.cupo
+                set hora_fin = @horaFin, updated_at = now()
+                where bloque_id = @bloqueId and hora_inicio = @horaInicio
+                returning id
+            ), inserted as (
+                insert into sch_agenda.cupo (id, bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
+                select gen_random_uuid(), @bloqueId, @horaInicio, @horaFin, 'libre', 1, false, 'SYSTEM', 'SYSTEM', now()
+                where not exists (select 1 from sch_agenda.cupo where bloque_id = @bloqueId and hora_inicio = @horaInicio)
+                returning id
+            )
+            select id from updated
+            union all
+            select id from inserted
+            limit 1
             """;
 
         using var conn = new NpgsqlConnection(connectionString);
@@ -510,12 +520,21 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
     public Guid? TryReservarCupo(Guid bloqueId, DateTimeOffset horaInicio, DateTimeOffset horaFin)
     {
         const string sql = """
-            insert into sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
-            values (@bloqueId, @horaInicio, @horaFin, 'reservado', 1, false, 'SYSTEM', 'SYSTEM', now())
-            on conflict (bloque_id, hora_inicio)
-            do update set estado = 'reservado', hora_fin = excluded.hora_fin, updated_at = now()
-            where sch_agenda.cupo.estado = 'libre'
-            returning id
+            with updated as (
+                update sch_agenda.cupo
+                set estado = 'reservado', hora_fin = @horaFin, updated_at = now()
+                where bloque_id = @bloqueId and hora_inicio = @horaInicio and estado = 'libre'
+                returning id
+            ), inserted as (
+                insert into sch_agenda.cupo (id, bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
+                select gen_random_uuid(), @bloqueId, @horaInicio, @horaFin, 'reservado', 1, false, 'SYSTEM', 'SYSTEM', now()
+                where not exists (select 1 from sch_agenda.cupo where bloque_id = @bloqueId and hora_inicio = @horaInicio)
+                returning id
+            )
+            select id from updated
+            union all
+            select id from inserted
+            limit 1
             """;
 
         using var conn = new NpgsqlConnection(connectionString);

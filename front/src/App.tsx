@@ -23,7 +23,7 @@ type BreadcrumbItem = {
 const APP_BUNDLE_SCRIPT_REGEX = /<script[^>]*src="([^"]*\/assets\/index-[^"]+\.js)"[^>]*><\/script>/i;
 
 export function App() {
-  const { isAuthenticated, isInitializing, logout, username, centroId, roles, mustChangePassword } = useAuth();
+  const { isAuthenticated, isInitializing, logout, username, centroId, roles, mustChangePassword, profesionalNombre } = useAuth();
   const { hasUnsavedChanges, clearUnsavedChanges, confirmNavigation } = useUnsavedChanges();
   const navigate = useNavigate();
   const location = useLocation();
@@ -194,7 +194,7 @@ export function App() {
 
   const path = location.pathname;
   const isHome = path === "/";
-  const displayName = username ? username.charAt(0).toUpperCase() + username.slice(1).toLowerCase() : "Usuario";
+  const displayName = profesionalNombre ?? (username ? username.charAt(0).toUpperCase() + username.slice(1).toLowerCase() : "Usuario");
   const hasRole = (name: string) => roles.some((role) => role.toLowerCase() === name.toLowerCase());
   const canAccessPersonas =
     hasRole("Administrador")

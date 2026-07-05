@@ -7,7 +7,6 @@ using VitalFlow.His.Api.Application.Auth.Services;
 using VitalFlow.His.Api.Filters;
 
 namespace VitalFlow.His.Api.Controllers;
-
 [ApiController]
 [Route("api/v1/auth")]
 [EnableRateLimiting(RateLimitingPolicies.Default)]
@@ -85,3 +84,5 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         }
     }
 }
+
+

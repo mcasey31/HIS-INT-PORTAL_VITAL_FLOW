@@ -13,7 +13,7 @@ type HomeAccessCard = {
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { username, roles } = useAuth();
+  const { username, roles, profesionalNombre } = useAuth();
   const [now, setNow] = useState(() => new Date());
   const hasRole = (name: string) => roles.some((role) => role.toLowerCase() === name.toLowerCase());
   const canAccessPersonas =
@@ -38,9 +38,9 @@ export function HomePage() {
   const canAccessEscritorioClinico = hasRole("Administrador") || hasRole("Medico") || hasRole("Auditor");
   const canAccessEstructuraInterna = hasRole("Administrador") || hasRole("Administrador Seguridad");
 
-  const displayName = username
+  const displayName = profesionalNombre ?? (username
     ? username.charAt(0).toUpperCase() + username.slice(1).toLowerCase()
-    : "Usuario";
+    : "Usuario");
 
   useEffect(() => {
     const timer = window.setInterval(() => {
