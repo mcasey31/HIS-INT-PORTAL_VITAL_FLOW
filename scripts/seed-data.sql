@@ -34,7 +34,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Test Users
 INSERT INTO sch_seguridad.usuario_sistema (id, persona_id, username, password_hash, estado, matricula)
-SELECT '50000000-0000-0000-0000-000000000101', id, 'jperez', 'pbkdf2-sha256$100000$UO/K04INrQ1QXyMytQQOqQ==$Ya3f+ZIzOXs/+zk8fEAK0OlVWUjXj6jD4PA073dVEZQ=', 'ACTIVO', 'MP123'
+SELECT '50000000-0000-0000-0000-000000000101', id, 'jperez', 'pbkdf2-sha256$100000$Yk57Iz4FMFMlFAH+a9hg7g==$uLMrXCafnoSDWkRmwMKIzmVOqfG7sPi+2/3JIAsgD7Y=', 'ACTIVO', 'MP123'
 FROM sch_persona.persona WHERE numero_documento = '12345678'
 ON CONFLICT (id) DO NOTHING;
 
@@ -50,7 +50,7 @@ WHERE id = '00000000-0000-0000-0000-000000000202';
 -- Admin user (created by migration 014, just set ACTIVO + known password)
 UPDATE sch_seguridad.usuario_sistema
 SET estado = 'ACTIVO',
-    password_hash = 'pbkdf2-sha256$100000$Kodu8LY8bFI6Pb0sDrCvTQ==$5s7NekIrjJa1CeKblth1mJjfFFLOxIcPIp6UiqaUeVk=',
+    password_hash = 'pbkdf2-sha256$100000$ArnfFTgfD7bRCto5P2V5og==$tVFSVWOs9paN0rM3pcVa8kzkuldOPe7+tf+3/Bk+6r8=',
     updated_at = now()
 WHERE username = 'admin';
 

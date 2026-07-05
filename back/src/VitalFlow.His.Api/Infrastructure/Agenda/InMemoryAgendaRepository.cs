@@ -393,14 +393,5 @@ public sealed class InMemoryAgendaRepository : IAgendaRepository
     {
         return Array.Empty<TurnoByBloqueRow>();
     }
-
-    public IReadOnlyList<(Guid Id, Guid CentroId, string Nombre)> GetAllServicios() => _servicios.Select(s => (s.Id, s.CentroId, s.Nombre)).ToList();
-
-    public IReadOnlyList<(Guid Id, Guid ServicioId, string Nombre)> GetAllPracticasActivas() => [];
-
-    public IReadOnlyList<(Guid Id, Guid CentroId, Guid ServicioId, string Nombre)> GetAllEfectoresActivos() => _efectores.Select(e => (e.Id, e.CentroId, e.ServicioId, e.Nombre)).ToList();
-
-    public IReadOnlyList<AgendaBloqueDisponibilidadRow> GetAgendasConBloquesParaDisponibilidad(
-        Guid[] centroIds, Guid servicioId, string practicaNombreNormalized, Guid? profesionalId) => [];
 }
 

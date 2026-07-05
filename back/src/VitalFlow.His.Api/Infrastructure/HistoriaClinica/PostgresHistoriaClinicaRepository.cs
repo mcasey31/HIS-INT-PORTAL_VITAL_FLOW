@@ -357,10 +357,10 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
             PacienteId = recetaReader.GetGuid(recetaReader.GetOrdinal("paciente_id")).ToString(),
             EncuentroId = recetaReader.IsDBNull(recetaReader.GetOrdinal("encuentro_id"))
                 ? null
-                : recetaReader.GetGuid(recetaReader.GetOrdinal("encuentro_id")).ToString(),
+                : recetaReader.GetString(recetaReader.GetOrdinal("encuentro_id")),
             TurnoId = recetaReader.IsDBNull(recetaReader.GetOrdinal("turno_id"))
                 ? null
-                : recetaReader.GetGuid(recetaReader.GetOrdinal("turno_id")).ToString(),
+                : recetaReader.GetString(recetaReader.GetOrdinal("turno_id")),
             PrescriptorUsuarioId = recetaReader.GetGuid(recetaReader.GetOrdinal("prescriptor_usuario_id")).ToString(),
             PrescriptorMatricula = recetaReader.GetString(recetaReader.GetOrdinal("prescriptor_matricula")),
             OrganizacionOid = recetaReader.GetString(recetaReader.GetOrdinal("organizacion_oid")),
@@ -456,15 +456,7 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
                 r.estado,
                 r.rdiar_profile,
                 r.created_at,
-                coalesce(count(i.id), 0) as cantidad_items,
-                (
-                    select i2.medicamento_display
-                    from sch_hca.receta_digital_item i2
-                    where i2.receta_id = r.id
-                      and i2.activo = true
-                    order by i2.created_at asc
-                    limit 1
-                ) as medicamento_display
+                coalesce(count(i.id), 0) as cantidad_items
             from sch_hca.receta_digital r
             left join sch_hca.receta_digital_item i
                 on i.receta_id = r.id
@@ -491,10 +483,7 @@ public sealed class PostgresHistoriaClinicaRepository(string connectionString) :
                 Estado: reader.GetString(reader.GetOrdinal("estado")),
                 RdiarProfile: reader.GetString(reader.GetOrdinal("rdiar_profile")),
                 CreadoEn: reader.GetDateTime(reader.GetOrdinal("created_at")).ToString("O"),
-                CantidadItems: reader.GetInt32(reader.GetOrdinal("cantidad_items")),
-                MedicamentoDisplay: reader.IsDBNull(reader.GetOrdinal("medicamento_display"))
-                    ? null
-                    : reader.GetString(reader.GetOrdinal("medicamento_display"))));
+                CantidadItems: reader.GetInt32(reader.GetOrdinal("cantidad_items"))));
         }
 
         return result;

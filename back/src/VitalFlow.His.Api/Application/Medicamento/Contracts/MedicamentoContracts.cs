@@ -7,7 +7,7 @@ public sealed record MedicamentoResponse(
     string Producto,
     string Laboratorio,
     string Familia,
-    string? Forma,
+    string Forma,
     bool EsGenerico
 );
 

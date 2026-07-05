@@ -16,8 +16,7 @@ public sealed record AuthTokensResponse(
     string Username,
     IReadOnlyList<string> Roles,
     string CentroId,
-    bool MustChangePassword,
-    string? ProfesionalNombre
+    bool MustChangePassword
 );
 
 public sealed record CreateSystemUserRequest(

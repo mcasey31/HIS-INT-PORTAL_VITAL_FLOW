@@ -23,8 +23,8 @@ import {
 import { useAuth } from "../auth/AuthContext";
 
 export function useEscritorioClinicoController({ onCancelSeleccionServicio }: UseEscritorioClinicoOptions = {}) {
-  const { roles, username, profesionalNombre } = useAuth();
-  const profesionalActual = useMemo(() => profesionalNombre ?? formatProfesionalDisplayName(username), [username, profesionalNombre]);
+  const { roles, username } = useAuth();
+  const profesionalActual = useMemo(() => formatProfesionalDisplayName(username), [username]);
   const isAdminUsuario = roles.some(role => normalizeText(role) === ROL_ADMINISTRADOR);
   const isMedicoUsuario = roles.some(role => normalizeText(role) === ROL_MEDICO);
 
@@ -155,26 +155,17 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   }, [pendingLlamadoTurno, turnos]);
 
   const turnosFiltrados = useMemo(() => {
-    let filtered = turnos;
-    if (isMedicoUsuario && !isAdminUsuario) {
-      filtered = filtered.filter(turno => turno.paciente !== PACIENTE_POR_IDENTIFICAR);
-      if (efectorId) {
-        filtered = filtered.filter(turno => turno.efector === efectorId);
-      }
-    }
-    const sorted = [...filtered].sort((a, b) => {
-      const aArrived = a.llegada != null;
-      const bArrived = b.llegada != null;
-      if (aArrived && !bArrived) return -1;
-      if (!aArrived && bArrived) return 1;
-      if (aArrived && bArrived) {
-        return parseTurnoDateTime(a.llegada!) - parseTurnoDateTime(b.llegada!);
-      }
-      return parseTurnoDateTime(a.turno) - parseTurnoDateTime(b.turno);
+    const turnosOrdenados = [...turnos].sort((a, b) => {
+      const diff = parseTurnoDateTime(a.turno) - parseTurnoDateTime(b.turno);
+      if (diff !== 0) return diff;
+      return a.id.localeCompare(b.id);
     });
+    const turnosConConsultorioAplicado = isMedicoUsuario && !isAdminUsuario && efectorId
+      ? turnosOrdenados.filter(turno => turno.efector === efectorId)
+      : turnosOrdenados;
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return sorted;
-    return sorted.filter(turno =>
+    if (!normalizedQuery) return turnosConConsultorioAplicado;
+    return turnosConConsultorioAplicado.filter(turno =>
       turno.paciente.toLowerCase().includes(normalizedQuery) ||
       turno.documento.toLowerCase().includes(normalizedQuery) ||
       turno.servicio.toLowerCase().includes(normalizedQuery) ||
@@ -216,12 +207,12 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       evolucionId: item.id,
       fechaAtencion: item.fechaAtencion,
       especialidad: item.especialidad,
-      profesional: normalizeProfesionalLabel(item.profesional, profesionalActual, username),
+      profesional: normalizeProfesionalLabel(item.profesional, profesionalActual),
       problemasAsociados: item.problemasAsociados
     }));
     const backendNormalizadas = evolucionesAmbulatorias.map(item => ({
       ...item,
-      profesional: normalizeProfesionalLabel(item.profesional, profesionalActual, username)
+      profesional: normalizeProfesionalLabel(item.profesional, profesionalActual)
     }));
     return [...localesAmbulatorias, ...backendNormalizadas].sort((a, b) => {
       const da = Date.parse(a.fechaAtencion);
@@ -236,11 +227,11 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   const evolucionesCombinadas = useMemo(() => {
     if (!selectedTurno) {
       return buildListadoEvoluciones(evolucionesAmbulatorias).map(item => ({
-        ...item, profesional: normalizeProfesionalLabel(item.profesional, profesionalActual, username)
+        ...item, profesional: normalizeProfesionalLabel(item.profesional, profesionalActual)
       }));
     }
     const base = buildListadoEvoluciones(evolucionesAmbulatorias).map(item => ({
-      ...item, profesional: normalizeProfesionalLabel(item.profesional, profesionalActual, username)
+      ...item, profesional: normalizeProfesionalLabel(item.profesional, profesionalActual)
     }));
     const locales = evolucionesLocalesPaciente.map(item => {
       const { fecha } = extractPlainTextFromHtml(item.fechaAtencion) as unknown as { fecha: string };
@@ -250,7 +241,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
         fechaHora: item.fechaAtencion,
         fechaAtencion: formatted,
         especialidad: item.especialidad,
-        profesional: normalizeProfesionalLabel(item.profesional, profesionalActual, username),
+        profesional: normalizeProfesionalLabel(item.profesional, profesionalActual),
         practica: CONSULTA_MEDICA,
         problemasAsociados: item.problemasAsociados,
         texto: item.texto
@@ -275,10 +266,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       });
   }, [listadoEvoluciones, evolucionesFiltroProfesional, evolucionesFiltroServicio]);
 
-  const canLlamar = selectedTurno && (
-    selectedTurno.estado === "PROGRAMADO"
-    || (selectedTurno.llegada && estadoEsLlamable(selectedTurno.estado))
-  );
+  const canLlamar = selectedTurno && selectedTurno.llegada ? estadoEsLlamable(selectedTurno.estado) : false;
   const pacienteEnAtencion = selectedTurno?.estado === ESTADO_EN_ATENCION;
   const esVisualizacionHC = origenPanoramica === "historia" && !pacienteEnAtencion;
   const puedeAbrirEvoluciones = Boolean(selectedTurno && selectedTurno.llegada && !esVisualizacionHC);
@@ -351,7 +339,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       const next: Record<string, EvolucionCreadaLocal[]> = {};
       for (const [key, items] of Object.entries(prev)) {
         next[key] = items.map(item => {
-          const profesionalNormalizado = normalizeProfesionalLabel(item.profesional, profesionalActual, username);
+          const profesionalNormalizado = normalizeProfesionalLabel(item.profesional, profesionalActual);
           if (profesionalNormalizado === item.profesional) return item;
           changed = true;
           return { ...item, profesional: profesionalNormalizado };
@@ -1031,7 +1019,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
 
   async function abrirHistoriaClinica(turno: TurnoAdmision) {
     setModoIngreso("plantilla"); setOrigenPanoramica("ver"); setSelectedTurnoId(turno.id); setError(null);
-    if (turno.estado !== ESTADO_EN_ATENCION && (estadoEsLlamable(turno.estado) || turno.estado === "PROGRAMADO")) {
+    if (turno.estado !== ESTADO_EN_ATENCION && estadoEsLlamable(turno.estado)) {
       try {
         const response = await actualizarEstadoTurno(turno.id, { estado: ESTADO_EN_ATENCION, motivo: "INICIO_ATENCION" });
         updateTurnoState(turno.id, response.estado);
@@ -1238,31 +1226,6 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
   }
 
   function imprimirReceta(receta: RecetaDigitalResumenResponse) {
-    function extractDoctorNameFromFhir(fhirBundleJson?: string): string | null {
-      if (!fhirBundleJson) return null;
-      try {
-        const bundle = typeof fhirBundleJson === "string" ? JSON.parse(fhirBundleJson) : fhirBundleJson;
-        if (bundle && bundle.entry && Array.isArray(bundle.entry)) {
-          const practitionerEntry = bundle.entry.find(
-            (e: any) => e.resource && e.resource.resourceType === "Practitioner"
-          );
-          if (practitionerEntry && practitionerEntry.resource) {
-            const p = practitionerEntry.resource;
-            if (p.name && Array.isArray(p.name) && p.name.length > 0) {
-              const nameObj = p.name[0];
-              const given = Array.isArray(nameObj.given) ? nameObj.given.join(" ") : (nameObj.given || "");
-              const family = nameObj.family || "";
-              const text = nameObj.text || `${given} ${family}`.trim();
-              if (text) return text;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Error parsing FHIR bundle", e);
-      }
-      return null;
-    }
-
     Promise.all([
       obtenerRecetaDigital(receta.recetaId),
       (async () => {
@@ -1279,361 +1242,56 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     ]).then(([detalle, financiador]) => {
       const printWindow = window.open("", "_blank");
       if (!printWindow) return;
-
-      const items = detalle.items.map(item => {
-        const display = item.medicamentoDisplay || "";
-        let brand = display;
-        let generic = "";
-        const match = display.match(/\(([^)]+)\)/);
-        if (match) {
-          generic = match[1];
-          brand = display.replace(/\s*\([^)]+\)/, "").trim();
-        }
-        return `
-          <tr>
-            <td>
-              <div class="med-item">${brand}</div>
-              ${generic ? `<div class="med-sub">${generic}</div>` : ""}
-            </td>
-            <td>${item.dosisTexto ?? VALOR_GUION}</td>
-            <td>${item.frecuenciaTexto ?? VALOR_GUION}</td>
-            <td>${item.duracionDias ? item.duracionDias + " días" : VALOR_GUION}</td>
-            <td>${item.indicacion ?? VALOR_GUION}</td>
-          </tr>
-        `;
-      }).join("\n");
-
+      const items = detalle.items.map(item => `
+        <tr>
+          <td class="med-item">${item.medicamentoDisplay}</td>
+          <td>${item.dosisTexto ?? VALOR_GUION}</td>
+          <td>${item.frecuenciaTexto ?? VALOR_GUION}</td>
+          <td>${item.duracionDias ? item.duracionDias + " días" : VALOR_GUION}</td>
+          <td>${item.indicacion ?? VALOR_GUION}</td>
+        </tr>
+      `).join("\n");
       const matriculaTexto = detalle.prescriptorMatricula ? `MP ${detalle.prescriptorMatricula}` : "";
-      const doctorNombre = extractDoctorNameFromFhir(detalle.fhirBundleJson) || profesionalActual || "Profesional Médico";
-      const pacienteNombre = selectedTurno?.paciente ?? "—";
-      const pacienteDocumento = selectedTurno?.documento ?? "—";
-      const fechaEmision = new Date(detalle.creadoEn).toLocaleDateString("es-AR");
-      const planTexto = financiador?.planNombre ? ` (Plan: ${financiador.planNombre})` : "";
-      const afiliadoTexto = financiador?.numeroAfiliado ? ` - N° ${financiador.numeroAfiliado}` : "";
-      const financiadorTexto = financiador?.financiadorNombre 
-        ? `${financiador.financiadorNombre}${planTexto}${afiliadoTexto}` 
-        : (selectedTurno?.financiador ?? "—");
-
+      const financiadorTexto = financiador?.financiadorNombre ? `${financiador.financiadorNombre}${financiador.numeroAfiliado ? " - N° " + financiador.numeroAfiliado : ""}` : (selectedTurno?.financiador ?? "—");
       printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Receta Digital - VitalFlow</title>
-          <link rel="preconnect" href="https://fonts.googleapis.com">
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-          <style>
-            @page {
-              size: A4 portrait;
-              margin: 1.5cm;
-            }
-            body {
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-              font-size: 10pt;
-              color: #1e293b;
-              line-height: 1.5;
-              margin: 0;
-              padding: 0;
-              background-color: #fff;
-            }
-            .receta-wrapper {
-              max-width: 800px;
-              margin: 0 auto;
-              padding: 0.5cm;
-            }
-            .header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 0.5cm;
-            }
-            .logo-container {
-              display: flex;
-              align-items: center;
-            }
-            .logo-title {
-              font-size: 20pt;
-              font-weight: 800;
-              color: #0f172a;
-              letter-spacing: -0.02em;
-              line-height: 1;
-              display: block;
-            }
-            .logo-subtitle {
-              font-size: 8pt;
-              font-weight: 600;
-              color: #64748b;
-              text-transform: uppercase;
-              letter-spacing: 0.15em;
-              display: block;
-              margin-top: 4px;
-            }
-            .header-contact {
-              text-align: right;
-              font-size: 8.5pt;
-              color: #475569;
-              line-height: 1.4;
-            }
-            .header-contact p {
-              margin: 0;
-            }
-            .header-separator {
-              height: 3px;
-              background: linear-gradient(90deg, #0284c7 0%, #0d9488 100%);
-              margin: 0.6cm 0;
-              border-radius: 2px;
-            }
-            .patient-card {
-              border: 1px solid #e2e8f0;
-              border-left: 4px solid #0284c7;
-              border-radius: 8px;
-              padding: 0.4cm 0.5cm;
-              background-color: #f8fafc;
-              margin-bottom: 0.8cm;
-            }
-            .patient-card-header {
-              font-size: 8.5pt;
-              font-weight: 700;
-              color: #0369a1;
-              letter-spacing: 0.08em;
-              margin-bottom: 0.25cm;
-            }
-            .patient-grid {
-              display: flex;
-              justify-content: space-between;
-            }
-            .grid-col {
-              width: 48%;
-            }
-            .grid-col p {
-              margin: 0.15cm 0;
-              font-size: 9.5pt;
-              color: #334155;
-            }
-            .grid-col strong {
-              color: #1e293b;
-              font-weight: 600;
-            }
-            .prescripcion-header {
-              font-size: 12pt;
-              font-weight: 700;
-              color: #0f172a;
-              margin-bottom: 0.3cm;
-              letter-spacing: -0.01em;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 0.2cm;
-              margin-bottom: 0.8cm;
-            }
-            th {
-              background-color: #f0f9ff;
-              padding: 10px 14px;
-              border-bottom: 2px solid #bae6fd;
-              text-align: left;
-              font-size: 9pt;
-              text-transform: uppercase;
-              letter-spacing: 0.05em;
-              color: #0369a1;
-              font-weight: 700;
-            }
-            td {
-              padding: 14px;
-              border-bottom: 1px solid #f1f5f9;
-              vertical-align: top;
-              font-size: 9.5pt;
-              color: #334155;
-              line-height: 1.5;
-            }
-            tr:last-child td {
-              border-bottom: none;
-            }
-            .med-item {
-              font-weight: 700;
-              font-size: 10.5pt;
-              color: #0f172a;
-            }
-            .med-sub {
-              font-size: 8.5pt;
-              color: #64748b;
-              margin-top: 2px;
-              font-weight: 400;
-            }
-            .header-icon {
-              width: 14px;
-              height: 14px;
-              display: inline-block;
-              vertical-align: text-bottom;
-              margin-right: 6px;
-              color: #0284c7;
-            }
-            .footer-validation-stamp {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-end;
-              margin-top: 1.5cm;
-              padding-top: 0.6cm;
-              border-top: 1px dashed #cbd5e1;
-            }
-            .validation-box {
-              display: flex;
-              align-items: center;
-              width: 60%;
-            }
-            .qr-code {
-              width: 95px;
-              height: 95px;
-              border: 1px solid #e2e8f0;
-              padding: 4px;
-              border-radius: 4px;
-              margin-right: 16px;
-              background: #fff;
-            }
-            .validation-text {
-              font-size: 8pt;
-              color: #64748b;
-              line-height: 1.4;
-            }
-            .validation-text p {
-              margin: 2px 0;
-            }
-            .val-title {
-              font-weight: 700;
-              color: #0f172a;
-              font-size: 8.5pt;
-            }
-            .val-normativa {
-              font-style: italic;
-              margin-top: 4px !important;
-            }
-            .stamp-box {
-              text-align: center;
-              width: 35%;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-            }
-            .signature-line {
-              width: 180px;
-              border-top: 1px solid #475569;
-              margin-bottom: 8px;
-            }
-            .doc-name {
-              font-weight: 700;
-              font-size: 10.5pt;
-              color: #0f172a;
-              margin: 0;
-            }
-            .doc-lic {
-              font-size: 8.5pt;
-              color: #475569;
-              margin: 2px 0 0 0;
-            }
-            .legal-note {
-              text-align: center;
-              font-size: 7.5pt;
-              color: #94a3b8;
-              margin-top: 1cm;
-              border-top: 1px solid #f1f5f9;
-              padding-top: 0.3cm;
-            }
-            @media print {
-              body {
-                background-color: #fff;
-              }
-              .receta-wrapper {
-                padding: 0;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="receta-wrapper">
-            <div class="header">
-              <div class="logo-container">
-                <svg width="38" height="38" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 10px;">
-                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#0284c7"/>
-                  <path d="M12 6v8M8 10h8" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-                </svg>
-                <div>
-                  <span class="logo-title">VitalFlow</span>
-                  <span class="logo-subtitle">Centro Médico</span>
-                </div>
-              </div>
-              <div class="header-contact">
-                <p>Av. Corrientes 1234, CABA</p>
-                <p>Tel: 0810-555-FLOW (3569)</p>
-                <p>contacto@vitalflow.com | www.vitalflow.com</p>
-              </div>
-            </div>
-            
-            <div class="header-separator"></div>
-            
-            <div class="patient-card">
-              <div class="patient-card-header">DATOS DEL PACIENTE</div>
-              <div class="patient-grid">
-                <div class="grid-col">
-                  <p><strong>Paciente:</strong> ${pacienteNombre}</p>
-                  <p><strong>Documento:</strong> ${pacienteDocumento}</p>
-                </div>
-                <div class="grid-col">
-                  <p><strong>Cobertura:</strong> ${financiadorTexto}</p>
-                  <p><strong>Fecha de Emisión:</strong> ${fechaEmision}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div class="prescripcion-header">PRESCRIPCIÓN MÉDICA</div>
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:38%">
-                    <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>Medicamento
-                  </th>
-                  <th style="width:14%">
-                    <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>Dosis
-                  </th>
-                  <th style="width:16%">
-                    <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Frecuencia
-                  </th>
-                  <th style="width:12%">
-                    <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>Duración
-                  </th>
-                  <th style="width:20%">
-                    <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>Indicación
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                ${items}
-              </tbody>
-            </table>
-            
-            <div class="footer-validation-stamp">
-              <div class="validation-box">
-                <img class="qr-code" src="https://api.qrserver.com/v1/create-qr-code/?size=95&data=${encodeURIComponent('https://his.vitalflow.com/receta/' + detalle.recetaId)}" alt="QR" />
-                <div class="validation-text">
-                  <p class="val-title">Receta Digital Certificada</p>
-                  <p>Escanear para comprobar la autenticidad del documento en la base de datos de VitalFlow.</p>
-                  <p class="val-normativa">Documento digital válido según normativas vigentes.</p>
-                </div>
-              </div>
-              
-              <div class="stamp-box">
-                <div class="signature-line"></div>
-                <p class="doc-name">${doctorNombre}</p>
-                <p class="doc-lic">${matriculaTexto}</p>
-              </div>
-            </div>
-            
-            <div class="legal-note">
-              Esta receta es válida por 30 días a partir de su fecha de emisión.
-            </div>
-          </div>
-        </body>
-        </html>
+        <html><head><meta charset="utf-8">
+        <title>Prescripción Médica</title>
+        <style>
+          @page { margin: 2cm; }
+          body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #222; line-height: 1.5; }
+          h1 { font-size: 16pt; text-align: center; color: #1a3c5e; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.2cm; border-bottom: 3px double #1a3c5e; padding-bottom: 0.4cm; }
+          .info-grid { display: flex; flex-wrap: wrap; gap: 0.4rem 2.5rem; margin-bottom: 0.8cm; padding: 0.5cm 0.4cm; border: 1px solid #ccc; border-radius: 4px; background: #fafbfc; }
+          .info-grid p { margin: 0.15rem 0; font-size: 10.5pt; }
+          .info-grid strong { color: #1a3c5e; }
+          table { width: 100%; border-collapse: collapse; margin-top: 0.4cm; }
+          th { background: #e8edf3; padding: 0.4rem 0.5rem; border-bottom: 2px solid #8a9eb0; text-align: left; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.04em; color: #2b4b6e; }
+          td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #d5dee8; vertical-align: top; }
+          tr:last-child td { border-bottom: none; }
+          .med-item { font-weight: 600; font-size: 11pt; color: #111; }
+          .firma { margin-top: 2.5cm; text-align: center; }
+          .firma hr { width: 45%; margin: 0 auto 0.3cm; border: none; border-top: 1px solid #555; }
+          .firma p { margin: 0.15rem 0; color: #333; }
+          .firma .medico-nombre { font-weight: 700; font-size: 12pt; }
+          .firma .medico-matricula { font-size: 10pt; color: #555; }
+        </style>
+        </head><body>
+        <h1>Receta Médica</h1>
+        <div class="info-grid">
+          <p><strong>Médico:</strong> ${profesionalActual} ${matriculaTexto}</p>
+          <p><strong>Paciente:</strong> ${selectedTurno?.paciente ?? "—"}</p>
+          <p><strong>Documento:</strong> ${selectedTurno?.documento ?? "—"}</p>
+          <p><strong>Obra Social:</strong> ${financiadorTexto}</p>
+          <p><strong>Fecha:</strong> ${new Date().toLocaleDateString("es-AR")}</p>
+        </div>
+        <table><thead><tr>
+          <th style="width:35%">Medicamento</th><th style="width:15%">Dosis</th><th style="width:18%">Frecuencia</th><th style="width:12%">Duración</th><th style="width:20%">Indicación</th>
+        </tr></thead><tbody>${items}</tbody></table>
+        <div class="firma">
+          <hr>
+          <p class="medico-nombre">${profesionalActual}</p>
+          <p class="medico-matricula">${matriculaTexto || "Firma y sello del médico"}</p>
+        </div>
+        </body></html>
       `);
       printWindow.document.close();
       printWindow.focus();

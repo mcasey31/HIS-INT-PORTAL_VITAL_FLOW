@@ -259,15 +259,12 @@ export function formatProfesionalDisplayName(username: string | null): string {
   return target.split(/\s+/).filter(Boolean).map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join(" ");
 }
 
-export function normalizeProfesionalLabel(value: string | null | undefined, profesionalActual: string, username?: string | null): string {
+export function normalizeProfesionalLabel(value: string | null | undefined, profesionalActual: string): string {
   const raw = (value ?? "").trim();
   if (!raw) {
     return profesionalActual;
   }
   if (normalizeText(raw) === normalizeText(PROFESIONAL_LEGACY_PLACEHOLDER)) {
-    return profesionalActual;
-  }
-  if (username && normalizeText(raw) === normalizeText(username)) {
     return profesionalActual;
   }
   return raw;
@@ -427,7 +424,6 @@ export interface RecetaDigitalResumenResponse {
   rdiarProfile: string;
   creadoEn: string;
   cantidadItems: number;
-  medicamentoDisplay?: string;
 }
 
 export interface RecetaDigitalDetalleResponse {
@@ -440,7 +436,6 @@ export interface RecetaDigitalDetalleResponse {
   estado: string;
   creadoEn: string;
   items: RecetaDigitalItemResponse[];
-  fhirBundleJson?: string;
 }
 
 export interface RecetaDigitalItemResponse {

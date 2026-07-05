@@ -33,8 +33,7 @@ public sealed record AuthUserRow(
     string Estado,
     IReadOnlyList<string> Roles,
     string? CentroId,
-    string? Matricula,
-    string? ProfesionalNombre
+    string? Matricula
 );
 
 public sealed record AuthCentroRow(Guid Id, string Nombre);

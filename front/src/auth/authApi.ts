@@ -12,7 +12,6 @@ export type AuthTokensResponse = {
   roles: string[];
   centroId: string;
   mustChangePassword?: boolean;
-  profesionalNombre?: string;
 };
 
 export type LoginCentroOption = {

@@ -94,8 +94,7 @@ public sealed record RecetaDigitalResumenResponse(
     string Estado,
     string RdiarProfile,
     string CreadoEn,
-    int CantidadItems,
-    string? MedicamentoDisplay
+    int CantidadItems
 );
 
 public sealed record RecetaDigitalDetalleResponse(

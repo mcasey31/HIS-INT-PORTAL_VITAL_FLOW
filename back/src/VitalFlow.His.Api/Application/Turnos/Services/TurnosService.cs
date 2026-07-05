@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.Text.Json;
 using VitalFlow.His.Api.Domain.Agenda;
 using VitalFlow.His.Api.Application.Personas.Repositories;
 using VitalFlow.His.Api.Application.Turnos.Contracts;
@@ -116,18 +115,6 @@ public sealed class TurnosService(
 
         var agendas = GetAgendasElegiblesConBloques();
 
-        if (agendas.Count > 0)
-        {
-            return BuildSelectoresFromAgendas(centros, agendas);
-        }
-
-        return BuildSelectoresFromDb(centros);
-    }
-
-    private SelectoresDisponibilidadTurnoResponse BuildSelectoresFromAgendas(
-        CentroTurnoResponse[] centros,
-        IReadOnlyList<AgendaAggregate> agendas)
-    {
         var servicios = agendas
             .GroupBy(item => item.ServicioId)
             .Select(group => new ServicioTurnoResponse(
@@ -218,54 +205,6 @@ public sealed class TurnosService(
         return new SelectoresDisponibilidadTurnoResponse(centros, servicios, practicas, profesionales);
     }
 
-    private SelectoresDisponibilidadTurnoResponse BuildSelectoresFromDb(CentroTurnoResponse[] centros)
-    {
-        var allServicios = agendaRepository.GetAllServicios();
-        var servicioPorId = allServicios.ToDictionary(s => s.Id, s => s);
-
-        var servicios = allServicios
-            .GroupBy(s => s.Id)
-            .Select(g => new ServicioTurnoResponse(
-                g.Key.ToString(),
-                g.First().Nombre,
-                [g.First().CentroId.ToString()]
-            ))
-            .OrderBy(s => s.Nombre, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        var allPracticas = agendaRepository.GetAllPracticasActivas();
-        var practicas = allPracticas
-            .Select(p =>
-            {
-                var centroIds = servicioPorId.TryGetValue(p.ServicioId, out var sv)
-                    ? new[] { sv.CentroId.ToString() }
-                    : Array.Empty<string>();
-                return new PracticaTurnoResponse(
-                    BuildPracticaId(p.ServicioId.ToString(), p.Nombre),
-                    p.Nombre,
-                    p.ServicioId.ToString(),
-                    centroIds,
-                    Array.Empty<string>()
-                );
-            })
-            .OrderBy(p => p.Nombre, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        var allEfectores = agendaRepository.GetAllEfectoresActivos();
-        var profesionales = allEfectores
-            .Select(e => new ProfesionalTurnoResponse(
-                e.Id.ToString(),
-                e.Nombre,
-                [e.CentroId.ToString()],
-                [e.ServicioId.ToString()],
-                Array.Empty<string>()
-            ))
-            .OrderBy(p => p.Nombre, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        return new SelectoresDisponibilidadTurnoResponse(centros, servicios, practicas, profesionales);
-    }
-
     public IReadOnlyList<DisponibilidadSlotTurnoResponse> BuscarDisponibilidad(BuscarDisponibilidadTurnoRequest request)
     {
         if (request.CentroIds.Count == 0
@@ -276,6 +215,7 @@ public sealed class TurnosService(
         }
 
         var hoy = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        var centrosSolicitados = request.CentroIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var slots = new List<DisponibilidadSlotTurnoResponse>();
         var ocupadosPorFecha = new Dictionary<DateOnly, Dictionary<string, TurnoPacienteRow>>();
 
@@ -303,159 +243,153 @@ public sealed class TurnosService(
             return dict;
         }
 
-        var practicaNombre = ExtractPracticaNombre(request.PracticaId);
-        var rows = agendaRepository.GetAgendasConBloquesParaDisponibilidad(
-            request.CentroIds.Select(id => Guid.Parse(id)).ToArray(),
-            Guid.Parse(request.ServicioId),
-            practicaNombre,
-            !string.IsNullOrWhiteSpace(request.ProfesionalId) ? Guid.Parse(request.ProfesionalId) : null);
-
-        var seenSlots = new HashSet<string>();
-
-        foreach (var row in rows)
+        foreach (var agenda in GetAgendasElegiblesConBloques())
         {
-            var servicioIdStr = row.ServicioId.ToString();
+            var centroId = agenda.CentroId.ToString();
+            var servicioId = agenda.ServicioId.ToString();
+            var profesionalId = agenda.EfectorId.ToString();
 
-            var practicas = ParsePracticas(row.PracticasJson);
-            var practicaMatch = practicas
-                .FirstOrDefault(item =>
-                    !string.IsNullOrWhiteSpace(item.Nombre)
-                    && string.Equals(
-                        BuildPracticaId(servicioIdStr, item.Nombre.Trim()),
-                        request.PracticaId,
-                        StringComparison.OrdinalIgnoreCase));
-
-            if (practicaMatch is null)
+            if (!centrosSolicitados.Contains(centroId))
             {
                 continue;
             }
 
-            var fechasSlot = ObtenerFechasDisponibles(row, hoy);
-            if (fechasSlot.Count == 0)
+            if (!string.Equals(servicioId, request.ServicioId, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            var horaInicio = row.HoraInicio;
-            var horaFin = row.HoraFin;
-            var intervalo = row.IntervaloMinutos > 0 ? row.IntervaloMinutos : Math.Max(row.DuracionTurnoMinutos, 1);
-            if (intervalo <= 0)
+
+            if (!string.IsNullOrWhiteSpace(request.ProfesionalId)
+                && !string.Equals(profesionalId, request.ProfesionalId, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            var practicaNombreMatch = practicaMatch.Nombre.Trim();
-
-            foreach (var fechaSlot in fechasSlot)
+            foreach (var bloque in agenda.Bloques.Where(EsBloqueElegible))
             {
-                for (var hora = horaInicio; hora < horaFin; hora = hora.AddMinutes(intervalo))
+                var practicaMatch = bloque.Practicas
+                    .FirstOrDefault(item =>
+                        !string.IsNullOrWhiteSpace(item.Nombre)
+                        && string.Equals(
+                            BuildPracticaId(servicioId, item.Nombre.Trim()),
+                            request.PracticaId,
+                            StringComparison.OrdinalIgnoreCase));
+
+                if (practicaMatch is null)
                 {
-                    var horaSlot = hora.ToString("HH:mm", CultureInfo.InvariantCulture);
-                    var dedupKey = $"{fechaSlot:yyyyMMdd}|{horaSlot}|{row.CentroNombre}|{row.ServicioNombre}|{practicaNombreMatch}|{row.EfectorNombre}";
-                    if (!seenSlots.Add(dedupKey))
+                    continue;
+                }
+
+                var fechasSlot = ObtenerFechasDisponibles(bloque, agenda, hoy);
+                if (fechasSlot.Count == 0)
+                {
+                    continue;
+                }
+
+                var horaInicio = bloque.HoraInicio;
+                var horaFin = bloque.HoraFin;
+                var intervalo = bloque.IntervaloMinutos > 0 ? bloque.IntervaloMinutos : Math.Max(bloque.DuracionTurnoMinutos, 1);
+                if (intervalo <= 0)
+                {
+                    continue;
+                }
+
+                foreach (var fechaSlot in fechasSlot)
+                {
+                    for (var hora = horaInicio; hora < horaFin; hora = hora.AddMinutes(intervalo))
+                    {
+                        var horaSlot = hora.ToString("HH:mm", CultureInfo.InvariantCulture);
+                        var slotId = $"slot:{agenda.Id:N}:{bloque.Id:N}:{fechaSlot:yyyyMMdd}:{hora:HHmm}";
+                        SlotContextById[slotId] = new SlotContext(
+                            slotId,
+                            agenda.CentroNombre,
+                            agenda.ServicioNombre,
+                            practicaMatch.Nombre.Trim(),
+                            agenda.EfectorNombre,
+                            fechaSlot,
+                            horaSlot,
+                            horaInicio.ToString("HH:mm", CultureInfo.InvariantCulture),
+                            horaFin.ToString("HH:mm", CultureInfo.InvariantCulture),
+                            false,
+                            BuildStKey(agenda.Id, bloque.Id, fechaSlot),
+                            agenda.CentroId,
+                            agenda.ServicioId,
+                            agenda.EfectorId,
+                            bloque.Id,
+                            bloque.DuracionTurnoMinutos
+                        );
+
+                        var slotOcupado = GetOcupados(fechaSlot).Contains(BuildSlotOcupadoKey(
+                            fechaSlot,
+                            horaSlot,
+                            agenda.CentroNombre,
+                            agenda.ServicioNombre,
+                            agenda.EfectorNombre));
+
+                        slots.Add(new DisponibilidadSlotTurnoResponse(
+                            slotId,
+                            fechaSlot,
+                            horaSlot,
+                            "NORMAL",
+                            horaInicio.ToString("HH:mm", CultureInfo.InvariantCulture),
+                            horaFin.ToString("HH:mm", CultureInfo.InvariantCulture),
+                            agenda.CentroNombre,
+                            agenda.ServicioNombre,
+                            practicaMatch.Nombre.Trim(),
+                            agenda.EfectorNombre,
+                            slotOcupado ? "ASIGNADO" : "DISPONIBLE",
+                            null,
+                            slotOcupado ? "Turno asignado" : null
+                        ));
+                    }
+
+                    if (bloque.Sobreturnos <= 0)
                     {
                         continue;
                     }
 
-                    var slotId = $"slot:{row.AgendaId:N}:{row.BloqueId:N}:{fechaSlot:yyyyMMdd}:{hora:HHmm}";
-                    SlotContextById[slotId] = new SlotContext(
-                        slotId,
-                        row.CentroNombre,
-                        row.ServicioNombre,
+                    var stKey = BuildStKey(agenda.Id, bloque.Id, fechaSlot);
+                    var sobreTurnosDisponibles = turnosRepository.GetOrInitSobreturnosDisponibles(stKey, bloque.Sobreturnos);
+                    var slotStId = $"slot-st:{agenda.Id:N}:{bloque.Id:N}:{fechaSlot:yyyyMMdd}";
+
+                    SlotContextById[slotStId] = new SlotContext(
+                        slotStId,
+                        agenda.CentroNombre,
+                        agenda.ServicioNombre,
                         practicaMatch.Nombre.Trim(),
-                        row.EfectorNombre,
+                        agenda.EfectorNombre,
                         fechaSlot,
-                        horaSlot,
+                        "--:--",
                         horaInicio.ToString("HH:mm", CultureInfo.InvariantCulture),
                         horaFin.ToString("HH:mm", CultureInfo.InvariantCulture),
-                        false,
-                        BuildStKey(row.AgendaId, row.BloqueId, fechaSlot),
-                        row.CentroId,
-                        row.ServicioId,
-                        row.EfectorId,
-                        row.BloqueId,
-                        row.DuracionTurnoMinutos
+                        true,
+                        stKey,
+                        agenda.CentroId,
+                        agenda.ServicioId,
+                        agenda.EfectorId,
+                        bloque.Id,
+                        bloque.DuracionTurnoMinutos
                     );
 
-                    var keyOcupado = BuildSlotOcupadoKey(
-                        fechaSlot,
-                        horaSlot,
-                        row.CentroNombre,
-                        row.ServicioNombre,
-                        row.EfectorNombre);
-
-                    var dictOcupados = GetOcupados(fechaSlot);
-                    var slotOcupado = dictOcupados.TryGetValue(keyOcupado, out var turnoAsignado);
-
                     slots.Add(new DisponibilidadSlotTurnoResponse(
-                        slotId,
+                        slotStId,
                         fechaSlot,
-                        horaSlot,
-                        "NORMAL",
+                        "--:--",
+                        "ST",
                         horaInicio.ToString("HH:mm", CultureInfo.InvariantCulture),
                         horaFin.ToString("HH:mm", CultureInfo.InvariantCulture),
-                        row.CentroNombre,
-                        row.ServicioNombre,
+                        agenda.CentroNombre,
+                        agenda.ServicioNombre,
                         practicaMatch.Nombre.Trim(),
-                        row.EfectorNombre,
-                        slotOcupado ? "ASIGNADO" : "DISPONIBLE",
-                        null,
-                        slotOcupado ? (turnoAsignado!.Motivo ?? "Turno asignado") : null
+                        agenda.EfectorNombre,
+                        sobreTurnosDisponibles > 0 ? "DISPONIBLE" : "CON_CUPO",
+                        sobreTurnosDisponibles,
+                        sobreTurnosDisponibles > 0
+                            ? "Slot ST disponible para asignacion de sobreturno"
+                            : "Sin cupo de sobreturnos"
                     ));
                 }
-
-                if (row.Sobreturnos <= 0)
-                {
-                    continue;
-                }
-
-                var stKey = BuildStKey(row.AgendaId, row.BloqueId, fechaSlot);
-                var sobreTurnosDisponibles = turnosRepository.GetOrInitSobreturnosDisponibles(stKey, row.Sobreturnos);
-
-                var stDedupKey = $"{fechaSlot:yyyyMMdd}|ST|{row.CentroNombre}|{row.ServicioNombre}|{practicaNombreMatch}|{row.EfectorNombre}";
-                if (!seenSlots.Add(stDedupKey))
-                {
-                    continue;
-                }
-
-                var slotStId = $"slot-st:{row.AgendaId:N}:{row.BloqueId:N}:{fechaSlot:yyyyMMdd}";
-
-                SlotContextById[slotStId] = new SlotContext(
-                    slotStId,
-                    row.CentroNombre,
-                    row.ServicioNombre,
-                    practicaMatch.Nombre.Trim(),
-                    row.EfectorNombre,
-                    fechaSlot,
-                    "--:--",
-                    horaInicio.ToString("HH:mm", CultureInfo.InvariantCulture),
-                    horaFin.ToString("HH:mm", CultureInfo.InvariantCulture),
-                    true,
-                    stKey,
-                    row.CentroId,
-                    row.ServicioId,
-                    row.EfectorId,
-                    row.BloqueId,
-                    row.DuracionTurnoMinutos
-                );
-
-                slots.Add(new DisponibilidadSlotTurnoResponse(
-                    slotStId,
-                    fechaSlot,
-                    "--:--",
-                    "ST",
-                    horaInicio.ToString("HH:mm", CultureInfo.InvariantCulture),
-                    horaFin.ToString("HH:mm", CultureInfo.InvariantCulture),
-                    row.CentroNombre,
-                    row.ServicioNombre,
-                    practicaMatch.Nombre.Trim(),
-                    row.EfectorNombre,
-                    sobreTurnosDisponibles > 0 ? "DISPONIBLE" : "CON_CUPO",
-                    sobreTurnosDisponibles,
-                    sobreTurnosDisponibles > 0
-                        ? "Slot ST disponible para asignacion de sobreturno"
-                        : "Sin cupo de sobreturnos"
-                ));
             }
         }
 
@@ -618,19 +552,16 @@ public sealed class TurnosService(
 
     public AsignarSobreturnoResponse AsignarSobreturno(AsignarSobreturnoRequest request)
     {
-        if (request.Hora != "--:--")
+        if (!TimeOnly.TryParse(request.Hora, out var hora))
         {
-            if (!TimeOnly.TryParse(request.Hora, out var hora))
-            {
-                throw new ArgumentException("La hora enviada no es valida.");
-            }
+            throw new ArgumentException("La hora enviada no es valida.");
+        }
 
-            var horaInicio = new TimeOnly(8, 0);
-            var horaFin = new TimeOnly(12, 0);
-            if (hora < horaInicio || hora > horaFin)
-            {
-                throw new ArgumentException("La hora no es valida dentro del rango horario.");
-            }
+        var horaInicio = new TimeOnly(8, 0);
+        var horaFin = new TimeOnly(12, 0);
+        if (hora < horaInicio || hora > horaFin)
+        {
+            throw new ArgumentException("La hora no es valida dentro del rango horario.");
         }
 
         if (!SlotContextById.TryGetValue(request.SlotId, out var slotContext) || !slotContext.EsSobreturno)
@@ -829,11 +760,12 @@ public sealed class TurnosService(
             && bloque.Practicas.Any(item => !string.IsNullOrWhiteSpace(item.Nombre));
     }
 
-    private static IReadOnlyList<DateOnly> ObtenerFechasDisponibles(AgendaBloqueDisponibilidadRow row, DateOnly hoy)
+    private static IReadOnlyList<DateOnly> ObtenerFechasDisponibles(BloqueProgramacion bloque, AgendaAggregate agenda, DateOnly hoy)
     {
-        var desde = MaxDate(hoy, MaxDate(row.AgendaFechaDesde, row.BloqueFechaDesde));
-        var hastaAgenda = row.AgendaFechaHasta ?? DateOnly.MaxValue;
-        var hasta = MinDate(hastaAgenda, row.BloqueFechaHasta);
+        var desde = MaxDate(hoy, MaxDate(agenda.FechaDesde, bloque.FechaDesde == default ? bloque.Fecha : bloque.FechaDesde));
+        var hastaAgenda = agenda.FechaHasta ?? DateOnly.MaxValue;
+        var hastaBloque = bloque.FechaHasta == default ? bloque.Fecha : bloque.FechaHasta;
+        var hasta = MinDate(hastaAgenda, hastaBloque);
 
         if (hasta < desde)
         {
@@ -841,7 +773,7 @@ public sealed class TurnosService(
         }
 
         var diasPermitidos = new HashSet<string>(
-            row.Dias.Select(item => item.Trim().ToUpperInvariant()).Where(item => item.Length > 0),
+            bloque.Dias.Select(item => item.Trim().ToUpperInvariant()).Where(item => item.Length > 0),
             StringComparer.OrdinalIgnoreCase);
 
         var fechas = new List<DateOnly>();
@@ -861,20 +793,6 @@ public sealed class TurnosService(
         }
 
         return fechas;
-    }
-
-    private static List<BloquePractica> ParsePracticas(string json)
-    {
-        if (string.IsNullOrWhiteSpace(json) || json == "[]") return [];
-        try { return JsonSerializer.Deserialize<List<BloquePractica>>(json) ?? []; }
-        catch { return []; }
-    }
-
-    private static string ExtractPracticaNombre(string practicaId)
-    {
-        // Format: "prac-{uuid36}-{nombre}"
-        const int skip = 5 + 36 + 1;
-        return practicaId.Length > skip ? practicaId[skip..] : practicaId;
     }
 
     private static DateOnly MaxDate(DateOnly a, DateOnly b) => a > b ? a : b;

@@ -7,8 +7,6 @@ Fix all critical bugs in Agenda module (Fase 1), move hardcodeos to config (Fase
 - No DB schema changes in this session — all changes are code-only (no new migrations needed)
 - Use `IConfiguration` via `appsettings.json` for all configurable values
 - Keep backward compatibility with existing API contracts (avoid frontend-breaking renames)
-- **NUNCA hardcodear passwords ni SeedUsers en appsettings.json** — todo por DB (seed.sql con hashes correctos)
-- **Password hashes deben generarse con Pbkdf2PasswordHasher (SHA-256)** — no usar SHA-1 default de .NET Framework
 
 ## Progress
 
@@ -25,8 +23,6 @@ Fix all critical bugs in Agenda module (Fase 1), move hardcodeos to config (Fase
 | **Build** — docker compose build his_backend | ✅ healthy |
 
 ### Done (2026-07-04)
-- **Bug ExtractPracticaNombre**: `Split('-', 3)` on `"prac-{uuid36}-{nombre}"` broke at UUID hyphens — `parts[2]` included partial UUID. Fixed with `practicaId[42..]` (skip 5+36+1 chars).
-- **BuscarDisponibilidad verified working**: Returns real DB slots for today→2026-07-31, practice ABDOMEN, Centro Ambulatorio Central, Clinica Medica, Diaz Ana. All slots DISPONIBLE con sobreturnos ST.
 - **Fase 1.1: GetAll() Guid.Empty contamination** — `PostgresAgendaRepository.GetAll()` already returned counts from SQL (cols 16/17) but added empty `BloqueProgramacion`/`BloqueoAgenda` objects with `Guid.Empty` to `agenda.Bloques`/`agenda.Bloqueos` so `MapSummary` could call `.Count`. Fixed: added `CantidadBloques`/`CantidadBloqueos` properties to `AgendaAggregate`, set them in `GetAll()` and `GetById()`, and changed `MapSummary` to use them instead of `.Count`.
 
 - **Fase 1.2: CopyAgenda ignores blocks** — `CopyAgenda()` only copied header fields (codigo, nombre, fechas). Fixed: now iterates `source.Bloques` and `source.Bloqueos`, creates clones with new GUIDs, and persists via `repository.AddBloque()`/`AddBloqueo()`.
@@ -57,9 +53,7 @@ Fix all critical bugs in Agenda module (Fase 1), move hardcodeos to config (Fase
 - **Fase 3c: Catálogos desde config**
   - `TiposEfector`, `TiposAgenda`, `FrecuenciasBloque` moved from `static readonly` arrays to instance fields read from `IConfiguration`
 
-- **Password hash fix**: Passwords generados con PowerShell usaban SHA-1 (default .NET Framework 4.x). Regenerados con el `Pbkdf2PasswordHasher` real del backend vía endpoint temporal `/api/v1/auth/seed-hash`. Hashes actualizados en DB para `jperez` y `diazana`. Endpoint temporal eliminado post-uso.
-- **Agenda INACTIVA → ACTIVA**: Cambio de `estado` en DB vía `UPDATE sch_agenda.agenda SET estado = 'ACTIVA'` para que Escritorio Clínico pueda encontrar la agenda.
-- **Bug timezone en matching turnos (Escritorio Clínico)**: `BuildTurnoProgramadoKey` y `BuildTurnoProgramadoKeySinProfesional` usaban `fechaHora.DateTime` (hora local según offset) → slot en UTC y turno en ART producían keys distintas (`13:08` vs `10:08`). Fix: cambiado a `fechaHora.UtcDateTime` para usar UTC consistente. `AdmisionService.cs:401,408,416`.
+- **Build + deploy**: `docker compose build his_backend` succeeded, container recreated and healthy
 
 ### In Progress
 - *(none)*
@@ -78,9 +72,10 @@ Fix all critical bugs in Agenda module (Fase 1), move hardcodeos to config (Fase
 - Fase 3b skipped to avoid frontend-breaking property renames
 
 ## Next Steps
-1. Verify Escritorio Clínico ahora carga pacientes del día (diazana como Medico)
+1. Monitor backend health after deploy
 2. PR #27 VitalFlowHis 8 tablas — review/merge
-3. Merge `feat/tablas-faltantes-local` into `ALL_IN_ONE_PRJ_VITALFLOW_V1`
+3. Domicilio FK fix (code-only, already done in earlier session)
+4. Centro selection flow in frontend
 
 ## Critical Context
 - **No DB schema changes in this session** — all changes are in C# code and `appsettings.json` only
@@ -93,14 +88,10 @@ Fix all critical bugs in Agenda module (Fase 1), move hardcodeos to config (Fase
 
 ## Relevant Files
 - `back/src/VitalFlow.His.Api/Domain/Agenda/AgendaAggregate.cs`: added `CantidadBloques`/`CantidadBloqueos`
-- `back/src/VitalFlow.His.Api/Domain/Agenda/IAgendaRepository.cs`: added `TurnoByBloqueRow`, `RegenerateCupos`, `GetTurnosByBloque`, `AgendaBloqueDisponibilidadRow`, `GetAllServicios`, `GetAllPracticasActivas`, `GetAllEfectoresActivos`, `GetAgendasConBloquesParaDisponibilidad`
-- `back/src/VitalFlow.His.Api/Infrastructure/Agenda/PostgresAgendaRepository.cs`: Fase 1 fixes + `RegenerateCupos()` + `GetTurnosByBloque()` + `DuracionTurnoMinutos` fallback + `GetCentros()` + DB-driven queries for selectores/disponibilidad
-- `back/src/VitalFlow.His.Api/Infrastructure/Agenda/InMemoryAgendaRepository.cs`: stubs for new methods
+- `back/src/VitalFlow.His.Api/Domain/Agenda/IAgendaRepository.cs`: added `TurnoByBloqueRow`, `RegenerateCupos`, `GetTurnosByBloque`
+- `back/src/VitalFlow.His.Api/Infrastructure/Agenda/PostgresAgendaRepository.cs`: Fase 1 fixes + `RegenerateCupos()` + `GetTurnosByBloque()` + `DuracionTurnoMinutos` fallback
+- `back/src/VitalFlow.His.Api/Infrastructure/Agenda/InMemoryAgendaRepository.cs`: stub implementations
 - `back/src/VitalFlow.His.Api/Application/Agenda/Services/AgendaService.cs`: Fase 1-3 fixes, `IConfiguration` injection
-- `back/src/VitalFlow.His.Api/Application/Turnos/Services/TurnosService.cs`: `GetSelectoresDisponibilidad()` refactor (DB fallback), `BuscarDisponibilidad()` refactor (DB directa), helpers `ExtractPracticaNombre`/`ParsePracticas`/`ObtenerFechasDisponibles`(row overload)
-- `back/src/VitalFlow.His.Api/Roles.cs`: role constants
-- `back/src/VitalFlow.His.Api/appsettings.json`: `"Agenda"` section
-- `back/src/VitalFlow.His.Api/Controllers/PersonasController.cs`: domicilio FK catch
-- `front/src/auth/LoginPage.tsx`: 2-step login flow
-- `front/src/login/Login.css`: centro selector styles
+- `back/src/VitalFlow.His.Api/Roles.cs`: NEW — role constants
+- `back/src/VitalFlow.His.Api/appsettings.json`: NEW `"Agenda"` section
 - `Controllers/*.cs`: 11 controllers updated to use `Roles.*` constants

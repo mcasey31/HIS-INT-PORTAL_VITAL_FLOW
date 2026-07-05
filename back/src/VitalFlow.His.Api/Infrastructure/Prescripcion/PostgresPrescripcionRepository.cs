@@ -32,7 +32,7 @@ public sealed class PostgresPrescripcionRepository(string connectionString)
         {
             cmd.Parameters.AddWithValue("id", recetaId);
             cmd.Parameters.AddWithValue("paciente_id", Guid.Parse(request.PacienteId));
-            cmd.Parameters.AddWithValue("turno_id", ParseTurnoId(request.TurnoId) ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("turno_id", request.TurnoId);
             cmd.Parameters.AddWithValue("prescriptor_usuario_id", Guid.Parse(usuarioId));
             cmd.Parameters.AddWithValue("prescriptor_matricula", matricula);
             cmd.ExecuteNonQuery();
@@ -87,24 +87,5 @@ public sealed class PostgresPrescripcionRepository(string connectionString)
             "ACTIVA",
             DateTime.UtcNow.ToString("o")
         );
-    }
-
-    private static Guid? ParseTurnoId(string? turnoId)
-    {
-        if (string.IsNullOrWhiteSpace(turnoId))
-            return null;
-
-        if (Guid.TryParse(turnoId, out var guid))
-            return guid;
-
-        const string prefix = "adm:tp:";
-        if (turnoId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            var uuidPart = turnoId[prefix.Length..];
-            if (Guid.TryParse(uuidPart, out guid))
-                return guid;
-        }
-
-        return null;
     }
 }

@@ -7,29 +7,6 @@ public sealed record TurnoByBloqueRow(
     string Estado
 );
 
-public sealed record AgendaBloqueDisponibilidadRow(
-    Guid AgendaId,
-    Guid CentroId,
-    string CentroNombre,
-    Guid ServicioId,
-    string ServicioNombre,
-    Guid EfectorId,
-    string EfectorNombre,
-    DateOnly AgendaFechaDesde,
-    DateOnly? AgendaFechaHasta,
-    Guid BloqueId,
-    TimeOnly HoraInicio,
-    TimeOnly HoraFin,
-    int IntervaloMinutos,
-    int DuracionTurnoMinutos,
-    string PracticasJson,
-    DateOnly BloqueFechaDesde,
-    DateOnly BloqueFechaHasta,
-    bool AtiendeFeriados,
-    int Sobreturnos,
-    string[] Dias
-);
-
 public interface IAgendaRepository
 {
     IReadOnlyList<AgendaAggregate> GetAll();
@@ -58,9 +35,4 @@ public interface IAgendaRepository
     IReadOnlyList<PracticaData> GetPracticas(string? query);
     void RegenerateCupos(Guid agendaId);
     IReadOnlyList<TurnoByBloqueRow> GetTurnosByBloque(Guid bloqueId);
-    IReadOnlyList<(Guid Id, Guid CentroId, string Nombre)> GetAllServicios();
-    IReadOnlyList<(Guid Id, Guid ServicioId, string Nombre)> GetAllPracticasActivas();
-    IReadOnlyList<(Guid Id, Guid CentroId, Guid ServicioId, string Nombre)> GetAllEfectoresActivos();
-    IReadOnlyList<AgendaBloqueDisponibilidadRow> GetAgendasConBloquesParaDisponibilidad(
-        Guid[] centroIds, Guid servicioId, string practicaNombreNormalized, Guid? profesionalId);
 }

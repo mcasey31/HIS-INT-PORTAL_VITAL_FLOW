@@ -65,7 +65,6 @@ public sealed class PostgresMedicamentoRepository(string connectionString) : IMe
         using var reader = dataCmd.ExecuteReader();
         while (reader.Read())
         {
-            var formaOrdinal = reader.GetOrdinal("forma");
             result.Add(new MedicamentoResponse(
                 reader.GetInt32(reader.GetOrdinal("id")),
                 reader.GetString(reader.GetOrdinal("principio_activo")),
@@ -73,7 +72,7 @@ public sealed class PostgresMedicamentoRepository(string connectionString) : IMe
                 reader.GetString(reader.GetOrdinal("producto")),
                 reader.GetString(reader.GetOrdinal("laboratorio")),
                 reader.GetString(reader.GetOrdinal("familia")),
-                reader.IsDBNull(formaOrdinal) ? null : reader.GetString(formaOrdinal),
+                reader.GetString(reader.GetOrdinal("forma")),
                 reader.GetBoolean(reader.GetOrdinal("es_generico"))
             ));
         }
