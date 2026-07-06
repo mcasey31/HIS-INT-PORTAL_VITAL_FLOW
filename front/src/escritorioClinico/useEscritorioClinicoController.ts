@@ -997,7 +997,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       }
     }
     try {
-      await guardarSolicitudesEstudiosTurno(scopeId, { pacienteId: turno.paciente, items });
+      await guardarSolicitudesEstudiosTurno(scopeId, { pacienteId: turno.pacienteId ?? turno.paciente, items });
     } catch {
       mostrarToastSolicitud("Error al guardar los estudios. Intente de nuevo.");
     }
