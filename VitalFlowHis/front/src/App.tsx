@@ -197,7 +197,14 @@ export function App() {
   const isHome = path === "/";
   const displayName = username ? username.charAt(0).toUpperCase() + username.slice(1).toLowerCase() : "Usuario";
   const hasRole = (name: string) => roles.some((role) => role.toLowerCase() === name.toLowerCase());
-  const isMedicalRole = hasRole("Medico");
+  const hasPrivilegedNonMedicalRole =
+    hasRole("Administrador")
+    || hasRole("Administrador Seguridad")
+    || hasRole("Administrativo")
+    || hasRole("Auditor")
+    || hasRole("Cajero")
+    || hasRole("Enrolamiento Persona");
+  const isMedicalRole = hasRole("Medico") && !hasPrivilegedNonMedicalRole;
   const canAccessPersonas =
     !isMedicalRole && (
     hasRole("Administrador")
