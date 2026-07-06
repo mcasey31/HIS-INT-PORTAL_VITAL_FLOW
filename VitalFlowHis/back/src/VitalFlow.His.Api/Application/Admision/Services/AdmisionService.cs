@@ -12,77 +12,21 @@ public sealed class AdmisionService(
     ITurnosRepository turnosRepository) : IAdmisionService
 {
     private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
-    private const string EstadoProgramado = "PROGRAMADO";
-    private const string EstadoEnSalaEspera = "EN_SALA_DE_ESPERA";
-    private const string EstadoEnAtencion = "EN_ATENCION";
-    private const string EstadoAtendido = "ATENDIDO";
-    private const string EstadoAusente = "AUSENTE";
-    private const string EstadoNoAdmitido = "NO_ADMITIDO";
-    private const string EstadoNoAtendido = "NO_ATENDIDO";
-    private const string EstadoEnObservacion = "EN_OBSERVACION";
-    private const string EstadoPendientePago = "PENDIENTE_DE_PAGO";
-    private const string EstadoTurnoProgramado = "PROGRAMADO";
-    private const string EstadoTurnoConsumido = "CONSUMIDO";
-    private const string EstadoTurnoAgendado = "AGENDADO";
-    private const string EstadoTurnoAnulado = "ANULADO";
     private const string MotivoAutocierreVencido = "AUTOCIERRE_24H";
 
-    private static readonly string[] EstadosAdmision =
-    [
-        EstadoProgramado,
-        EstadoEnSalaEspera,
-        EstadoEnAtencion,
-        EstadoAtendido,
-        EstadoAusente,
-        EstadoNoAdmitido,
-        EstadoNoAtendido,
-        EstadoEnObservacion,
-        EstadoPendientePago
-    ];
-
-    private static readonly HashSet<string> EstadosFinales =
-    [
-        EstadoAtendido,
-        EstadoAusente,
-        EstadoNoAdmitido,
-        EstadoNoAtendido
-    ];
-
-    private static readonly Dictionary<string, HashSet<string>> TransicionesPermitidas =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            [EstadoProgramado] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                EstadoEnSalaEspera,
-                EstadoAusente,
-                EstadoNoAdmitido,
-                EstadoPendientePago
-            },
-            [EstadoPendientePago] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                EstadoEnSalaEspera,
-                EstadoNoAdmitido
-            },
-            [EstadoEnSalaEspera] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                EstadoEnAtencion,
-                EstadoAtendido,
-                EstadoNoAtendido,
-                EstadoPendientePago
-            },
-            [EstadoEnAtencion] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                EstadoAtendido,
-                EstadoEnObservacion,
-                EstadoNoAtendido
-            },
-            [EstadoEnObservacion] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                EstadoEnAtencion,
-                EstadoAtendido,
-                EstadoNoAtendido
-            }
-        };
+    private const string AccionDefaultEstadoAdmision = "DEFAULT_ESTADO_ADMISION";
+    private const string AccionEstadoEnAtencion = "ESTADO_EN_ATENCION";
+    private const string AccionEstadoAtendido = "ESTADO_ATENDIDO";
+    private const string AccionEstadoNoAtendido = "ESTADO_NO_ATENDIDO";
+    private const string AccionEstadoNoAdmitido = "ESTADO_NO_ADMITIDO";
+    private const string AccionEstadoAusente = "ESTADO_AUSENTE";
+    private const string AccionConfirmarArriboRequierePago = "CONFIRMAR_ARRIBO_REQUIERE_PAGO";
+    private const string AccionConfirmarArriboOk = "CONFIRMAR_ARRIBO_OK";
+    private const string AccionAutocierreEncuentroVencido = "AUTOCIERRE_ENCUENTRO_VENCIDO";
+    private const string AccionDefaultEstadoTurno = "DEFAULT_ESTADO_TURNO";
+    private const string AccionConfirmarArriboTurnoCienConvenida = "CONFIRMAR_ARRIBO_TURNO_CIEN_CONVENIDA";
+    private const string AccionConfirmarArriboTurnoNoCienConvenida = "CONFIRMAR_ARRIBO_TURNO_NO_CIEN_CONVENIDA";
+    private const string AccionCierreEncuentroEstadoTurnoDefault = "CIERRE_ENCUENTRO_ESTADO_TURNO_DEFAULT";
 
     public SelectoresAdmisionResponse GetSelectores(AdmisionScopeContext scope)
     {
@@ -127,7 +71,7 @@ public sealed class AdmisionService(
             .OrderBy(item => item.Nombre, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        var estados = EstadosAdmision;
+        var estados = admisionRepository.GetEstadosAdmisionActivos();
 
         return new SelectoresAdmisionResponse(servicios, practicas, tiposEfector, efectores, estados);
     }
@@ -208,16 +152,8 @@ public sealed class AdmisionService(
                     continue;
                 }
 
-                var minutoInicio = bloque.HoraInicio.Hour * 60 + bloque.HoraInicio.Minute;
-                var minutoFin = bloque.HoraFin.Hour * 60 + bloque.HoraFin.Minute;
-                if (minutoFin <= minutoInicio)
+                for (var hora = bloque.HoraInicio; hora < bloque.HoraFin; hora = hora.AddMinutes(intervalo))
                 {
-                    continue;
-                }
-
-                for (var minuto = minutoInicio; minuto < minutoFin; minuto += intervalo)
-                {
-                    var hora = TimeOnly.MinValue.AddMinutes(minuto);
                     var turnoId = BuildTurnoId(agenda.Id, bloque.Id, fecha, hora);
                     var turnoDate = new DateTimeOffset(fecha.Year, fecha.Month, fecha.Day, hora.Hour, hora.Minute, 0, TimeSpan.Zero);
                     slots.Add((
@@ -237,13 +173,8 @@ public sealed class AdmisionService(
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Select(item => item!)
             .Distinct(StringComparer.OrdinalIgnoreCase);
-        var turnoProgramadoFallbackAdmisionIds = turnosProgramados
-            .Select(item => $"adm:tp:{item.TurnoProgramadoId}")
-            .Distinct(StringComparer.OrdinalIgnoreCase);
-
         var admisionRows = admisionRepository.GetTurnosAdmisionByIds(turnoIds
             .Concat(turnoProgramadoAdmisionIds)
-            .Concat(turnoProgramadoFallbackAdmisionIds)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList());
 
@@ -287,8 +218,8 @@ public sealed class AdmisionService(
                 admisionRows.TryGetValue(turnoProgramadoAdmisionId, out row);
             }
 
-            var estado = row?.Estado ?? EstadoProgramado;
-            var estadoTurno = row?.EstadoTurno ?? EstadoTurnoProgramado;
+            var estado = row?.Estado ?? ResolveEstadoAdmision(AccionDefaultEstadoAdmision);
+            var estadoTurno = row?.EstadoTurno ?? ResolveEstadoTurnoByAccion(AccionDefaultEstadoTurno);
             var llegada = row?.LlegadaEn;
             var turnoIdRespuesta = row?.TurnoId ?? turnoProgramadoAdmisionId ?? turnoId;
 
@@ -332,8 +263,8 @@ public sealed class AdmisionService(
                     ?? $"adm:tp:{turnoProgramado.TurnoProgramadoId}";
 
                 admisionRows.TryGetValue(turnoIdFallback, out var row);
-                var estado = row?.Estado ?? EstadoProgramado;
-                var estadoTurno = row?.EstadoTurno ?? EstadoTurnoProgramado;
+                var estado = row?.Estado ?? ResolveEstadoAdmision(AccionDefaultEstadoAdmision);
+                var estadoTurno = row?.EstadoTurno ?? ResolveEstadoTurnoByAccion(AccionDefaultEstadoTurno);
                 var llegada = row?.LlegadaEn;
 
                 if (!string.IsNullOrWhiteSpace(request.Estado)
@@ -482,23 +413,29 @@ public sealed class AdmisionService(
         var pagoRegistrado = request.PagoRegistrado ?? true;
         if (requierePago && !pagoRegistrado)
         {
+            var estadoPendientePago = ResolveEstadoAdmision(AccionConfirmarArriboRequierePago);
+            var estadoTurnoDefault = ResolveEstadoTurnoByAccion(AccionDefaultEstadoTurno);
+
             admisionRepository.UpsertTurnoAdmision(new TurnoAdmisionRow(
                 turnoId, pacienteId, request.Paciente.Trim(), request.Documento.Trim(), financiador,
-                EstadoPendientePago, EstadoTurnoProgramado, "PAGO_PENDIENTE", null));
+                estadoPendientePago, estadoTurnoDefault, "PAGO_PENDIENTE", null));
 
             var ahora = DateTimeOffset.UtcNow;
             return new ConfirmarArriboTurnoResponse(
-                turnoId, EstadoPendientePago,
+                turnoId, estadoPendientePago,
                 ahora.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture),
-                EstadoTurnoProgramado, null, null, null);
+                estadoTurnoDefault, null, null, null);
         }
 
         var practicaCienConvenida = request.PracticaCienPorcientoConvenida ?? true;
-        var estadoTurnoFinal = practicaCienConvenida ? EstadoTurnoConsumido : EstadoTurnoProgramado;
+        var estadoSalaEspera = ResolveEstadoAdmision(AccionConfirmarArriboOk);
+        var estadoTurnoFinal = practicaCienConvenida
+            ? ResolveEstadoTurnoByAccion(AccionConfirmarArriboTurnoCienConvenida)
+            : ResolveEstadoTurnoByAccion(AccionConfirmarArriboTurnoNoCienConvenida);
 
         admisionRepository.UpsertTurnoAdmision(new TurnoAdmisionRow(
             turnoId, pacienteId, request.Paciente.Trim(), request.Documento.Trim(), financiador,
-            EstadoEnSalaEspera, estadoTurnoFinal, null, DateTimeOffset.UtcNow));
+            estadoSalaEspera, estadoTurnoFinal, null, DateTimeOffset.UtcNow));
 
         string? encuentroId = null;
         if (practicaCienConvenida)
@@ -509,40 +446,26 @@ public sealed class AdmisionService(
         var rowActual = admisionRepository.GetTurnoAdmision(turnoId);
         var llegadaFinal = rowActual?.LlegadaEn ?? DateTimeOffset.UtcNow;
 
-        string? facturacionEventoEstado = null;
-        string? facturacionEventoDetalle = null;
+        // ── Evento outbox CONV-FACT (solo si el módulo está activo; zero-impact si no) ──
+        TryPublicarEventoFacturacion(
+            turnoId, encuentroId, pacienteId,
+            request.Paciente.Trim(), request.Documento.Trim(), financiador,
+            request.FinanciadorId, request.PlanId,
+            request.ServicioNombre, request.CentroId,
+            llegadaFinal,
+            request.PracticaOrigenNombre, request.PracticaOrigenCodigo,
+            request.ProfesionalId, request.ProfesionalNombre,
+            request.TipoOrigen ?? "TURNO");
 
-        // El arribo no debe fallar por incidencias de facturación: se admite y luego se reporta el estado del evento.
-        try
-        {
-            TryPublicarEventoFacturacion(
-                turnoId, encuentroId, pacienteId,
-                request.Paciente.Trim(), request.Documento.Trim(), financiador,
-                request.FinanciadorId, request.PlanId,
-                request.ServicioNombre, request.CentroId,
-                llegadaFinal,
-                request.PracticaOrigenNombre, request.PracticaOrigenCodigo,
-                request.ProfesionalId, request.ProfesionalNombre,
-                request.TipoOrigen ?? "TURNO");
-
-            var eventoFacturacion = admisionRepository.GetEventoFacturacionByTurnoId(turnoId);
-            facturacionEventoEstado = eventoFacturacion?.Estado;
-            facturacionEventoDetalle = eventoFacturacion?.ErrorDetalle;
-        }
-        catch (Exception ex)
-        {
-            facturacionEventoEstado = "ERROR_PUBLICACION";
-            facturacionEventoDetalle = ex.Message;
-            Console.WriteLine($"[AdmisionService] Advertencia facturacion turnoId={turnoId}: {ex.Message}");
-        }
+        var eventoFacturacion = admisionRepository.GetEventoFacturacionByTurnoId(turnoId);
 
         return new ConfirmarArriboTurnoResponse(
-            turnoId, EstadoEnSalaEspera,
+            turnoId, estadoSalaEspera,
             llegadaFinal.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture),
             estadoTurnoFinal,
             encuentroId,
-            facturacionEventoEstado,
-            facturacionEventoDetalle);
+            eventoFacturacion?.Estado,
+            eventoFacturacion?.ErrorDetalle);
     }
 
     public EventoFacturacionTurnoResponse ObtenerEventoFacturacion(string turnoId)
@@ -694,23 +617,24 @@ public sealed class AdmisionService(
             throw new ArgumentException("estado es obligatorio.");
         }
 
-        if (!EstadosAdmision.Contains(nuevoEstado, StringComparer.OrdinalIgnoreCase))
+        var estadosActivos = admisionRepository.GetEstadosAdmisionActivos();
+        if (!estadosActivos.Contains(nuevoEstado, StringComparer.OrdinalIgnoreCase))
         {
             throw new ArgumentException($"El estado `{request.Estado}` no es valido.");
         }
 
         var rowActual = admisionRepository.GetTurnoAdmision(turnoId);
-        var estadoActual = rowActual?.Estado ?? EstadoProgramado;
+        var estadoActual = rowActual?.Estado ?? ResolveEstadoAdmision(AccionDefaultEstadoAdmision);
 
         if (!EsTransicionValida(estadoActual, nuevoEstado))
         {
             throw new ArgumentException($"No se permite cambiar de `{estadoActual}` a `{nuevoEstado}`.");
         }
 
-        if (string.Equals(nuevoEstado, EstadoEnAtencion, StringComparison.OrdinalIgnoreCase))
+        var estadoEnAtencion = ResolveEstadoAdmision(AccionEstadoEnAtencion);
+        if (string.Equals(nuevoEstado, estadoEnAtencion, StringComparison.OrdinalIgnoreCase))
         {
-            var fechaControl = DateOnly.FromDateTime(GetBusinessNow().DateTime);
-            var turnosEnAtencion = admisionRepository.GetTurnosEnEstado(EstadoEnAtencion, turnoId, fechaControl);
+            var turnosEnAtencion = admisionRepository.GetTurnosEnEstado(estadoEnAtencion, turnoId);
             if (turnosEnAtencion.Count > 0)
             {
                 throw new ArgumentException($"Ya existe un paciente en atencion (turno {turnosEnAtencion[0]}).");
@@ -725,14 +649,16 @@ public sealed class AdmisionService(
 
         var motivo = string.IsNullOrWhiteSpace(request.Motivo) ? null : request.Motivo.Trim();
         var llegadaFinal = rowActual?.LlegadaEn;
-        if (string.Equals(nuevoEstado, EstadoEnSalaEspera, StringComparison.OrdinalIgnoreCase) && llegadaFinal is null)
+        var estadoSalaEspera = ResolveEstadoAdmision(AccionConfirmarArriboOk);
+        if (string.Equals(nuevoEstado, estadoSalaEspera, StringComparison.OrdinalIgnoreCase) && llegadaFinal is null)
         {
             llegadaFinal = DateTimeOffset.UtcNow;
         }
 
+        var estadoTurnoDefault = ResolveEstadoTurnoByAccion(AccionDefaultEstadoTurno);
         admisionRepository.UpsertTurnoAdmision(new TurnoAdmisionRow(
             turnoId, rowActual?.PacienteId, rowActual?.PacienteNombre, rowActual?.Documento, rowActual?.Financiador,
-            nuevoEstado, rowActual?.EstadoTurno ?? EstadoTurnoProgramado, motivo, llegadaFinal));
+            nuevoEstado, rowActual?.EstadoTurno ?? estadoTurnoDefault, motivo, llegadaFinal));
 
         // Sincroniza el estado de historia de turnos para evitar consultas adicionales
         // y garantizar consistencia entre admision y turnos del paciente.
@@ -749,8 +675,10 @@ public sealed class AdmisionService(
             Console.WriteLine($"[AdmisionService] No se actualizo sch_turno.turno_paciente para turnoId={turnoId} (estado={estadoTurno}).");
         }
 
-        if (string.Equals(nuevoEstado, EstadoAtendido, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(nuevoEstado, EstadoNoAtendido, StringComparison.OrdinalIgnoreCase))
+        var estadoAtendido = ResolveEstadoAdmision(AccionEstadoAtendido);
+        var estadoNoAtendido = ResolveEstadoAdmision(AccionEstadoNoAtendido);
+        if (string.Equals(nuevoEstado, estadoAtendido, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(nuevoEstado, estadoNoAtendido, StringComparison.OrdinalIgnoreCase))
         {
             admisionRepository.CerrarEncuentro(turnoId, motivo ?? nuevoEstado);
         }
@@ -758,25 +686,9 @@ public sealed class AdmisionService(
         return new ActualizarEstadoTurnoResponse(turnoId, nuevoEstado, motivo);
     }
 
-    private static string MapEstadoAdmisionATurno(string estadoAdmision)
+    private string MapEstadoAdmisionATurno(string estadoAdmision)
     {
-        if (string.Equals(estadoAdmision, EstadoAtendido, StringComparison.OrdinalIgnoreCase))
-        {
-            return EstadoTurnoConsumido;
-        }
-
-        if (string.Equals(estadoAdmision, EstadoNoAdmitido, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(estadoAdmision, EstadoNoAtendido, StringComparison.OrdinalIgnoreCase))
-        {
-            return EstadoTurnoAnulado;
-        }
-
-        if (string.Equals(estadoAdmision, EstadoAusente, StringComparison.OrdinalIgnoreCase))
-        {
-            return EstadoAusente;
-        }
-
-        return EstadoTurnoAgendado;
+        return admisionRepository.ResolveEstadoTurnoByEstadoAdmision(estadoAdmision);
     }
 
     public EncuentroAdmisionResponse ObtenerEncuentro(string turnoId)
@@ -791,8 +703,9 @@ public sealed class AdmisionService(
         {
             // Si el turno está EN_ATENCION pero no tiene encuentro, crearlo automáticamente
             var row = admisionRepository.GetTurnoAdmision(turnoId);
+            var estadoEnAtencion = ResolveEstadoAdmision(AccionEstadoEnAtencion);
             if (row is not null
-                && string.Equals(row.Estado, EstadoEnAtencion, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(row.Estado, estadoEnAtencion, StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(row.PacienteId))
             {
                 var nuevoEncuentroId = admisionRepository.CrearEncuentroSiNoExiste(turnoId, row.PacienteId);
@@ -821,10 +734,12 @@ public sealed class AdmisionService(
         }
 
         var estadoPacienteFinal = (request.EstadoPacienteFinal ?? string.Empty).Trim().ToUpperInvariant();
-        if (!string.Equals(estadoPacienteFinal, EstadoAtendido, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(estadoPacienteFinal, EstadoNoAtendido, StringComparison.OrdinalIgnoreCase))
+        var estadoAtendido = ResolveEstadoAdmision(AccionEstadoAtendido);
+        var estadoNoAtendido = ResolveEstadoAdmision(AccionEstadoNoAtendido);
+        if (!string.Equals(estadoPacienteFinal, estadoAtendido, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(estadoPacienteFinal, estadoNoAtendido, StringComparison.OrdinalIgnoreCase))
         {
-            throw new ArgumentException("El estadoPacienteFinal debe ser ATENDIDO o NO_ATENDIDO.");
+            throw new ArgumentException($"El estadoPacienteFinal debe ser {estadoAtendido} o {estadoNoAtendido}.");
         }
 
         var motivo = string.IsNullOrWhiteSpace(request.Motivo) ? null : request.Motivo.Trim();
@@ -832,9 +747,10 @@ public sealed class AdmisionService(
             ?? throw new ArgumentException("El encuentro ya se encuentra cerrado.");
 
         var rowActual = admisionRepository.GetTurnoAdmision(turnoId);
+        var estadoTurnoCierreDefault = ResolveEstadoTurnoByAccion(AccionCierreEncuentroEstadoTurnoDefault);
         admisionRepository.UpsertTurnoAdmision(new TurnoAdmisionRow(
             turnoId, rowActual?.PacienteId, rowActual?.PacienteNombre, rowActual?.Documento, rowActual?.Financiador,
-            estadoPacienteFinal, rowActual?.EstadoTurno ?? EstadoTurnoConsumido, motivo, rowActual?.LlegadaEn));
+            estadoPacienteFinal, rowActual?.EstadoTurno ?? estadoTurnoCierreDefault, motivo, rowActual?.LlegadaEn));
 
         return new CerrarEncuentroResponse(
             cierre.EncuentroId, turnoId, cierre.Estado, estadoPacienteFinal,
@@ -862,9 +778,11 @@ public sealed class AdmisionService(
             }
 
             var rowActual = admisionRepository.GetTurnoAdmision(turnoId);
+            var estadoNoAtendido = ResolveEstadoAdmision(AccionAutocierreEncuentroVencido);
+            var estadoTurnoDefault = ResolveEstadoTurnoByAccion(AccionDefaultEstadoTurno);
             admisionRepository.UpsertTurnoAdmision(new TurnoAdmisionRow(
                 turnoId, rowActual?.PacienteId, rowActual?.PacienteNombre, rowActual?.Documento, rowActual?.Financiador,
-                EstadoNoAtendido, rowActual?.EstadoTurno ?? EstadoTurnoProgramado, MotivoAutocierreVencido, rowActual?.LlegadaEn));
+                estadoNoAtendido, rowActual?.EstadoTurno ?? estadoTurnoDefault, MotivoAutocierreVencido, rowActual?.LlegadaEn));
 
             cerrados += 1;
         }
@@ -878,24 +796,29 @@ public sealed class AdmisionService(
         e.CerradoEn?.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture),
         e.MotivoCierre);
 
-    private static bool EsTransicionValida(string estadoActual, string nuevoEstado)
+    private bool EsTransicionValida(string estadoActual, string nuevoEstado)
     {
         if (string.Equals(estadoActual, nuevoEstado, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        if (EstadosFinales.Contains(estadoActual))
+        if (admisionRepository.IsEstadoAdmisionFinal(estadoActual))
         {
             return false;
         }
 
-        if (!TransicionesPermitidas.TryGetValue(estadoActual, out var destinos))
-        {
-            return false;
-        }
+        return admisionRepository.IsTransicionAdmisionPermitida(estadoActual, nuevoEstado);
+    }
 
-        return destinos.Contains(nuevoEstado);
+    private string ResolveEstadoAdmision(string accionCodigo)
+    {
+        return admisionRepository.ResolveEstadoAdmisionByAccion(accionCodigo);
+    }
+
+    private string ResolveEstadoTurnoByAccion(string accionCodigo)
+    {
+        return admisionRepository.ResolveEstadoTurnoByAccion(accionCodigo);
     }
 
     private IReadOnlyList<AgendaAggregate> GetAgendasElegiblesConBloques(AdmisionScopeContext scope, DateOnly? fecha = null)
