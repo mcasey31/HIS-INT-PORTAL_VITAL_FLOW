@@ -1,0 +1,2 @@
+-- VitalFlow HIS - Seed data placeholder
+-- Actual seed data is handled by migration scripts
