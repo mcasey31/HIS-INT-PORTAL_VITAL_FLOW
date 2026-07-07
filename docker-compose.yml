@@ -19,7 +19,7 @@ services:
     networks:
       - vitalflow_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vitalflow_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vitalflow_user} -d ${POSTGRES_DB:-vitalflow_his}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -182,7 +182,7 @@ services:
     networks:
       - vitalflow_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${CONV_FACT_DB_USER:-conv_fact_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${CONV_FACT_DB_USER:-conv_fact_user} -d ${CONV_FACT_DB_NAME:-odi_db_facturacion}"]
       interval: 10s
       timeout: 5s
       retries: 5
