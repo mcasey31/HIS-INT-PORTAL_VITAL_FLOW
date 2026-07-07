@@ -18,6 +18,8 @@ public sealed class AgendaAggregate
     public DateOnly FechaDesde { get; set; }
     public DateOnly? FechaHasta { get; set; }
     public string? Observacion { get; set; }
+    public int CantidadBloques { get; set; }
+    public int CantidadBloqueos { get; set; }
     public List<BloqueProgramacion> Bloques { get; } = new();
     public List<BloqueoAgenda> Bloqueos { get; } = new();
 }

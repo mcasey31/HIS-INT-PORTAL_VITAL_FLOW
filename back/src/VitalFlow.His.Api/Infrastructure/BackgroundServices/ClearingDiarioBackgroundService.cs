@@ -4,17 +4,22 @@ namespace VitalFlow.His.Api.Infrastructure.BackgroundServices;
 
 public sealed class ClearingDiarioBackgroundService(
     IServiceScopeFactory scopeFactory,
+    IConfiguration configuration,
     ILogger<ClearingDiarioBackgroundService> logger)
     : BackgroundService
 {
-    private const string CentroDefault = "00000000-0000-0000-0000-000000000001";
+    private readonly string _centroId = configuration["ClearingDiario:CentroId"]
+        ?? "00000000-0000-0000-0000-000000000001";
+    private readonly int _horaEjecucion = configuration.GetValue<int>("ClearingDiario:HoraEjecucion", 3);
+    private readonly int _intervaloHoras = configuration.GetValue<int>("ClearingDiario:IntervaloHoras", 24);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("ClearingDiarioBackgroundService iniciado.");
+        logger.LogInformation("ClearingDiarioBackgroundService iniciado. CentroId={CentroId}, Hora={Hora}:00 UTC, Intervalo={Intervalo}h",
+            _centroId, _horaEjecucion, _intervaloHoras);
 
         var ahora = DateTimeOffset.UtcNow;
-        var proximo = ahora.Date.AddDays(1).AddHours(3);
+        var proximo = ahora.Date.AddHours(_horaEjecucion);
 
         if (proximo <= ahora)
             proximo = proximo.AddDays(1);
@@ -33,7 +38,7 @@ public sealed class ClearingDiarioBackgroundService(
                 var service = scope.ServiceProvider.GetRequiredService<IAdmisionService>();
                 var result = service.LimpiarEventosHuerfanos(
                     new Application.Admision.Contracts.LimpiarEventosHuerfanosRequest(
-                        CentroId: CentroDefault, Modo: "AUTOMATICO"));
+                        CentroId: _centroId, Modo: "AUTOMATICO"));
 
                 logger.LogInformation(
                     "Clearing diario completado: {Total} turnos procesados " +
@@ -48,7 +53,7 @@ public sealed class ClearingDiarioBackgroundService(
                 logger.LogError(ex, "Error ejecutando clearing diario.");
             }
 
-            await Task.Delay(TimeSpan.FromHours(24), stoppingToken);
+            await Task.Delay(TimeSpan.FromHours(_intervaloHoras), stoppingToken);
         }
     }
 }

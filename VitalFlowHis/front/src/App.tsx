@@ -197,46 +197,34 @@ export function App() {
   const isHome = path === "/";
   const displayName = username ? username.charAt(0).toUpperCase() + username.slice(1).toLowerCase() : "Usuario";
   const hasRole = (name: string) => roles.some((role) => role.toLowerCase() === name.toLowerCase());
-  const hasPrivilegedNonMedicalRole =
-    hasRole("Administrador")
-    || hasRole("Administrador Seguridad")
-    || hasRole("Administrativo")
-    || hasRole("Auditor")
-    || hasRole("Cajero")
-    || hasRole("Enrolamiento Persona");
-  const isMedicalRole = hasRole("Medico") && !hasPrivilegedNonMedicalRole;
   const canAccessPersonas =
-    !isMedicalRole && (
     hasRole("Administrador")
     || hasRole("Enrolamiento Persona")
-    || hasRole("Administrador Seguridad"));
+    || hasRole("Administrador Seguridad");
   const canAccessAgenda =
-    !isMedicalRole && (
     hasRole("Administrador")
     || hasRole("Administrativo")
     || hasRole("Cajero")
-    || hasRole("Auditor"));
+    || hasRole("Auditor");
   const canAccessTurnos =
-    !isMedicalRole && (
     hasRole("Administrador")
     || hasRole("Administrativo")
     || hasRole("Cajero")
-    || hasRole("Auditor"));
+    || hasRole("Auditor");
   const canAccessAdmision =
-    !isMedicalRole && (
     hasRole("Administrador")
     || hasRole("Administrativo")
     || hasRole("Cajero")
-    || hasRole("Auditor"));
+    || hasRole("Auditor");
   const canAccessEscritorioClinico = hasRole("Administrador") || hasRole("Medico") || hasRole("Auditor");
-  const canAccessEstructuraInterna = !isMedicalRole && (hasRole("Administrador") || hasRole("Administrador Seguridad"));
+  const canAccessEstructuraInterna = hasRole("Administrador") || hasRole("Administrador Seguridad");
   const canAccessConvenios = canAccessEstructuraInterna;
   const canAccessFacturacion =
-    !isMedicalRole && (
     hasRole("Administrador")
     || hasRole("Administrativo")
     || hasRole("Cajero")
-    || hasRole("Auditor"));
+    || hasRole("Auditor")
+    || hasRole("Medico");
 
   const isAgenda = path.startsWith("/agenda");
   const isPersonas = path.startsWith("/personas");

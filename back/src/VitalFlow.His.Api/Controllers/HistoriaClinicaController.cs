@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VitalFlow.His.Api;
 using VitalFlow.His.Api.Application.HistoriaClinica.Contracts;
 using VitalFlow.His.Api.Application.HistoriaClinica.Services;
 
@@ -7,7 +8,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/historia-clinica")]
-[Authorize(Roles = "Medico,Auditor,Administrador")]
+[Authorize(Roles = Roles.ClinicalAccess)]
 public sealed class HistoriaClinicaController(IHistoriaClinicaService historiaClinicaService) : ControllerBase
 {
     [HttpGet("pacientes/{pacienteId:guid}/problemas-cronicos")]
@@ -39,7 +40,7 @@ public sealed class HistoriaClinicaController(IHistoriaClinicaService historiaCl
     }
 
     [HttpPost("evoluciones")]
-    [Authorize(Roles = "Medico,Administrador")]
+    [Authorize(Roles = Roles.Medico + "," + Roles.Administrador)]
     public ActionResult<CrearEvolucionAmbulatoriaResponse> CrearEvolucion([FromBody] CrearEvolucionAmbulatoriaRequest request)
     {
         try
@@ -53,7 +54,7 @@ public sealed class HistoriaClinicaController(IHistoriaClinicaService historiaCl
     }
 
     [HttpPost("pacientes/{pacienteId:guid}/problemas")]
-    [Authorize(Roles = "Medico,Administrador")]
+    [Authorize(Roles = Roles.Medico + "," + Roles.Administrador)]
     public ActionResult<AsignarProblemaResponse> AsignarProblema(Guid pacienteId, [FromBody] AsignarProblemaRequest request)
     {
         try
@@ -80,7 +81,7 @@ public sealed class HistoriaClinicaController(IHistoriaClinicaService historiaCl
     }
 
     [HttpPut("turnos/{turnoId}/solicitudes-estudios")]
-    [Authorize(Roles = "Medico,Administrador")]
+    [Authorize(Roles = Roles.Medico + "," + Roles.Administrador)]
     public ActionResult<GuardarSolicitudesEstudiosResponse> GuardarSolicitudesEstudios(
         string turnoId, [FromBody] GuardarSolicitudesEstudiosRequest request)
     {

@@ -384,5 +384,14 @@ public sealed class InMemoryAgendaRepository : IAgendaRepository
         agenda.Bloqueos.Add(bloqueo);
         return true;
     }
+
+    public void RegenerateCupos(Guid agendaId)
+    {
+    }
+
+    public IReadOnlyList<TurnoByBloqueRow> GetTurnosByBloque(Guid bloqueId)
+    {
+        return Array.Empty<TurnoByBloqueRow>();
+    }
 }
 

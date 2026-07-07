@@ -3,7 +3,7 @@
 # Node.js/NestJS with FHIR R4 Facade
 # ================================================
 
-FROM node:18-alpine AS builder
+FROM node:26-alpine AS builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ RUN npm run build
 # ================================================
 # Runtime stage
 # ================================================
-FROM node:18-alpine
+FROM node:26-alpine
 
 ARG NODE_ENV=development
 

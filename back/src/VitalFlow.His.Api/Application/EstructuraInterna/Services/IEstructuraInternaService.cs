@@ -7,4 +7,5 @@ public interface IEstructuraInternaService
     IReadOnlyList<NodoEstructuraInternaResponse> GetNodos();
     IReadOnlyList<RegistroNodoResponse> GetRegistros(string nodoId);
     RegistroNodoResponse SaveRegistro(string nodoId, SaveRegistroNodoRequest request);
+    IReadOnlyList<FinanciadorCatalogoResponse> GetCatalogoFinanciadores();
 }
