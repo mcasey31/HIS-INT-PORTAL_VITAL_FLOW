@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VitalFlow.His.Api;
 using VitalFlow.His.Api.Application.Turnos.Contracts;
 using VitalFlow.His.Api.Application.Turnos.Services;
 
@@ -7,7 +8,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/turnos")]
-[Authorize(Roles = "Administrador,Administrativo,Cajero,Auditor")]
+[Authorize(Roles = Roles.FhirAccess)]
 public sealed class TurnosController(ITurnosService turnosService) : ControllerBase
 {
     [HttpGet("identificacion/tipos-documento")]
