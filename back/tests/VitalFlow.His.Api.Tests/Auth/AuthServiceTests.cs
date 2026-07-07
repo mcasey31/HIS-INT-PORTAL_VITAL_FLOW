@@ -26,13 +26,11 @@ public sealed class AuthServiceTests
         UserId, Guid.NewGuid(), Username, PasswordHash, "INACTIVO",
         new List<string> { "Medico" }, null);
 
-    private sealed record TokenBundle(string AccessToken, string RefreshToken, long ExpiresInSeconds, DateTimeOffset RefreshTokenExpiresAt);
-
     private sealed class MockJwtTokenService : IJwtTokenService
     {
-        public (string AccessToken, string RefreshToken, long ExpiresInSeconds, DateTimeOffset RefreshTokenExpiresAt) CreateTokenBundle(AuthUserRow user)
+        public JwtTokenBundle CreateTokenBundle(AuthUserRow user)
         {
-            return ("access_token_mock", "refresh_token_mock", 1800, DateTimeOffset.UtcNow.AddDays(7));
+            return new JwtTokenBundle("access_token_mock", "refresh_token_mock", 1800, DateTimeOffset.UtcNow.AddDays(7));
         }
 
         public string ComputeRefreshTokenHash(string refreshToken)
