@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
+using VitalFlow.His.Api.Application.Auth;
 using VitalFlow.His.Api.Application.Auth.Contracts;
 using VitalFlow.His.Api.Application.Auth.Services;
 using VitalFlow.His.Api.Filters;
@@ -29,6 +30,10 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         {
             var response = authService.Login(request, HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString());
             return Ok(response);
+        }
+        catch (CentroRequiredException ex)
+        {
+            return UnprocessableEntity(new { code = "CENTRO_REQUERIDO", message = ex.Message });
         }
         catch (UnauthorizedAccessException ex)
         {

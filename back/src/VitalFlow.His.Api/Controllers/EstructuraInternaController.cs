@@ -35,13 +35,6 @@ public sealed class EstructuraInternaController(
         return Ok(personaService.BuscarPorTipoYNumeroDocumento(tipoDocumento, numeroDocumento));
     }
 
-    [HttpGet("financiadores/catalogo")]
-    [Authorize(Roles = Roles.AllRoles)]
-    public ActionResult<IReadOnlyList<FinanciadorCatalogoResponse>> GetCatalogoFinanciadores()
-    {
-        return Ok(estructuraInternaService.GetCatalogoFinanciadores());
-    }
-
     [HttpGet("nodos")]
     [Authorize(Roles = Roles.SecurityAccess)]
     public ActionResult<IReadOnlyList<NodoEstructuraInternaResponse>> GetNodos()

@@ -1,0 +1,8 @@
+C:\xampp\htdocs\his\back\src\VitalFlow.His.Api\obj\Debug\net8.0\VitalFlow.His.Api.csproj.AssemblyReference.cache
+C:\xampp\htdocs\his\back\src\VitalFlow.His.Api\obj\Debug\net8.0\VitalFlow.His.Api.GeneratedMSBuildEditorConfig.editorconfig
+C:\xampp\htdocs\his\back\src\VitalFlow.His.Api\obj\Debug\net8.0\VitalFlow.His.Api.AssemblyInfoInputs.cache
+C:\xampp\htdocs\his\back\src\VitalFlow.His.Api\obj\Debug\net8.0\VitalFlow.His.Api.AssemblyInfo.cs
+C:\xampp\htdocs\his\back\src\VitalFlow.His.Api\obj\Debug\net8.0\VitalFlow.His.Api.csproj.CoreCompileInputs.cache
+C:\xampp\htdocs\his\back\src\VitalFlow.His.Api\obj\Debug\net8.0\VitalFlow.His.Api.MvcApplicationPartsAssemblyInfo.cs
+C:\xampp\htdocs\his\back\src\VitalFlow.His.Api\obj\Debug\net8.0\VitalFlow.His.Api.MvcApplicationPartsAssemblyInfo.cache
+C:\xampp\htdocs\his\back\src\VitalFlow.His.Api\obj\Debug\net8.0\VitalFlow.His.Api.sourcelink.json
