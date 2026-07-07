@@ -89,6 +89,52 @@ type HisPacienteIdentificado = {
   apellidosNombres: string;
 };
 
+// ── Receta Digital types ─────────────────────────────────────────────────────
+
+export type RecetaDigitalResumen = {
+  recetaId: string;
+  pacienteId: string;
+  estado: string;
+  rdiarProfile: string;
+  creadoEn: string;
+  cantidadItems: number;
+};
+
+export type RecetaDigitalItem = {
+  itemId: string;
+  medicamentoCodigo: string;
+  medicamentoSistema: string;
+  medicamentoDisplay: string;
+  dosisTexto?: string;
+  frecuenciaTexto?: string;
+  duracionDias?: number;
+  indicacion?: string;
+  estado: string;
+};
+
+export type RecetaDigitalDetalle = {
+  recetaId: string;
+  pacienteId: string;
+  encuentroId?: string;
+  turnoId?: string;
+  prescriptorUsuarioId: string;
+  prescriptorMatricula: string;
+  estado: string;
+  creadoEn: string;
+  items: RecetaDigitalItem[];
+};
+
+export type EnviarRecetasEmailRequest = {
+  pacienteId: string;
+  email: string;
+  recetaIds: string[];
+};
+
+export type EnviarRecetasEmailResponse = {
+  enviado: boolean;
+  message: string;
+};
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 let cachedToken: string | null = null;
@@ -276,6 +322,24 @@ export async function reservarTurno(slotId: string, pacienteId: string): Promise
   );
   return result;
 }
+
+// ── Receta Digital ───────────────────────────────────────────────────────────
+
+export async function getRecetasPaciente(hisPatientId: string): Promise<RecetaDigitalResumen[]> {
+  return hisGet<RecetaDigitalResumen[]>(
+    `/v1/recetas?pacienteId=${encodeURIComponent(hisPatientId)}`
+  );
+}
+
+export async function getRecetaDetalle(recetaId: string): Promise<RecetaDigitalDetalle> {
+  return hisGet<RecetaDigitalDetalle>(`/v1/recetas/${encodeURIComponent(recetaId)}`);
+}
+
+export async function enviarRecetasEmail(request: EnviarRecetasEmailRequest): Promise<EnviarRecetasEmailResponse> {
+  return hisPost<EnviarRecetasEmailResponse>("/v1/recetas/enviar-email", request);
+}
+
+// ── Turnos ───────────────────────────────────────────────────────────────────
 
 export async function cancelarTurno(turnoId: string, motivo?: string): Promise<{ turnoId: string; estado: string }> {
   const result = await hisPost<{ turnoId: string; estado: string; motivo?: string }>(
