@@ -203,7 +203,7 @@ public sealed class AuthService(
                 return user with { CentroId = "global" };
             }
 
-            throw new UnauthorizedAccessException("Debe seleccionar un centro para iniciar sesion.");
+            throw new CentroRequiredException("Debe seleccionar un centro para iniciar sesion.");
         }
 
         if (string.Equals(centroIdRaw.Trim(), "global", StringComparison.OrdinalIgnoreCase))
