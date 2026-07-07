@@ -2,17 +2,18 @@ using System.Security.Cryptography;
 
 namespace VitalFlow.His.Api.Security;
 
-public sealed class Pbkdf2PasswordHasher : IPasswordHasher
+public sealed class Pbkdf2PasswordHasher(IConfiguration configuration) : IPasswordHasher
 {
     private const string Prefix = "pbkdf2-sha256";
     private const int SaltSize = 16;
     private const int HashSize = 32;
+    private readonly int _iterations = configuration.GetValue<int>("Security:Pbkdf2Iterations", 100000);
 
     public string Hash(string password)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(password);
 
-        const int iterations = 100000;
+        var iterations = _iterations;
         var salt = new byte[SaltSize];
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(salt);
