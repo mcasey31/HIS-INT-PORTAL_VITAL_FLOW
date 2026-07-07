@@ -57,3 +57,49 @@
   border-radius: 8px;
   padding: 0.55rem 0.6rem;
 }
+
+.centro-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.centro-button {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #d3dfed;
+  border-radius: 10px;
+  background: #f8faff;
+  color: #213a58;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.centro-button:hover:not(:disabled) {
+  background: #e6f0ff;
+  border-color: #0f6cab;
+  box-shadow: 0 2px 8px rgba(15, 108, 171, 0.12);
+}
+
+.centro-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.centro-back {
+  width: 100%;
+  margin-top: 0.8rem;
+  border: none;
+  background: none;
+  color: #55708f;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.centro-back:hover:not(:disabled) {
+  color: #0f6cab;
+}
