@@ -9,6 +9,21 @@ namespace VitalFlow.His.Api.Infrastructure.EstructuraInterna;
 
 public sealed class PostgresEstructuraInternaRepository(string connectionString) : IEstructuraInternaRepository
 {
+    public IReadOnlyList<IReadOnlyDictionary<string, string?>> GetCatalogoFinanciadores()
+    {
+        const string sql = """
+            select f.id::text as financiador_id,
+                   f.nombre as financiador_nombre,
+                   p.id::text as plan_id,
+                   p.nombre as plan_nombre
+            from sch_persona.financiador f
+            left join sch_persona.financiador_plan p on p.financiador_id = f.id
+            where f.activo = true
+            order by f.nombre, p.nombre;
+            """;
+        return Query(sql);
+    }
+
     public IReadOnlyList<IReadOnlyDictionary<string, string?>> GetRegistros(string nodoId)
     {
         return nodoId.ToLowerInvariant() switch
