@@ -3,7 +3,7 @@ services:
   # PostgreSQL - Base de datos compartida
   # ============================================
   postgres:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: vitalflow_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-vitalflow_his}
@@ -30,7 +30,7 @@ services:
   # Redis - Cache de agendas/slots
   # ============================================
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: vitalflow_redis
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secure_password}
     ports:
@@ -92,7 +92,7 @@ services:
   # Portal Backend - Next.js API Routes
   # ============================================
   portal_backend:
-    image: node:20-alpine
+    image: node:26-alpine
     container_name: vitalflow_portal_backend
     working_dir: /app
     environment:
@@ -168,7 +168,7 @@ services:
   # Optional: CONV-FACT - instancia separada
   # ============================================
   conv_fact_postgres:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: vitalflow_conv_fact_postgres
     environment:
       POSTGRES_DB: ${CONV_FACT_DB_NAME:-odi_db_facturacion}
