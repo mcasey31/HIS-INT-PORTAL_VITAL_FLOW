@@ -363,16 +363,16 @@ public sealed class PostgresPersonaRepository(string connectionString) : IPerson
             reader.GetGuid(0),
             reader.GetGuid(1),
             reader.IsDBNull(2) ? null : reader.GetString(2),
-            reader.GetString(3),
-            reader.GetString(4),
-            reader.GetString(5),
-            reader.GetString(6),
-            reader.GetString(7),
-            reader.GetString(8),
-            reader.GetString(9),
-            reader.GetString(10),
-            reader.GetString(11),
-            reader.GetString(12)
+            reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+            reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+            reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+            reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
+            reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+            reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
+            reader.IsDBNull(9) ? string.Empty : reader.GetString(9),
+            reader.IsDBNull(10) ? string.Empty : reader.GetString(10),
+            reader.IsDBNull(11) ? string.Empty : reader.GetString(11),
+            reader.IsDBNull(12) ? string.Empty : reader.GetString(12)
         );
     }
 
@@ -488,14 +488,14 @@ public sealed class PostgresPersonaRepository(string connectionString) : IPerson
             result.Add(new PersonaContactoResponse(
                 reader.GetGuid(0),
                 reader.GetGuid(1),
-                reader.GetString(2),
-                reader.GetString(3),
-                reader.GetString(4),
-                reader.GetString(5),
-                reader.GetFieldValue<DateOnly>(6).ToString("yyyy-MM-dd"),
-                reader.GetString(7),
-                reader.GetString(8),
-                reader.GetString(9)
+                reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                reader.IsDBNull(6) ? string.Empty : reader.GetFieldValue<DateOnly>(6).ToString("yyyy-MM-dd"),
+                reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+                reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
+                reader.IsDBNull(9) ? string.Empty : reader.GetString(9)
             ));
         }
 
@@ -536,14 +536,14 @@ public sealed class PostgresPersonaRepository(string connectionString) : IPerson
         return new PersonaContactoResponse(
             reader.GetGuid(0),
             reader.GetGuid(1),
-            reader.GetString(2),
-            reader.GetString(3),
-            reader.GetString(4),
-            reader.GetString(5),
-            reader.GetFieldValue<DateOnly>(6).ToString("yyyy-MM-dd"),
-            reader.GetString(7),
-            reader.GetString(8),
-            reader.GetString(9)
+            reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+            reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+            reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+            reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+            reader.IsDBNull(6) ? string.Empty : reader.GetFieldValue<DateOnly>(6).ToString("yyyy-MM-dd"),
+            reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+            reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
+            reader.IsDBNull(9) ? string.Empty : reader.GetString(9)
         );
     }
 
@@ -586,14 +586,14 @@ public sealed class PostgresPersonaRepository(string connectionString) : IPerson
         return new PersonaContactoResponse(
             reader.GetGuid(0),
             reader.GetGuid(1),
-            reader.GetString(2),
-            reader.GetString(3),
-            reader.GetString(4),
-            reader.GetString(5),
-            reader.GetFieldValue<DateOnly>(6).ToString("yyyy-MM-dd"),
-            reader.GetString(7),
-            reader.GetString(8),
-            reader.GetString(9)
+            reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+            reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+            reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+            reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+            reader.IsDBNull(6) ? string.Empty : reader.GetFieldValue<DateOnly>(6).ToString("yyyy-MM-dd"),
+            reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+            reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
+            reader.IsDBNull(9) ? string.Empty : reader.GetString(9)
         );
     }
 

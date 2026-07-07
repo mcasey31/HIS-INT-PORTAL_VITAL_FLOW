@@ -1,5 +1,12 @@
 namespace VitalFlow.His.Api.Domain.Agenda;
 
+public sealed record TurnoByBloqueRow(
+    string TurnoId,
+    string PacienteNombre,
+    DateTimeOffset FechaHora,
+    string Estado
+);
+
 public interface IAgendaRepository
 {
     IReadOnlyList<AgendaAggregate> GetAll();
@@ -26,4 +33,6 @@ public interface IAgendaRepository
     bool UpdateBloquePracticas(Guid agendaId, Guid bloqueId, IReadOnlyList<BloquePractica> practicas);
     bool AddBloqueo(Guid agendaId, BloqueoAgenda bloqueo);
     IReadOnlyList<PracticaData> GetPracticas(string? query);
+    void RegenerateCupos(Guid agendaId);
+    IReadOnlyList<TurnoByBloqueRow> GetTurnosByBloque(Guid bloqueId);
 }
