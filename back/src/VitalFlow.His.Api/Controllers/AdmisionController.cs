@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VitalFlow.His.Api;
 using VitalFlow.His.Api.Application.Admision.Contracts;
 using VitalFlow.His.Api.Application.Admision.Services;
 
@@ -7,7 +8,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/admision")]
-[Authorize(Roles = "Administrador,Administrativo,Cajero,Auditor,Medico")]
+[Authorize(Roles = Roles.FullAccess)]
 public sealed class AdmisionController(IAdmisionService admisionService) : ControllerBase
 {
     [HttpGet("landing/selectores")]

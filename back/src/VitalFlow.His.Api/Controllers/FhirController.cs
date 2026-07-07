@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
+using VitalFlow.His.Api;
 using VitalFlow.His.Api.Application.Agenda.Services;
 using VitalFlow.His.Api.Application.Fhir.Contracts;
 using VitalFlow.His.Api.Application.Fhir.Services;
@@ -9,7 +10,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("fhir")]
-[Authorize(Roles = "Administrador,Administrativo,Cajero,Auditor")]
+[Authorize(Roles = Roles.FhirAccess)]
 public sealed class FhirController(
     IAgendaService agendaService,
     IFhirService fhirService) : ControllerBase
