@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using VitalFlow.His.Api.Application.Auth;
 using VitalFlow.His.Api.Application.Auth.Contracts;
 using VitalFlow.His.Api.Application.Auth.Repositories;
@@ -12,7 +13,11 @@ public sealed class AuthServiceTests
     private static readonly Guid UserId = Guid.NewGuid();
     private const string ValidPassword = "test_password_123";
     private const string Username = "testuser";
-    private static readonly string PasswordHash = new Pbkdf2PasswordHasher().Hash(ValidPassword);
+
+    private static IConfiguration CreateConfig() =>
+        new ConfigurationBuilder().Build();
+
+    private static readonly string PasswordHash = new Pbkdf2PasswordHasher(CreateConfig()).Hash(ValidPassword);
 
     private static readonly AuthUserRow AdminUser = new(
         UserId, Guid.NewGuid(), Username, PasswordHash, "ACTIVO",
@@ -94,7 +99,7 @@ public sealed class AuthServiceTests
     public void Login_WithValidAdminCredentials_ReturnsTokens()
     {
         var repo = new MockAuthRepository(user: AdminUser);
-        var service = new AuthService(repo, new Pbkdf2PasswordHasher(), new MockJwtTokenService());
+        var service = new AuthService(repo, new Pbkdf2PasswordHasher(CreateConfig()), new MockJwtTokenService());
 
         var result = service.Login(new LoginRequest(Username, ValidPassword, null), null, null);
 
@@ -112,7 +117,7 @@ public sealed class AuthServiceTests
     public void Login_WithInvalidPassword_ThrowsUnauthorizedAccessException()
     {
         var repo = new MockAuthRepository(user: AdminUser);
-        var service = new AuthService(repo, new Pbkdf2PasswordHasher(), new MockJwtTokenService());
+        var service = new AuthService(repo, new Pbkdf2PasswordHasher(CreateConfig()), new MockJwtTokenService());
 
         var ex = Assert.Throws<UnauthorizedAccessException>(() =>
             service.Login(new LoginRequest(Username, "wrong_password", null), null, null));
@@ -126,7 +131,7 @@ public sealed class AuthServiceTests
     public void Login_WithNonAdminAndNoCentro_ThrowsCentroRequiredException()
     {
         var repo = new MockAuthRepository(user: NonAdminUser);
-        var service = new AuthService(repo, new Pbkdf2PasswordHasher(), new MockJwtTokenService());
+        var service = new AuthService(repo, new Pbkdf2PasswordHasher(CreateConfig()), new MockJwtTokenService());
 
         var ex = Assert.Throws<CentroRequiredException>(() =>
             service.Login(new LoginRequest(Username, ValidPassword, null), null, null));
@@ -138,7 +143,7 @@ public sealed class AuthServiceTests
     public void Login_WithInactiveUser_ThrowsUnauthorizedAccessException()
     {
         var repo = new MockAuthRepository(user: InactiveUser);
-        var service = new AuthService(repo, new Pbkdf2PasswordHasher(), new MockJwtTokenService());
+        var service = new AuthService(repo, new Pbkdf2PasswordHasher(CreateConfig()), new MockJwtTokenService());
 
         var ex = Assert.Throws<UnauthorizedAccessException>(() =>
             service.Login(new LoginRequest(Username, ValidPassword, null), null, null));
@@ -151,7 +156,7 @@ public sealed class AuthServiceTests
     {
         var centroId = Guid.NewGuid();
         var repo = new MockAuthRepository(user: NonAdminUser, userHasCentro: true, centroExists: true);
-        var service = new AuthService(repo, new Pbkdf2PasswordHasher(), new MockJwtTokenService());
+        var service = new AuthService(repo, new Pbkdf2PasswordHasher(CreateConfig()), new MockJwtTokenService());
 
         var result = service.Login(new LoginRequest(Username, ValidPassword, centroId.ToString()), null, null);
 
@@ -163,7 +168,7 @@ public sealed class AuthServiceTests
     public void Login_WithNonAdminAndInvalidCentro_ThrowsUnauthorizedAccessException()
     {
         var repo = new MockAuthRepository(user: NonAdminUser, userHasCentro: false, centroExists: true);
-        var service = new AuthService(repo, new Pbkdf2PasswordHasher(), new MockJwtTokenService());
+        var service = new AuthService(repo, new Pbkdf2PasswordHasher(CreateConfig()), new MockJwtTokenService());
 
         var ex = Assert.Throws<UnauthorizedAccessException>(() =>
             service.Login(new LoginRequest(Username, ValidPassword, Guid.NewGuid().ToString()), null, null));
@@ -178,7 +183,7 @@ public sealed class AuthServiceTests
             Guid.NewGuid(), UserId, "hash_valid",
             DateTimeOffset.UtcNow.AddDays(1), null);
         var repo = new MockAuthRepository(user: AdminUser, refreshTokenByHash: validToken);
-        var service = new AuthService(repo, new Pbkdf2PasswordHasher(), new MockJwtTokenService());
+        var service = new AuthService(repo, new Pbkdf2PasswordHasher(CreateConfig()), new MockJwtTokenService());
 
         var result = service.Refresh(new RefreshRequest("valid_refresh_token", null), null, null);
 
@@ -194,7 +199,7 @@ public sealed class AuthServiceTests
             Guid.NewGuid(), UserId, "hash_revoked",
             DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow.AddHours(-1));
         var repo = new MockAuthRepository(user: AdminUser, refreshTokenByHash: revokedToken);
-        var service = new AuthService(repo, new Pbkdf2PasswordHasher(), new MockJwtTokenService());
+        var service = new AuthService(repo, new Pbkdf2PasswordHasher(CreateConfig()), new MockJwtTokenService());
 
         var ex = Assert.Throws<UnauthorizedAccessException>(() =>
             service.Refresh(new RefreshRequest("revoked_refresh_token", null), null, null));
@@ -209,7 +214,7 @@ public sealed class AuthServiceTests
             Guid.NewGuid(), UserId, "hash_expired",
             DateTimeOffset.UtcNow.AddHours(-1), null);
         var repo = new MockAuthRepository(user: AdminUser, refreshTokenByHash: expiredToken);
-        var service = new AuthService(repo, new Pbkdf2PasswordHasher(), new MockJwtTokenService());
+        var service = new AuthService(repo, new Pbkdf2PasswordHasher(CreateConfig()), new MockJwtTokenService());
 
         var ex = Assert.Throws<UnauthorizedAccessException>(() =>
             service.Refresh(new RefreshRequest("expired_refresh_token", null), null, null));
