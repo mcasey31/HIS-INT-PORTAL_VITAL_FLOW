@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VitalFlow.His.Api;
 using VitalFlow.His.Api.Application.EstructuraInterna.Contracts;
 using VitalFlow.His.Api.Application.EstructuraInterna.Services;
 using VitalFlow.His.Api.Application.Personas.Contracts;
@@ -9,7 +10,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/estructura-interna")]
-[Authorize(Roles = "Administrador Seguridad")]
+[Authorize(Roles = Roles.SecurityAccess)]
 public sealed class EstructuraInternaController(
     IEstructuraInternaService estructuraInternaService,
     IPersonaService personaService) : ControllerBase

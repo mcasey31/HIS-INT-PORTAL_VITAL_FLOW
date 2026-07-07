@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VitalFlow.His.Api;
 using VitalFlow.His.Api.Application.Prescripcion.Contracts;
 using VitalFlow.His.Api.Application.Prescripcion.Services;
 
@@ -7,7 +8,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/prescripciones")]
-[Authorize(Roles = "Medico,Auditor,Administrador")]
+[Authorize(Roles = Roles.ClinicalAccess)]
 public sealed class PrescripcionController(
     IPrescripcionService prescripcionService,
     IHttpContextAccessor httpContextAccessor,
