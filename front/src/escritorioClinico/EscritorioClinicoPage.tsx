@@ -73,6 +73,7 @@ export function EscritorioClinicoPage({ onCancelSeleccionServicio }: EscritorioC
       {!state.selectedTurno ? <EscritorioClinicoFiltros state={state} /> : null}
       
       {state.error ? <p className="hc-error">{state.error}</p> : null}
+      {state.agendaMensaje ? <p className="hc-toast-success" role="status" aria-live="polite">{state.agendaMensaje}</p> : null}
       {state.solicitudToast ? <p className="hc-toast-success" role="status" aria-live="polite">{state.solicitudToast}</p> : null}
 
       <nav className="hc-breadcrumb" aria-label="Navegacion historia clinica">
