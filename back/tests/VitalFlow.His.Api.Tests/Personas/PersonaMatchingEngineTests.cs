@@ -17,7 +17,7 @@ public sealed class PersonaMatchingEngineTests
     [Fact]
     public void CalcularPorcentajeCoincidencia_MatchExacto_DeberiaSer100()
     {
-        var request = new BuscarPersonaSetMinimoRequest("DNI", "12345678", "Juan", "Perez", new DateOnly(1991, 2, 20), "M");
+        var request = new BuscarPersonaSetMinimoRequest("DNI", "12345678", "Juan", "Perez", new DateOnly(1991, 2, 20), "M", null, null);
         var candidato = new PersonaCandidataResponse(
             Guid.NewGuid(),
             "Perez, Juan",
@@ -26,7 +26,9 @@ public sealed class PersonaMatchingEngineTests
             new DateOnly(1991, 2, 20),
             "M",
             "ACTIVO",
-            0
+            0,
+            null,
+            null
         );
 
         var score = PersonaMatchingEngine.CalcularPorcentajeCoincidencia(request, candidato);
@@ -37,7 +39,7 @@ public sealed class PersonaMatchingEngineTests
     [Fact]
     public void CalcularPorcentajeCoincidencia_MatchParcial_DeberiaSer60()
     {
-        var request = new BuscarPersonaSetMinimoRequest("DNI", "12345678", "Juan", "Perez", new DateOnly(1991, 2, 20), "M");
+        var request = new BuscarPersonaSetMinimoRequest("DNI", "12345678", "Juan", "Perez", new DateOnly(1991, 2, 20), "M", null, null);
         var candidato = new PersonaCandidataResponse(
             Guid.NewGuid(),
             "Perez, Juana",
@@ -46,7 +48,9 @@ public sealed class PersonaMatchingEngineTests
             new DateOnly(1992, 5, 11),
             "F",
             "ACTIVO",
-            0
+            0,
+            null,
+            null
         );
 
         var score = PersonaMatchingEngine.CalcularPorcentajeCoincidencia(request, candidato);

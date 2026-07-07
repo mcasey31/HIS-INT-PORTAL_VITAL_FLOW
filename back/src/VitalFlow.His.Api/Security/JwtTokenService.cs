@@ -23,8 +23,8 @@ public sealed class JwtTokenService : IJwtTokenService
             throw new InvalidOperationException("Jwt:SigningKey is required. Configure it via environment variable or user-secrets.");
         }
 
-        _issuer = configuration["Jwt:Issuer"] ?? "VitalFlow.His.Api";
-        _audience = configuration["Jwt:Audience"] ?? "VitalFlow.His.Frontend";
+        _issuer = configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer is required. Configure it via environment variable or appsettings.");
+        _audience = configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience is required. Configure it via environment variable or appsettings.");
         _accessTokenMinutes = ParsePositiveInt(configuration["Jwt:AccessTokenMinutes"], 30);
         _refreshTokenMinutes = ParsePositiveInt(configuration["Jwt:RefreshTokenMinutes"], 7 * 24 * 60);
 

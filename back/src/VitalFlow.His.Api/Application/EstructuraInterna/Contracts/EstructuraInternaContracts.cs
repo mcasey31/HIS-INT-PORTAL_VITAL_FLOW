@@ -22,3 +22,11 @@ public sealed record RegistroNodoResponse(
     string Id,
     IReadOnlyDictionary<string, string?> Campos
 );
+
+public sealed record FinanciadorPlanCatalogoResponse(string Id, string Nombre);
+
+public sealed record FinanciadorCatalogoResponse(
+    string Id,
+    string Nombre,
+    IReadOnlyList<FinanciadorPlanCatalogoResponse> Planes
+);
