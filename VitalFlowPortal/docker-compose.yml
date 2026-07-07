@@ -4,8 +4,8 @@ services:
     container_name: vitalflow-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: pm_platform
     ports:
       - "5432:5432"
@@ -26,7 +26,7 @@ services:
     environment:
       NODE_ENV: production
       SKIP_ENV_VALIDATION: "1"
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/pm_platform
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/pm_platform
       AUTH_SECRET: ${AUTH_SECRET:-dev_secret_change_me}
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-dev_google_client_id}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-dev_google_client_secret}
