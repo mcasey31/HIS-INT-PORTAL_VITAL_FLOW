@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VitalFlow.His.Api;
 using VitalFlow.His.Api.Application.Medicamento.Contracts;
 using VitalFlow.His.Api.Application.Medicamento.Services;
 
@@ -7,7 +8,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/medicamentos")]
-[Authorize(Roles = "Medico,Auditor,Administrador")]
+[Authorize(Roles = Roles.ClinicalAccess)]
 public sealed class MedicamentoController(IMedicamentoService medicamentoService) : ControllerBase
 {
     [HttpGet("buscar")]
