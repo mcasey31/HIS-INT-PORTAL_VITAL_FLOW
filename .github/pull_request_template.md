@@ -54,3 +54,4 @@ Resultado esperado:
 - [ ] No rompe flujos existentes
 - [ ] El codigo es claro y mantenible
 - [ ] El alcance coincide con la HU/ticket
+
