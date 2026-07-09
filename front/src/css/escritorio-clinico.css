@@ -1,6 +1,6 @@
 .hc-page {
   display: grid;
-  gap: 0.9rem;
+  gap: 1rem;
 }
 
 .hc-header {
@@ -8,16 +8,17 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.8rem;
-  padding: 1rem 1.1rem;
-  border: 1px solid #d6e4f3;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #f4f8fd 0%, #eaf2fc 50%, #f6f9fe 100%);
+  padding: 1.1rem 1.2rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 251, 249, 0.96) 58%, rgba(233, 240, 251, 0.9) 100%);
+  box-shadow: var(--shadow-sm);
 }
 
 .hc-header h2 {
   margin: 0;
   font-size: 1.2rem;
-  color: #1f3f63;
+  color: #214c62;
 }
 
 .hc-header p {
@@ -34,14 +35,14 @@
 }
 
 .hc-fecha-badge {
-  border: 1px solid #a3c4e0;
+  border: 1px solid rgba(135, 186, 180, 0.45);
   border-radius: 999px;
   padding: 0.28rem 0.75rem;
-  background: linear-gradient(135deg, #e8f2ff 0%, #dceaff 100%);
-  color: #1d4a7a;
+  background: linear-gradient(135deg, rgba(237, 247, 246, 0.96) 0%, rgba(233, 240, 251, 0.92) 100%);
+  color: #245f60;
   font-weight: 700;
   font-size: 0.84rem;
-  box-shadow: 0 1px 3px rgba(29, 74, 122, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .hc-agenda-header {
@@ -56,7 +57,7 @@
 }
 
 .hc-agenda-header strong {
-  color: #2b4d72;
+  color: #2b5965;
 }
 
 .hc-agenda-lugar {
@@ -66,7 +67,7 @@
   gap: 0.55rem;
   grid-column: 1 / -1;
   padding-top: 0.4rem;
-  border-top: 1px solid #e8eef6;
+  border-top: 1px solid rgba(191, 208, 207, 0.72);
   margin-top: 0.2rem;
 }
 
@@ -115,7 +116,7 @@
 
 .hc-solicitudes-help {
   margin: 0;
-  color: #4b6888;
+  color: #607486;
   font-size: 0.84rem;
 }
 
@@ -125,10 +126,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 1rem;
-  padding: 0.5rem 0.65rem;
-  border: 1px solid #d7e3f0;
-  border-radius: 8px;
-  background: #f8fbff;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 14px;
+  background: rgba(248, 252, 251, 0.88);
 }
 
 .hc-solicitudes-canal-row label {
@@ -136,7 +137,7 @@
   align-items: center;
   gap: 0.4rem;
   font-weight: 600;
-  color: #274d73;
+  color: #2d5a66;
 }
 
 .hc-solicitudes-canal-row input[disabled] {
@@ -151,23 +152,23 @@
 }
 
 .hc-solicitudes-tabs button {
-  border: 1px solid #c5d7ea;
+  border: 1px solid rgba(191, 208, 207, 0.8);
   border-radius: 999px;
   padding: 0.28rem 0.68rem;
-  background: linear-gradient(135deg, #f6f9ff 0%, #eef4fb 100%);
-  color: #29527d;
+  background: rgba(255, 255, 255, 0.9);
+  color: #365c6d;
   transition: border-color 0.12s, background 0.12s, color 0.12s;
 }
 
 .hc-solicitudes-tabs button:hover {
-  border-color: #a8c4df;
-  background: linear-gradient(135deg, #eef4fb 0%, #e4edf8 100%);
+  border-color: rgba(14, 143, 127, 0.28);
+  background: rgba(248, 252, 251, 0.98);
 }
 
 .hc-solicitudes-tabs button.is-active {
-  border-color: #5b95cf;
-  background: #dff0ff;
-  color: #13497d;
+  border-color: rgba(14, 143, 127, 0.4);
+  background: rgba(227, 244, 241, 0.88);
+  color: var(--accent-strong);
   font-weight: 700;
 }
 
@@ -182,14 +183,14 @@
 }
 
 .hc-solicitudes-list li {
-  border: 1px solid #d7e1ed;
-  border-radius: 8px;
-  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 14px;
+  padding: 0.55rem 0.65rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
-  background: linear-gradient(135deg, #fafcff 0%, #f6f9fd 100%);
+  background: rgba(248, 252, 251, 0.9);
   transition: border-color 0.12s;
 }
 
@@ -214,14 +215,14 @@
 .hc-solicitudes-panel h4 {
   margin: 0;
   font-size: 0.9rem;
-  color: #294b72;
+  color: #2d5a66;
 }
 
 .hc-solicitudes-search {
   width: 100%;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid #c8d5e5;
-  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(191, 208, 207, 0.82);
+  border-radius: 12px;
   font-size: 0.84rem;
 }
 
@@ -229,9 +230,9 @@
   width: 100%;
   min-height: 180px;
   max-height: 260px;
-  border: 1px solid #d5deea;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
   font-size: 0.84rem;
   padding: 0.25rem;
   overflow-y: auto;
@@ -243,20 +244,20 @@
   padding: 0;
   max-height: 360px;
   overflow-y: auto;
-  border: 1px solid #d5deea;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
 }
 
 .hc-solicitudes-custom-list li {
   padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid #eef3f8;
+  border-bottom: 1px solid rgba(191, 208, 207, 0.42);
   cursor: pointer;
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
   font-size: 0.8rem;
-  color: #1d3f63;
+  color: #244e62;
   transition: background 0.1s;
 }
 
@@ -265,13 +266,13 @@
 }
 
 .hc-solicitudes-custom-list li:hover {
-  background: #f0f6ff;
+  background: rgba(248, 252, 251, 0.96);
 }
 
 .hc-solicitudes-custom-list li.is-selected {
-  background: linear-gradient(135deg, #e4efff 0%, #daecff 100%);
+  background: linear-gradient(135deg, rgba(227, 244, 241, 0.94) 0%, rgba(233, 240, 251, 0.88) 100%);
   border-color: transparent;
-  color: #164272;
+  color: #1f5d5a;
   font-weight: 600;
 }
 
@@ -283,7 +284,7 @@
   width: 15px;
   height: 15px;
   min-width: 15px;
-  border: 1.5px solid #a3bdd4;
+  border: 1.5px solid rgba(135, 186, 180, 0.72);
   border-radius: 3px;
   display: inline-flex;
   align-items: center;
@@ -296,8 +297,8 @@
 }
 
 .hc-solicitudes-custom-list li.is-selected .hc-practica-check {
-  background: #0f6cab;
-  border-color: #0f6cab;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 
@@ -488,18 +489,18 @@
 
 .hc-filters select:focus,
 .hc-filters input:focus {
-  border-color: #8eb9e4;
+  border-color: rgba(14, 143, 127, 0.52);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(14, 107, 171, 0.1);
+  box-shadow: 0 0 0 2px rgba(14, 143, 127, 0.12);
 }
 
 .hc-error {
   margin: 0;
   color: #992d2d;
   font-weight: 700;
-  padding: 0.45rem 0.6rem;
+  padding: 0.65rem 0.75rem;
   border: 1px solid #f0b4b4;
-  border-radius: 8px;
+  border-radius: 14px;
   background: #fff5f5;
   font-size: 0.86rem;
 }
@@ -521,7 +522,7 @@
 .hc-list h3,
 .hc-panoramica h3 {
   margin: 0;
-  color: #1f4068;
+  color: #214d62;
 }
 
 .hc-list {
@@ -551,12 +552,12 @@
 .hc-pacientes-grid-header {
   margin: 0.65rem 0 0.25rem;
   padding: 0.25rem 0.35rem;
-  color: #3a5d80;
+  color: #5b7484;
   font-size: 0.76rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  border-bottom: 1px solid #e0e8f2;
+  border-bottom: 1px solid rgba(191, 208, 207, 0.72);
 }
 
 .hc-cell {
@@ -596,38 +597,38 @@
 
 .hc-cell-main {
   font-weight: 700;
-  color: #234a72;
+  color: #244f63;
   font-size: 0.82rem;
 }
 
 .hc-cell-meta {
-  color: #59738f;
+  color: #617688;
   font-size: 0.76rem;
 }
 
 .hc-pacientes li {
-  border: 1px solid #d5deea;
-  border-radius: 10px;
-  background: #f9fbff;
-  padding: 0.55rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.7rem;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
 .hc-pacientes li:hover {
-  border-color: #b8d0e8;
-  box-shadow: 0 2px 8px rgba(31, 63, 99, 0.06);
-  background: #fdfeff;
+  border-color: rgba(14, 143, 127, 0.24);
+  box-shadow: var(--shadow-sm);
+  background: rgba(255, 255, 255, 0.98);
 }
 
 .hc-pacientes li.is-selected {
-  border-color: #6aadde;
-  background: linear-gradient(135deg, #eaf4ff 0%, #e0f0ff 100%);
-  box-shadow: 0 2px 12px rgba(31, 106, 180, 0.12);
+  border-color: rgba(14, 143, 127, 0.34);
+  background: linear-gradient(135deg, rgba(227, 244, 241, 0.94) 0%, rgba(233, 240, 251, 0.86) 100%);
+  box-shadow: var(--shadow-md);
 }
 
 .hc-paciente-title {
   font-weight: 700;
-  color: #1d3f63;
+  color: #214d62;
   font-size: 0.82rem;
 }
 
@@ -639,15 +640,15 @@
 }
 
 .hc-chip {
-  border: 1px solid #b8c7da;
+  border: 1px solid rgba(191, 208, 207, 0.88);
   border-radius: 999px;
   padding: 0.14rem 0.5rem;
-  background: linear-gradient(135deg, #f0f5fb 0%, #e8f0f8 100%);
-  color: #2f4d72;
+  background: rgba(246, 251, 249, 0.98);
+  color: #355d68;
   font-size: 0.74rem;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(47, 77, 114, 0.06);
+  box-shadow: 0 1px 2px rgba(47, 77, 114, 0.04);
 }
 
 .hc-chip-en-sala-de-espera {
@@ -731,10 +732,10 @@
   height: 1.7rem;
   min-width: 1.7rem;
   padding: 0;
-  border: 1px solid #8fb0d3;
-  border-radius: 6px;
-  background: linear-gradient(180deg, #f4f8ff 0%, #eaf2ff 100%);
-  color: #1e4f83;
+  border: 1px solid rgba(191, 208, 207, 0.88);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #245b65;
   font-size: 0.82rem;
   display: inline-flex;
   align-items: center;
@@ -745,10 +746,10 @@
 }
 
 .hc-icon-button:hover {
-  background: linear-gradient(180deg, #e0edff 0%, #d6e6ff 100%);
-  border-color: #6a9dc8;
+  background: rgba(227, 244, 241, 0.9);
+  border-color: rgba(14, 143, 127, 0.28);
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(30, 79, 131, 0.12);
+  box-shadow: var(--shadow-sm);
 }
 
 .hc-icon-button:disabled {

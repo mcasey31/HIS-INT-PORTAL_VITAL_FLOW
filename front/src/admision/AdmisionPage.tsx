@@ -1,9 +1,15 @@
 import '../css/admision.css';
 import { AdmisionIdentificacionPaciente, AdmisionCabeceraPaciente, AdmisionFiltros, AdmisionAccionesTurno, AdmisionListado } from "./components/AdmisionComponents";
 import { AdmisionModales } from "./components/AdmisionModales";
+import { usePageShell } from "../navigation/PageShellContext";
 import { useAdmisionController } from "./useAdmisionController";
 
 export function AdmisionPage() {
+  usePageShell({
+    title: "Admision",
+    breadcrumbItems: [{ label: "Admision", path: "/admision" }, { label: "Landing" }],
+  });
+
   const state = useAdmisionController();
 
   return (

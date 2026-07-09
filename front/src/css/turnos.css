@@ -1,6 +1,6 @@
 .turnos-page {
   display: grid;
-  gap: 0.9rem;
+  gap: 1rem;
 }
 
 .turnos-page h2 {
@@ -8,20 +8,21 @@
 }
 
 .turnos-step-card {
-  border: 1px solid #d5deea;
-  border-radius: 10px;
-  background: #fcfdff;
-  padding: 0.8rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .turnos-step-card h3 {
   margin: 0 0 0.4rem;
-  color: #2f4d72;
+  color: #214b62;
 }
 
 .turnos-step-help {
   margin: 0 0 0.6rem;
-  color: #5d6f84;
+  color: #617688;
 }
 
 .turnos-grid-2 {
@@ -37,10 +38,10 @@
 }
 
 .turnos-multi-select {
-  border: 1px solid #d5deea;
-  border-radius: 8px;
-  background: #fff;
-  padding: 0.45rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.65rem;
   display: grid;
   gap: 0.35rem;
 }
@@ -52,16 +53,16 @@
 .turnos-empty-field {
   margin: 0;
   font-size: 0.82rem;
-  color: #5d6f84;
+  color: #617688;
 }
 
 .turnos-alert {
   margin-top: 0.6rem;
-  border: 1px solid #bfd2e9;
-  background: #eef6ff;
-  color: #2f4d72;
-  border-radius: 8px;
-  padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(14, 143, 127, 0.18);
+  background: rgba(227, 244, 241, 0.72);
+  color: #245d5d;
+  border-radius: 14px;
+  padding: 0.65rem 0.75rem;
 }
 
 .turnos-alert-warn {
@@ -74,8 +75,8 @@
   margin-top: 0.5rem;
   border: 1px solid #bddcc4;
   background: #f1faf3;
-  border-radius: 8px;
-  padding: 0.55rem;
+  border-radius: 14px;
+  padding: 0.7rem;
 }
 
 .turnos-paciente-ok p {
@@ -113,19 +114,19 @@
 .turnos-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.16rem 0.5rem;
+  padding: 0.22rem 0.58rem;
   border-radius: 999px;
-  border: 1px solid #b8c7da;
-  background: #eef3f9;
-  color: #2f4d72;
+  border: 1px solid rgba(191, 208, 207, 0.92);
+  background: rgba(246, 251, 249, 0.98);
+  color: #355d68;
   font-size: 0.75rem;
   font-weight: 600;
 }
 
 .turnos-pill-selected {
-  border-color: #0f6cab;
-  background: #e9f4ff;
-  color: #0f5485;
+  border-color: rgba(14, 143, 127, 0.4);
+  background: rgba(227, 244, 241, 0.9);
+  color: var(--accent-strong);
 }
 
 .turnos-pill-vigente {
@@ -155,10 +156,10 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.75rem;
-  border: 1px solid #d5deea;
-  border-radius: 10px;
-  background: #f9fbff;
-  padding: 0.55rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 16px;
+  background: rgba(248, 252, 251, 0.88);
+  padding: 0.7rem;
 }
 
 .turnos-financiador-item small {
@@ -235,10 +236,10 @@
 }
 
 .turnos-email-preview {
-  border: 1px solid #d7e2ef;
-  border-radius: 10px;
-  background: #f6faff;
-  padding: 0.6rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 16px;
+  background: rgba(248, 252, 251, 0.88);
+  padding: 0.75rem;
   margin: 0.55rem 0 0.35rem;
 }
 
@@ -258,9 +259,9 @@
 }
 
 .turnos-st-btn {
-  background: #fff;
-  border-color: #6f83a7;
-  color: #385173;
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(191, 208, 207, 0.9);
+  color: #385d6e;
 }
 
 .turnos-st-btn:disabled {
@@ -277,10 +278,11 @@
 }
 
 .turnos-almanaque-card {
-  border: 1px solid #d5deea;
-  border-radius: 10px;
-  background: #ffffff;
-  padding: 0.65rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.8rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .turnos-almanaque-selected {
@@ -336,11 +338,11 @@
 }
 
 .turnos-dia-btn.is-available {
-  color: #2f5f8f;
-  border-color: #d3e1ef;
-  background: #f8fbff;
+  color: #2e6170;
+  border-color: rgba(191, 208, 207, 0.85);
+  background: rgba(248, 252, 251, 0.94);
   font-weight: 700;
-  box-shadow: inset 0 -3px 0 #7bb3e6;
+  box-shadow: inset 0 -3px 0 rgba(14, 143, 127, 0.55);
   cursor: pointer;
 }
 
@@ -349,8 +351,8 @@
 }
 
 .turnos-dia-btn.is-selected {
-  background: #4e9cde;
-  border-color: #4e9cde;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  border-color: var(--accent-strong);
   color: #ffffff;
   font-weight: 700;
   box-shadow: none;
@@ -372,9 +374,9 @@
 }
 
 .turnos-historial-actions .btn-outline.is-active {
-  border-color: #0f6cab;
-  color: #0f6cab;
-  background: #edf6ff;
+  border-color: rgba(14, 143, 127, 0.32);
+  color: var(--accent-strong);
+  background: rgba(227, 244, 241, 0.8);
 }
 
 .turnos-estado-agendado {
@@ -404,10 +406,10 @@
 }
 
 .turnos-proximos-wrapper {
-  border: 1px solid #d8e6f5;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #f7fbff 0%, #ffffff 100%);
-  padding: 0.7rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(248, 252, 251, 0.98) 0%, rgba(255, 255, 255, 0.94) 100%);
+  padding: 0.85rem;
   margin: 0 0 0.75rem;
 }
 
@@ -425,12 +427,12 @@
 }
 
 .turnos-proximos-count {
-  border: 1px solid #b8cfe7;
+  border: 1px solid rgba(135, 186, 180, 0.45);
   border-radius: 999px;
-  padding: 0.12rem 0.48rem;
+  padding: 0.18rem 0.55rem;
   font-size: 0.78rem;
-  color: #2f5f8f;
-  background: #eef6ff;
+  color: #24645f;
+  background: rgba(237, 247, 246, 0.94);
   font-weight: 700;
 }
 
@@ -444,10 +446,10 @@
   display: grid;
   grid-template-columns: 68px 1fr;
   gap: 0.55rem;
-  border: 1px solid #d6e2ef;
-  border-radius: 10px;
-  background: #ffffff;
-  padding: 0.5rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 0.65rem;
 }
 
 .turnos-proximo-actions {
@@ -465,9 +467,9 @@
 
 .btn-danger-outline {
   background: transparent;
-  border: 1px solid #e53e3e;
-  color: #e53e3e;
-  border-radius: 6px;
+  border: 1px solid #dc5d5d;
+  color: #c14b4b;
+  border-radius: 10px;
   padding: 0.2rem 0.65rem;
   font-size: 0.72rem;
   font-weight: 600;
@@ -485,10 +487,10 @@
 }
 
 .btn-danger {
-  background: #e53e3e;
-  border: 1px solid #c53030;
+  background: linear-gradient(135deg, #dd6767 0%, #c94848 100%);
+  border: 1px solid #b93f3f;
   color: #fff;
-  border-radius: 6px;
+  border-radius: 10px;
   padding: 0.4rem 1rem;
   font-size: 0.85rem;
   font-weight: 600;
@@ -506,9 +508,9 @@
 }
 
 .turnos-proximo-fecha {
-  border-radius: 8px;
-  border: 1px solid #c7d9ee;
-  background: #f2f8ff;
+  border-radius: 14px;
+  border: 1px solid rgba(191, 208, 207, 0.82);
+  background: rgba(237, 247, 246, 0.88);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -520,26 +522,26 @@
 .turnos-proximo-mes {
   font-size: 0.66rem;
   font-weight: 700;
-  color: #3a638e;
+  color: #47706d;
   letter-spacing: 0.05em;
 }
 
 .turnos-proximo-dia {
   font-size: 1.18rem;
   font-weight: 800;
-  color: #1b4a74;
+  color: #1d5654;
   line-height: 1;
 }
 
 .turnos-proximo-hora {
   font-size: 0.73rem;
-  color: #335a82;
+  color: #416f72;
   font-weight: 600;
 }
 
 .turnos-proximo-info p {
   margin: 0 0 0.18rem;
-  color: #2f4f73;
+  color: #355d6f;
   font-size: 0.82rem;
 }
 
@@ -548,11 +550,11 @@
 }
 
 .turnos-proximos-empty {
-  border: 1px dashed #c6d7eb;
-  border-radius: 8px;
-  padding: 0.55rem;
-  color: #486689;
-  background: #f8fbff;
+  border: 1px dashed rgba(191, 208, 207, 0.92);
+  border-radius: 14px;
+  padding: 0.7rem;
+  color: #58707e;
+  background: rgba(248, 252, 251, 0.82);
   font-size: 0.85rem;
 }
 

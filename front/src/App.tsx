@@ -10,15 +10,11 @@ import { authApi } from "./auth/authApi";
 import { EstructuraInternaPage } from "./abms/EstructuraInternaPage";
 import { EscritorioClinicoPage } from "./escritorioClinico/EscritorioClinicoPage";
 import { HomePage } from "./home/HomePage";
+import { PageShellProvider, type PageShellBreadcrumbItem, type PageShellState } from "./navigation/PageShellContext";
 import { useUnsavedChanges } from "./navigation/UnsavedChangesContext";
 import { PersonasPage } from "./personas/PersonasPage";
 import { TurnosPage } from "./turnos/TurnosPage";
 import { XdWorkspace } from "./ui/XdWorkspace";
-
-type BreadcrumbItem = {
-  label: string;
-  path?: string;
-};
 
 const APP_BUNDLE_SCRIPT_REGEX = /<script[^>]*src="([^"]*\/assets\/index-[^"]+\.js)"[^>]*><\/script>/i;
 
@@ -33,6 +29,30 @@ export function App() {
   const [buildLabel, setBuildLabel] = useState<string>("build: n/a");
   const [centroDisplayName, setCentroDisplayName] = useState<string>("Centro no seleccionado");
   const [hcaVistaActual, setHcaVistaActual] = useState<"agenda" | "panoramica">("agenda");
+  const [pageShell, setPageShell] = useState<PageShellState>({
+    title: "Home",
+    breadcrumbItems: [{ label: "Inicio", path: "/" }, { label: "Accesos directos" }],
+  });
+
+  const handleSetPageShell = (next: PageShellState) => {
+    setPageShell((previous) => {
+      const sameTitle = previous.title === next.title;
+      const sameLength = previous.breadcrumbItems.length === next.breadcrumbItems.length;
+      const sameBreadcrumbs = sameLength && previous.breadcrumbItems.every((item, index) => {
+        const nextItem = next.breadcrumbItems[index];
+        return item.label === nextItem.label && item.path === nextItem.path;
+      });
+
+      if (sameTitle && sameBreadcrumbs) {
+        return previous;
+      }
+
+      return {
+        title: next.title,
+        breadcrumbItems: [...next.breadcrumbItems],
+      };
+    });
+  };
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -225,19 +245,7 @@ export function App() {
   const isEscritorioClinico = path.startsWith("/escritorio-clinico");
   const isEstructuraInterna = canAccessEstructuraInterna && path.startsWith("/estructura-interna");
 
-  const breadcrumbItems: BreadcrumbItem[] = isAgenda
-    ? [{ label: "Agenda", path: "/agenda" }, { label: "Agregar agenda" }]
-    : isPersonas
-      ? [{ label: "Persona", path: "/personas" }, { label: "Identificacion de personas" }]
-      : isTurnos
-        ? [{ label: "Turnos", path: "/turnos" }, { label: "Asignar turno" }]
-        : isAdmision
-          ? [{ label: "Admision", path: "/admision" }, { label: "Landing" }]
-          : isEscritorioClinico
-            ? [{ label: "Historia clinica", path: "/escritorio-clinico" }, { label: hcaVistaActual === "panoramica" ? "Panoramica" : "Agenda asistencial" }]
-            : isEstructuraInterna
-              ? [{ label: "ABMs", path: "/estructura-interna" }, { label: "Estructura Interna" }]
-              : [{ label: "Inicio", path: "/" }, { label: "Accesos directos" }];
+  const breadcrumbItems: readonly PageShellBreadcrumbItem[] = pageShell.breadcrumbItems;
 
   const breadcrumb = (
     <nav className="breadcrumb-trail" aria-label="Ruta actual">
@@ -266,19 +274,7 @@ export function App() {
     </nav>
   );
 
-  const title = isAgenda
-    ? "Agregar agenda"
-    : isPersonas
-      ? "Identificacion de personas"
-      : isTurnos
-        ? "Asignar turno"
-        : isAdmision
-          ? "Admision"
-          : isEscritorioClinico
-            ? "Escritorio clinico"
-        : isEstructuraInterna
-          ? "Estructura Interna"
-          : "Home";
+  const title = pageShell.title;
 
   const navigateWithGuard = (targetPath: string) => {
     if (!confirmNavigation("cambiar de modulo")) {
@@ -317,37 +313,39 @@ export function App() {
   };
 
   return (
-    <XdWorkspace
-      breadcrumb={breadcrumb}
-      featureLabel="VitalFlow HIS"
-      buildLabel={buildLabel}
-      dateLabel={today}
-      title={title}
-      statusLabel="Integracion API activa"
-      onTitleClick={isAgenda ? () => setOpenHu7027Token((prev) => prev + 1) : undefined}
-      onModulesClick={() => {
-        setProfileOpen(false);
-        navigateWithGuard("/");
-      }}
-      modulesOpen={false}
-      onProfileClick={() => {
-        setProfileOpen((prev) => !prev);
-      }}
-      profileOpen={profileOpen}
-      profileName={displayName}
-      profileCenterLabel={centroDisplayName}
-      profileRoles={roles}
-      onLogout={() => void handleLogout()}
-    >
-      <Routes key={`${location.pathname}${location.search}`}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/agenda" element={canAccessAgenda ? <AgendaPage openHu7027Token={openHu7027Token} /> : <HomePage />} />
-        <Route path="/personas" element={canAccessPersonas ? <PersonasPage /> : <HomePage />} />
-        <Route path="/turnos" element={canAccessTurnos ? <TurnosPage /> : <HomePage />} />
-        <Route path="/admision" element={canAccessAdmision ? <AdmisionPage /> : <HomePage />} />
-        <Route path="/escritorio-clinico" element={canAccessEscritorioClinico ? <EscritorioClinicoPage /> : <HomePage />} />
-        <Route path="/estructura-interna" element={canAccessEstructuraInterna ? <EstructuraInternaPage /> : <HomePage />} />
-      </Routes>
-    </XdWorkspace>
+    <PageShellProvider value={{ setPageShell: handleSetPageShell }}>
+      <XdWorkspace
+        breadcrumb={breadcrumb}
+        featureLabel="VitalFlow HIS"
+        buildLabel={buildLabel}
+        dateLabel={today}
+        title={title}
+        statusLabel="Integracion API activa"
+        onTitleClick={isAgenda ? () => setOpenHu7027Token((prev) => prev + 1) : undefined}
+        onModulesClick={() => {
+          setProfileOpen(false);
+          navigateWithGuard("/");
+        }}
+        modulesOpen={false}
+        onProfileClick={() => {
+          setProfileOpen((prev) => !prev);
+        }}
+        profileOpen={profileOpen}
+        profileName={displayName}
+        profileCenterLabel={centroDisplayName}
+        profileRoles={roles}
+        onLogout={() => void handleLogout()}
+      >
+        <Routes key={`${location.pathname}${location.search}`}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/agenda" element={canAccessAgenda ? <AgendaPage openHu7027Token={openHu7027Token} /> : <HomePage />} />
+          <Route path="/personas" element={canAccessPersonas ? <PersonasPage /> : <HomePage />} />
+          <Route path="/turnos" element={canAccessTurnos ? <TurnosPage /> : <HomePage />} />
+          <Route path="/admision" element={canAccessAdmision ? <AdmisionPage /> : <HomePage />} />
+          <Route path="/escritorio-clinico" element={canAccessEscritorioClinico ? <EscritorioClinicoPage /> : <HomePage />} />
+          <Route path="/estructura-interna" element={canAccessEstructuraInterna ? <EstructuraInternaPage /> : <HomePage />} />
+        </Routes>
+      </XdWorkspace>
+    </PageShellProvider>
   );
 }

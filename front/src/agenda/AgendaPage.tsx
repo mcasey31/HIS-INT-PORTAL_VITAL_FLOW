@@ -2,10 +2,21 @@ import '../css/agenda.css';
 import { useAgendaController } from "./useAgendaController";
 import type { AgendaDetail } from "./agendaTypes";
 import { FormEvent, useEffect, useState } from "react";
+import { usePageShell } from "../navigation/PageShellContext";
 import { useUnsavedChanges } from "../navigation/UnsavedChangesContext";
 type AgendaPageProps = {
   openHu7027Token?: number;
 };
+
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="icon-eye" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1.7 12s3.7-6.2 10.3-6.2S22.3 12 22.3 12 18.6 18.2 12 18.2 1.7 12 1.7 12Z" />
+      <circle cx="12" cy="12" r="3.1" />
+    </svg>
+  );
+}
+
 export function AgendaPage({
   openHu7027Token = 0
 }: AgendaPageProps) {
@@ -220,6 +231,31 @@ export function AgendaPage({
   const bloqueFechaHastaMin = bloqueFechaDesde || bloqueAgendaFechaDesde || undefined;
   const bloqueFechaHastaMax = bloqueAgendaFechaHasta || undefined;
 
+  const agendaShellByStep = {
+    consulta: {
+      title: "Gestion de agendas",
+      breadcrumbItems: [{ label: "Agenda", path: "/agenda" }, { label: "Gestion de agendas" }],
+    },
+    alta: {
+      title: "Nueva agenda",
+      breadcrumbItems: [{ label: "Agenda", path: "/agenda" }, { label: "Nueva agenda" }],
+    },
+    detalle: {
+      title: "Detalle de agenda",
+      breadcrumbItems: [{ label: "Agenda", path: "/agenda" }, { label: "Detalle de agenda" }],
+    },
+    edicion: {
+      title: "Edicion de agenda",
+      breadcrumbItems: [{ label: "Agenda", path: "/agenda" }, { label: "Edicion de agenda" }],
+    },
+    bloques: {
+      title: "Bloques de agenda",
+      breadcrumbItems: [{ label: "Agenda", path: "/agenda" }, { label: "Bloques de agenda" }],
+    },
+  } as const;
+
+  usePageShell(agendaShellByStep[agendaStep]);
+
   useEffect(() => {
     if (successMessage) {
       clearUnsavedChanges();
@@ -370,7 +406,7 @@ export function AgendaPage({
                         aria-label="Visualizar bloque"
                         onClick={() => setBloqueVisualizado(bloque)}
                       >
-                        👁️
+                        <EyeIcon />
                       </button>
                       {editable ? (
                         <button
@@ -397,8 +433,10 @@ export function AgendaPage({
     );
   };
 
-  return <section className="agenda-root">
-      <section className="agenda-landing card-block">
+    const isExpandedStep = showAdvanced && agendaStep !== "consulta";
+
+    return <section className="agenda-root">
+      <section className={`agenda-landing card-block ${isExpandedStep ? "agenda-landing--compact" : ""}`}>
         <h2>Gestion de agendas</h2>
         {successMessage ? <p className="agenda-feedback agenda-feedback-success">{successMessage}</p> : null}
         {error ? <p className="agenda-feedback agenda-feedback-error">{error}</p> : null}
@@ -976,7 +1014,7 @@ export function AgendaPage({
           {successMessage ? <p className="agenda-feedback agenda-feedback-success">{successMessage}</p> : null}
           {error ? <p className="agenda-feedback agenda-feedback-error">{error}</p> : null}
 
-          <div className="card-block vf-form">
+          <div className="card-block agenda-detail-panel">
             {!selectedAgenda ? <p>Cargando detalle...</p> : (
               <div className="agenda-detail-grid" aria-label="Datos de la agenda">
                 <div className="agenda-detail-item">
