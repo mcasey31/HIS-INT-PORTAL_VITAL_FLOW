@@ -62,11 +62,17 @@ export function App() {
   useEffect(() => {
     const script = document.querySelector<HTMLScriptElement>("script[src*='/assets/index-']");
     if (!script?.src) {
+      if (__APP_BUILD_ID__ && __APP_BUILD_ID__ !== "n/a") {
+        setBuildLabel(`build: ${__APP_BUILD_ID__.slice(0, 8)}`);
+      }
       return;
     }
 
     const match = script.src.match(/index-([A-Za-z0-9_-]+)\.js/);
     if (!match || !match[1]) {
+      if (__APP_BUILD_ID__ && __APP_BUILD_ID__ !== "n/a") {
+        setBuildLabel(`build: ${__APP_BUILD_ID__.slice(0, 8)}`);
+      }
       return;
     }
 
