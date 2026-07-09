@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import "../css/landing.css";
+import { usePageShell } from "../navigation/PageShellContext";
 
 type HomeAccessCard = {
   key: string;
@@ -37,6 +38,11 @@ export function HomePage() {
     || hasRole("Auditor");
   const canAccessEscritorioClinico = hasRole("Administrador") || hasRole("Medico") || hasRole("Auditor");
   const canAccessEstructuraInterna = hasRole("Administrador") || hasRole("Administrador Seguridad");
+
+  usePageShell({
+    title: "Home",
+    breadcrumbItems: [{ label: "Inicio", path: "/" }, { label: "Accesos directos" }],
+  });
 
   const displayName = username
     ? username.charAt(0).toUpperCase() + username.slice(1).toLowerCase()

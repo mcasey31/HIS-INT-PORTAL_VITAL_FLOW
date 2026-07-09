@@ -1,8 +1,9 @@
 .admision-page {
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 1rem;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 24px;
+  padding: 1.2rem;
+  box-shadow: var(--shadow-md);
 }
 
 .admision-header h2 {
@@ -15,8 +16,8 @@
 }
 
 .admision-identificacion {
-  border: 1px solid #c9d9eb;
-  background: #f6faff;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 252, 251, 0.92) 100%);
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
   gap: 0.6rem;
@@ -40,10 +41,10 @@
 }
 
 .admision-paciente-seleccionado {
-  border: 1px solid #b7d4ef;
-  border-radius: 10px;
-  background: #edf6ff;
-  padding: 0.7rem;
+  border: 1px solid rgba(135, 186, 180, 0.42);
+  border-radius: 18px;
+  background: rgba(237, 247, 246, 0.86);
+  padding: 0.85rem;
   margin-bottom: 0.8rem;
 }
 
@@ -57,10 +58,10 @@
 }
 
 .admision-candidatos {
-  border: 1px solid #d7e4f3;
-  border-radius: 10px;
-  background: #fbfdff;
-  padding: 0.7rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 18px;
+  background: rgba(248, 252, 251, 0.9);
+  padding: 0.85rem;
   margin-bottom: 0.8rem;
 }
 
@@ -75,11 +76,12 @@
 }
 
 .admision-cabecera {
-  border: 1px solid #bbd2e9;
-  border-radius: 12px;
-  background: linear-gradient(130deg, #f8fbff 0%, #edf5ff 56%, #f2f8ff 100%);
-  padding: 0.8rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 251, 249, 0.96) 58%, rgba(233, 240, 251, 0.88) 100%);
+  padding: 1rem;
   margin-bottom: 0.8rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .admision-cabecera-main {
@@ -101,14 +103,14 @@
   font-size: 0.74rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #59789a;
+  color: #64808d;
   font-weight: 700;
   margin-bottom: 0.1rem;
 }
 
 .admision-cabecera-nombre {
   font-weight: 700;
-  color: #244567;
+  color: #244f63;
 }
 
 .admision-cabecera-sexo {
@@ -118,9 +120,9 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid #95b9de;
-  background: #e3eefc;
-  color: #1f5f94;
+  border: 1px solid rgba(14, 143, 127, 0.22);
+  background: rgba(227, 244, 241, 0.9);
+  color: var(--accent-strong);
   font-weight: 700;
 }
 
@@ -141,7 +143,7 @@
   font-size: 0.73rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #577699;
+  color: #63808f;
   font-weight: 700;
 }
 
@@ -160,17 +162,17 @@
 .admision-cabecera-detalle {
   margin-top: 0.7rem;
   padding-top: 0.7rem;
-  border-top: 1px solid #d0e2f4;
+  border-top: 1px solid rgba(191, 208, 207, 0.72);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 0.5rem 0.8rem;
 }
 
 .admision-detalle-card {
-  border: 1px solid #d7e6f4;
-  border-radius: 8px;
-  background: #fafdff;
-  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 14px;
+  background: rgba(248, 252, 251, 0.9);
+  padding: 0.6rem 0.7rem;
 }
 
 .admision-detalle-label {
@@ -178,7 +180,7 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #6283a6;
+  color: #678493;
   font-weight: 700;
 }
 
@@ -225,17 +227,17 @@
   align-items: center;
   padding: 0.16rem 0.5rem;
   border-radius: 999px;
-  border: 1px solid #b8c7da;
-  background: #eef3f9;
-  color: #2f4d72;
+  border: 1px solid rgba(191, 208, 207, 0.88);
+  background: rgba(246, 251, 249, 0.98);
+  color: #365e68;
   font-size: 0.75rem;
   font-weight: 600;
 }
 
 .admision-pill-selected {
-  border-color: #0f6cab;
-  background: #e9f4ff;
-  color: #0f5485;
+  border-color: rgba(14, 143, 127, 0.4);
+  background: rgba(227, 244, 241, 0.88);
+  color: var(--accent-strong);
 }
 
 .admision-pill-warning {
@@ -253,12 +255,12 @@
 .admision-elegibilidad-check {
   margin: 0;
   font-weight: 600;
-  color: #2b4f75;
+  color: #285a65;
 }
 
 .admision-step-help {
   margin: 0;
-  color: #4f6785;
+  color: #617688;
   font-size: 0.86rem;
 }
 
@@ -282,10 +284,10 @@
 
 .admision-acciones-turno {
   margin: 0.45rem 0 0.8rem;
-  border: 1px solid #cfe0f2;
-  border-radius: 10px;
-  background: #f6faff;
-  padding: 0.55rem 0.6rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 16px;
+  background: rgba(248, 252, 251, 0.9);
+  padding: 0.7rem 0.8rem;
 }
 
 .admision-fecha-nav {
@@ -304,7 +306,7 @@
   color: #8f5a00;
   background: #fff8df;
   border: 1px solid #e5d7a3;
-  border-radius: 8px;
+  border-radius: 14px;
   padding: 0.4rem 0.55rem;
   font-size: 0.84rem;
 }
@@ -324,10 +326,10 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.7rem;
-  border: 1px solid #d5deea;
-  border-radius: 10px;
-  background: #f9fbff;
-  padding: 0.5rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 16px;
+  background: rgba(248, 252, 251, 0.88);
+  padding: 0.65rem;
 }
 
 .admision-financiador-radio {
@@ -377,8 +379,8 @@
 }
 
 .admision-filtros {
-  border: 1px solid #c9d9eb;
-  background: #f8fbff;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  background: rgba(255, 255, 255, 0.88);
   display: grid;
   gap: 0.65rem;
   margin-bottom: 0.8rem;
@@ -396,7 +398,7 @@
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 0.6rem;
   padding-top: 0.1rem;
-  border-top: 1px dashed #d7e3f2;
+  border-top: 1px dashed rgba(191, 208, 207, 0.9);
 }
 
 .admision-actions {
@@ -417,16 +419,16 @@
   border: 1px solid #f0b4b4;
   background: #fff6f6;
   color: #9f2d2d;
-  border-radius: 8px;
-  padding: 0.5rem 0.6rem;
+  border-radius: 14px;
+  padding: 0.65rem 0.75rem;
 }
 
 .admision-info {
   border: 1px solid #b6dfbf;
   background: #f3fff6;
   color: #22643b;
-  border-radius: 8px;
-  padding: 0.5rem 0.6rem;
+  border-radius: 14px;
+  padding: 0.65rem 0.75rem;
 }
 
 .admision-lista {
@@ -448,15 +450,15 @@
 
 .admision-table-wrap th,
 .admision-table-wrap td {
-  border: 1px solid #d8e3f1;
-  padding: 0.45rem 0.5rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  padding: 0.58rem 0.6rem;
   font-size: 0.86rem;
   text-align: left;
 }
 
 .admision-table-wrap th {
-  background: #edf4fd;
-  color: #264a72;
+  background: rgba(237, 247, 246, 0.96);
+  color: #2d5d66;
 }
 
 .btn-icon-receta {
@@ -480,9 +482,9 @@
 
 .admision-row-select-btn {
   min-width: 92px;
-  background: #fff;
-  color: #325a84;
-  border-color: #8ea7c5;
+  background: rgba(255, 255, 255, 0.94);
+  color: #365f6f;
+  border-color: rgba(191, 208, 207, 0.88);
 }
 
 .admision-row-select-btn.is-selected-programado {
@@ -498,7 +500,7 @@
 }
 
 .admision-table-wrap tbody tr.is-selected {
-  box-shadow: inset 0 0 0 2px #b9cde4;
+  box-shadow: inset 0 0 0 2px rgba(14, 143, 127, 0.28);
 }
 
 .admision-table-wrap tbody tr.estado-programado.is-selected {
@@ -538,9 +540,9 @@
   min-height: 1.9rem;
   padding: 0.2rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid #bfd0e1;
-  background: #edf3fa;
-  color: #29496c;
+  border: 1px solid rgba(191, 208, 207, 0.88);
+  background: rgba(246, 251, 249, 0.96);
+  color: #355d68;
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -594,7 +596,7 @@
 
 .admision-programado-step h4 {
   margin: 0 0 0.45rem;
-  color: #264d75;
+  color: #295a65;
 }
 
 .admision-programado-step p {
@@ -607,7 +609,7 @@
 
 .admision-demanda-step h4 {
   margin: 0 0 0.4rem;
-  color: #264d75;
+  color: #295a65;
 }
 
 .admision-demanda-step p {
@@ -616,10 +618,10 @@
 
 .admision-practicas-panel {
   margin-bottom: 1rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid #d7e3f3;
-  border-radius: 0.75rem;
-  background: #f8fbff;
+  padding: 1rem 1.05rem;
+  border: 1px solid rgba(191, 208, 207, 0.72);
+  border-radius: 1rem;
+  background: rgba(248, 252, 251, 0.9);
 }
 
 .admision-practicas-head {
@@ -661,7 +663,7 @@
 }
 
 .admision-practicas-modal-list {
-  border: 1px solid #d7e3f3;
+  border: 1px solid rgba(191, 208, 207, 0.72);
   border-radius: 0.6rem;
   padding: 0.7rem 0.8rem;
   max-height: 260px;
