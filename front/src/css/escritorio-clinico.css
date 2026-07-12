@@ -1662,40 +1662,164 @@
   }
 }
 
-/* Medication search modal */
+/* ========================================
+   Medication / Prescription Modal System
+   ======================================== */
 .confirm-modal.hc-medicamento-modal {
-  width: min(850px, calc(100vw - 2rem)) !important;
-  max-width: 850px !important;
-  height: 580px !important;
-  max-height: calc(100vh - 2rem) !important;
-  display: flex !important;
-  flex-direction: column !important;
-  padding: 1.25rem !important;
-}
-
-.confirm-modal.hc-medicamento-modal .modal-body {
-  flex: 1;
+  width: min(850px, calc(100vw - 2rem));
+  max-width: 850px;
+  max-height: calc(100vh - 2rem);
+  height: auto;
   display: flex;
   flex-direction: column;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+  border-radius: 16px;
   overflow: hidden;
+}
+
+.confirm-modal.hc-medicamento-modal .hc-receta-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.1rem 1.35rem 1.15rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.35);
   gap: 0.75rem;
-  margin-top: 0.5rem;
 }
 
-.hc-medicamentos-resultados-container {
+.confirm-modal.hc-medicamento-modal .hc-receta-header h3 {
+  margin: 0;
+  font-family: 'Manrope', sans-serif;
+  color: #162839;
+  font-weight: 700;
+  font-size: 1.3rem;
+}
+
+.confirm-modal.hc-medicamento-modal .hc-receta-header p {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  color: #555;
+  line-height: 1.35;
+}
+
+.confirm-modal.hc-medicamento-modal .hc-receta-header p strong {
+  color: #162839;
+}
+
+.confirm-modal.hc-medicamento-modal .hc-receta-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  margin-top: 0.25rem;
+  gap: 0.85rem;
+  padding: 1.15rem 1.35rem;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.confirm-modal.hc-medicamento-modal .hc-receta-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0.9rem 1.35rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(240, 244, 248, 0.5);
+}
+
+.confirm-modal.hc-medicamento-modal .modal-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #666;
+  font-size: 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.confirm-modal.hc-medicamento-modal .modal-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #111;
+}
+
+/* Search form */
+.hc-busca-medicamento-form {
+  display: flex;
+  gap: 0.6rem;
+  align-items: stretch;
+  width: 100%;
+}
+
+.hc-busca-medicamento-form .hc-receta-search-wrapper {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.hc-busca-medicamento-form .hc-receta-search-input {
+  width: 100%;
+  padding: 0.65rem 0.9rem 0.65rem 2.4rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 0.92rem;
+  box-sizing: border-box;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hc-busca-medicamento-form .hc-receta-search-input:focus {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #006397;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 99, 151, 0.15);
+}
+
+.hc-busca-medicamento-form .hc-receta-search-icon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #777;
+  font-size: 1.05rem;
+  pointer-events: none;
+}
+
+.hc-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #555;
+  user-select: none;
+}
+
+/* Results */
+.hc-medicamentos-resultados-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-height: 0;
 }
 
 .hc-medicamentos-resultados-scroll {
   flex: 1;
   overflow-y: auto;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .hc-medicamento-table {
@@ -1709,17 +1833,25 @@
   top: 0;
   z-index: 2;
   text-align: left;
-  padding: 0.5rem;
-  background: #eaf1f9;
-  border-bottom: 2px solid #c8d8ea;
-  color: #1f3f63;
-  font-weight: 600;
+  padding: 0.6rem;
+  background: rgba(0, 99, 151, 0.08);
+  border-bottom: 2px solid rgba(0, 99, 151, 0.12);
+  color: #162839;
+  font-weight: 700;
+  font-size: 0.82rem;
   white-space: nowrap;
 }
 
 .hc-medicamento-table td {
-  padding: 0.5rem;
-  border-bottom: 1px solid #e3eaf2;
+  padding: 0.6rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.hc-medicamento-table td:first-child {
+  font-weight: 600;
+  color: #333;
 }
 
 .hc-medicamento-row {
@@ -1731,168 +1863,125 @@
   background: #eef5fc;
 }
 
-.hc-empty {
+.hc-medicamentos-loading {
   text-align: center;
-  padding: 2rem 1rem;
-  color: #7a92ab;
-  font-style: italic;
+  padding: 1rem;
+  color: #666;
 }
 
-.hc-badge {
-  display: inline-block;
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 0.1rem 0.35rem;
-  border-radius: 4px;
-  margin-left: 0.3rem;
-  vertical-align: middle;
+/* Form grid inside prescription modal */
+.hc-receta-form-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1rem;
 }
 
-.hc-badge-generico {
-  background: #dff0d8;
-  color: #3c763d;
-  border: 1px solid #b8d9ac;
-}
-
-/* --- Glassmorphic Style Customizations for Prescription Modal --- */
-.confirm-modal.hc-medicamento-modal {
-  background: rgba(255, 255, 255, 0.82) !important;
-  backdrop-filter: blur(25px) !important;
-  -webkit-backdrop-filter: blur(25px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.45) !important;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15) !important;
-  border-radius: 16px !important;
-  height: auto !important;
-  max-height: 90vh !important;
-}
-
-.confirm-modal.hc-medicamento-modal .hc-receta-header {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 1rem 1.5rem 1.25rem;
-  margin: -1.25rem -1.25rem 0;
-  background: rgba(255, 255, 255, 0.35);
+.hc-receta-form-field {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.3rem;
 }
 
-.confirm-modal.hc-medicamento-modal .hc-receta-header h3 {
-  font-family: 'Manrope', sans-serif !important;
-  color: #162839 !important;
-  font-weight: 700 !important;
-  font-size: 1.35rem !important;
-  margin: 0 !important;
+.hc-receta-form-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #555;
 }
 
-.confirm-modal.hc-medicamento-modal .hc-receta-header p {
-  margin: 0.35rem 0 0 !important;
-  font-size: 0.88rem !important;
-  color: #555 !important;
-}
+.hc-receta-form-field--dosis { grid-column: span 3; }
+.hc-receta-form-field--frecuencia { grid-column: span 3; }
+.hc-receta-form-field--duracion { grid-column: span 3; }
+.hc-receta-form-field--via { grid-column: span 3; }
+.hc-receta-form-field--indicacion { grid-column: span 12; }
 
-.confirm-modal.hc-medicamento-modal .hc-receta-header p strong {
-  color: #162839;
-}
-
-.confirm-modal.hc-medicamento-modal .modal-close {
-  background: transparent !important;
-  border: none !important;
-  font-size: 1.4rem !important;
-  color: #666 !important;
-  cursor: pointer !important;
-  padding: 0.25rem !important;
-  border-radius: 50% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  transition: background 0.2s !important;
-  width: 32px !important;
-  height: 32px !important;
-  margin-top: -0.25rem;
-}
-
-.confirm-modal.hc-medicamento-modal .modal-close:hover {
-  background: rgba(0, 0, 0, 0.05) !important;
-  color: #111 !important;
-}
-
-.confirm-modal.hc-medicamento-modal .hc-receta-content {
-  padding: 1.25rem 0.25rem !important;
-  overflow-y: auto !important;
-}
-
-.confirm-modal.hc-medicamento-modal .hc-receta-footer {
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 1rem 1.5rem;
-  margin: 0 -1.25rem -1.25rem;
-  background: rgba(240, 244, 248, 0.5);
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  border-bottom-left-radius: 16px;
-  border-bottom-right-radius: 16px;
-}
-
-/* Form Controls with Glassmorphism */
 .confirm-modal.hc-medicamento-modal .hc-receta-input,
 .confirm-modal.hc-medicamento-modal .hc-receta-select,
 .confirm-modal.hc-medicamento-modal .hc-receta-textarea {
-  width: 100% !important;
-  padding: 0.7rem 0.85rem !important;
-  border-radius: 8px !important;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
-  background: rgba(255, 255, 255, 0.65) !important;
-  font-size: 0.9rem !important;
-  color: #333 !important;
-  transition: all 0.2s ease !important;
-  box-sizing: border-box !important;
-  font-family: 'Inter', sans-serif !important;
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.65);
+  font-size: 0.9rem;
+  color: #333;
+  box-sizing: border-box;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .confirm-modal.hc-medicamento-modal .hc-receta-input:focus,
 .confirm-modal.hc-medicamento-modal .hc-receta-select:focus,
 .confirm-modal.hc-medicamento-modal .hc-receta-textarea:focus {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-color: #006397 !important;
-  outline: none !important;
-  box-shadow: 0 0 0 3px rgba(0, 99, 151, 0.15) !important;
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #006397;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 99, 151, 0.15);
 }
 
-/* Glass search wrapper */
-.hc-receta-search-wrapper {
-  position: relative;
+/* Prescription buttons */
+.btn-primary {
+  background: #0f6cab;
+  border: 1px solid #0f6cab;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 0.5rem 1.5rem;
+  height: 42px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
 }
 
-.hc-receta-search-input {
-  width: 100% !important;
-  padding: 0.8rem 1rem 0.8rem 2.5rem !important;
-  border-radius: 8px !important;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
-  background: rgba(255, 255, 255, 0.6) !important;
-  font-size: 0.95rem !important;
-  transition: all 0.2s ease !important;
-  box-sizing: border-box;
+.btn-primary:hover:not(:disabled) {
+  background: #0d5d93;
+  border-color: #0d5d93;
 }
 
-.hc-receta-search-input:focus {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-color: #006397 !important;
-  outline: none !important;
-  box-shadow: 0 0 0 3px rgba(0, 99, 151, 0.15) !important;
+.btn-primary:disabled {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed !important;
 }
 
-.hc-receta-search-icon {
-  position: absolute;
-  left: 0.85rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #777;
-  font-size: 1.1rem;
-  pointer-events: none;
+.btn-receta-cancelar {
+  background: #fff;
+  border: 1px solid #d1dbe5;
+  color: #4a5568;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
 }
 
-/* Item cards in the prescription list module */
+.btn-receta-cancelar:hover:not(:disabled) {
+  background: #f7fafc;
+  border-color: #cbd5e0;
+}
+
+.btn-receta-guardar {
+  background: #0f6cab;
+  border: 1px solid #0f6cab;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-receta-guardar:hover:not(:disabled) {
+  background: #0d5d93;
+  border-color: #0d5d93;
+}
+
+/* Prescription history card */
 .hc-receta-item-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -1901,10 +1990,107 @@
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
 }
 
-/* Global modal-backdrop blur overlay override */
-.modal-backdrop {
-  background: rgba(22, 40, 57, 0.45) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  z-index: 1100 !important;
+.hc-receta-item-info {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.hc-receta-item-icon {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.hc-receta-item-text h4 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #162839;
+}
+
+.hc-receta-item-text p {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.hc-paginacion-pagina {
+  padding: 0 0.5rem;
+  align-self: center;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.hc-receta-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.hc-receta-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  padding: 0;
+}
+
+.hc-receta-info-box {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: rgba(223, 227, 231, 0.4);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.hc-receta-info-box p {
+  margin: 0;
+}
+
+.hc-receta-info-producto {
+  font-weight: 700;
+  color: #162839;
+  font-size: 1rem;
+}
+
+.hc-receta-info-detalle {
+  font-size: 0.85rem;
+  color: #006397;
+  font-weight: 500;
+  margin: 0.25rem 0 0;
+}
+
+.hc-receta-info-extra {
+  font-size: 0.8rem;
+  color: #555;
+  margin: 0.25rem 0 0;
+}
+
+.hc-paginacion-pagina {
+  padding: 0 0.5rem;
+  align-self: center;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.hc-receta-item-card.is-activa {
+  background: rgba(244, 248, 253, 0.75);
+  border-left: 4px solid #006397;
+  opacity: 1;
+}
+
+.hc-receta-item-card.is-inactiva {
+  background: rgba(245, 245, 245, 0.6);
+  border-left: 4px solid #777;
+  opacity: 0.7;
 }

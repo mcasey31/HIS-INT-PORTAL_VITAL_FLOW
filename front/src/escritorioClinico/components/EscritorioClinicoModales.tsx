@@ -390,7 +390,7 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
       </div> : null}
 
       {showMedicamentoModal ? <div className="modal-backdrop" role="presentation" onClick={() => setShowMedicamentoModal(false)}>
-        <section className="confirm-modal hc-medicamento-modal glass-panel" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}>
+        <section className="confirm-modal hc-medicamento-modal" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}>
           <header className="hc-receta-header">
             <div>
               <h3>Buscar medicamento</h3>
@@ -400,32 +400,31 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
             </div>
             <button type="button" className="modal-close" onClick={() => setShowMedicamentoModal(false)}>&times;</button>
           </header>
-          <div className="hc-receta-content" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div className="hc-receta-content">
             <form
               onSubmit={event => {
                 event.preventDefault();
                 if (medicamentoSearchTimer?.current) clearTimeout(medicamentoSearchTimer.current);
                 void ejecutarBusquedaMedicamento(medicamentoSearchQuery, 1);
               }}
-              style={{ display: "flex", gap: "0.5rem", width: "100%", marginBottom: "0.25rem" }}
+              className="hc-busca-medicamento-form"
             >
-              <div className="hc-receta-search-wrapper" style={{ flex: 1 }}>
-                <span className="hc-receta-search-icon" style={{ left: "0.75rem" }}>🔍</span>
+              <div className="hc-receta-search-wrapper">
+                <span className="hc-receta-search-icon">🔍</span>
                 <input
                   value={medicamentoSearchQuery}
                   onChange={event => setMedicamentoSearchQuery(event.target.value)}
                   placeholder="Buscar por nombre comercial, principio activo o laboratorio..."
                   className="hc-receta-search-input"
-                  style={{ width: "100%", paddingLeft: "2.3rem" }}
                   autoFocus
                 />
               </div>
-              <button type="submit" className="btn-primary" style={{ padding: "0.5rem 1.5rem", height: "42px", borderRadius: "8px" }}>
+              <button type="submit" className="btn-primary">
                 Buscar
               </button>
             </form>
 
-            <label className="hc-checkbox-label" style={{ display: "flex", alignItems: "center", gap: "0.45rem", fontSize: "0.85rem", cursor: "pointer", color: "#555", fontWeight: 600 }}>
+            <label className="hc-checkbox-label">
               <input
                 type="checkbox"
                 checked={medicamentoSoloGenerico}
@@ -434,42 +433,42 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
               Solo genéricos
             </label>
 
-            {medicamentoLoading ? <p style={{ textAlign: "center", padding: "1rem", color: "#666" }}>Buscando...</p> : null}
+            {medicamentoLoading ? <p className="hc-medicamentos-loading">Buscando...</p> : null}
             {medicamentoError ? <p className="hc-error">{medicamentoError}</p> : null}
             {!medicamentoLoading && medicamentoSearchQuery && medicamentoResultados.length === 0 ? <p className="hc-empty">No se encontraron medicamentos.</p> : null}
             
             {!medicamentoLoading && medicamentoResultados.length > 0 ? (
-              <div className="hc-medicamentos-resultados-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-                <p className="hc-solicitudes-help" style={{ marginBottom: "0.5rem", fontSize: "0.8rem", color: "#777", fontWeight: 600 }}>{medicamentoTotalCount} resultado(s)</p>
-                <div className="hc-medicamentos-resultados-scroll" style={{ flex: 1, overflowY: "auto", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", background: "rgba(255, 255, 255, 0.7)" }}>
-                  <table className="hc-medicamento-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+              <div className="hc-medicamentos-resultados-container">
+                <p className="hc-solicitudes-help">{medicamentoTotalCount} resultado(s)</p>
+                <div className="hc-medicamentos-resultados-scroll">
+                  <table className="hc-medicamento-table">
                     <thead>
-                      <tr style={{ background: "rgba(0, 99, 151, 0.08)" }}>
-                        <th style={{ padding: "0.6rem", textAlign: "left", fontSize: "0.82rem", fontWeight: 700, color: "#162839" }}>Producto</th>
-                        <th style={{ padding: "0.6rem", textAlign: "left", fontSize: "0.82rem", fontWeight: 700, color: "#162839" }}>Presentación</th>
-                        <th style={{ padding: "0.6rem", textAlign: "left", fontSize: "0.82rem", fontWeight: 700, color: "#162839" }}>Laboratorio</th>
-                        <th style={{ padding: "0.6rem", textAlign: "left", fontSize: "0.82rem", fontWeight: 700, color: "#162839" }}>Principio activo</th>
-                        <th style={{ padding: "0.6rem", textAlign: "left", fontSize: "0.82rem", fontWeight: 700, color: "#162839" }}>Familia</th>
+                      <tr>
+                        <th>Producto</th>
+                        <th>Presentación</th>
+                        <th>Laboratorio</th>
+                        <th>Principio activo</th>
+                        <th>Familia</th>
                       </tr>
                     </thead>
                     <tbody>
                       {medicamentoResultados.map(m => (
-                        <tr key={m.id} className="hc-medicamento-row" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }} onClick={() => seleccionarMedicamento(m)}>
-                          <td style={{ padding: "0.6rem", fontSize: "0.85rem", color: "#333", fontWeight: 600 }}>{m.producto} {m.esGenerico ? <span className="hc-badge hc-badge-generico">Gen</span> : null}</td>
-                          <td style={{ padding: "0.6rem", fontSize: "0.85rem", color: "#555" }}>{m.presentacion}</td>
-                          <td style={{ padding: "0.6rem", fontSize: "0.85rem", color: "#555" }}>{m.laboratorio}</td>
-                          <td style={{ padding: "0.6rem", fontSize: "0.85rem", color: "#555" }}>{m.principioActivo}</td>
-                          <td style={{ padding: "0.6rem", fontSize: "0.85rem", color: "#555" }}>{m.familia}</td>
+                        <tr key={m.id} className="hc-medicamento-row" onClick={() => seleccionarMedicamento(m)}>
+                          <td>{m.producto} {m.esGenerico ? <span className="hc-badge hc-badge-generico">Gen</span> : null}</td>
+                          <td>{m.presentacion}</td>
+                          <td>{m.laboratorio}</td>
+                          <td>{m.principioActivo}</td>
+                          <td>{m.familia}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
                 {medicamentoTotalCount > 20 ? (
-                  <div className="confirm-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem" }}>
-                    <button type="button" className="btn-outline" style={{ padding: "0.4rem 1rem", fontSize: "0.8rem" }} disabled={medicamentoPagina <= 1} onClick={() => void ejecutarBusquedaMedicamento(medicamentoSearchQuery, medicamentoPagina - 1)}>Anterior</button>
-                    <span style={{ padding: "0 0.5rem", alignSelf: "center", fontSize: "0.85rem", color: "#666" }}>Pág. {medicamentoPagina}</span>
-                    <button type="button" className="btn-outline" style={{ padding: "0.4rem 1rem", fontSize: "0.8rem" }} disabled={medicamentoResultados.length < 20} onClick={() => void ejecutarBusquedaMedicamento(medicamentoSearchQuery, medicamentoPagina + 1)}>Siguiente</button>
+                  <div className="confirm-actions">
+                    <button type="button" className="btn-outline" disabled={medicamentoPagina <= 1} onClick={() => void ejecutarBusquedaMedicamento(medicamentoSearchQuery, medicamentoPagina - 1)}>Anterior</button>
+                    <span className="hc-paginacion-pagina">Pág. {medicamentoPagina}</span>
+                    <button type="button" className="btn-outline" disabled={medicamentoResultados.length < 20} onClick={() => void ejecutarBusquedaMedicamento(medicamentoSearchQuery, medicamentoPagina + 1)}>Siguiente</button>
                   </div>
                 ) : null}
               </div>
@@ -484,7 +483,7 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
       </div> : null}
 
       {showPrescripcionFormModal && medicamentoSeleccionado ? <div className="modal-backdrop" role="presentation" onClick={() => { if (!prescripcionGuardando) setShowPrescripcionFormModal(false); }}>
-        <section className="confirm-modal hc-medicamento-modal glass-panel" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}>
+        <section className="confirm-modal hc-medicamento-modal" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}>
           <header className="hc-receta-header">
             <div>
               <h3>Prescribir medicamento</h3>
@@ -496,24 +495,20 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
           </header>
           <div className="hc-receta-content">
             {prescripcionExitosa ? <>
-              <p style={{ color: "#1b7e3a", fontWeight: 600, marginBottom: "1rem", textAlign: "center" }}>Prescripción guardada correctamente.</p>
+              <p className="hc-solicitudes-help" style={{ color: "#1b7e3a", fontWeight: 600, marginBottom: "1rem", textAlign: "center" }}>Prescripción guardada correctamente.</p>
               <div className="confirm-actions" style={{ justifyContent: "center" }}>
                 <button type="button" className="btn-primary" onClick={() => setShowPrescripcionFormModal(false)}>Cerrar</button>
               </div>
             </> : <>
-              <div style={{ marginBottom: "1rem", padding: "1rem", background: "rgba(223, 227, 231, 0.4)", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.5)" }}>
-                <p style={{ fontWeight: 700, margin: 0, color: "#162839", fontSize: "1rem" }}>{medicamentoSeleccionado.producto}</p>
-                <p style={{ fontSize: "0.85rem", color: "#006397", margin: "0.25rem 0 0", fontWeight: 500 }}>
-                  {medicamentoSeleccionado.presentacion} — {medicamentoSeleccionado.laboratorio}
-                </p>
-                <p style={{ fontSize: "0.8rem", color: "#555", margin: "0.25rem 0 0" }}>
-                  {medicamentoSeleccionado.principioActivo} | {medicamentoSeleccionado.familia}
-                </p>
+              <div className="hc-receta-info-box">
+                <p className="hc-receta-info-producto">{medicamentoSeleccionado.producto}</p>
+                <p className="hc-receta-info-detalle">{medicamentoSeleccionado.presentacion} — {medicamentoSeleccionado.laboratorio}</p>
+                <p className="hc-receta-info-extra">{medicamentoSeleccionado.principioActivo} | {medicamentoSeleccionado.familia}</p>
               </div>
 
-              <div className="hc-receta-form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "1rem" }}>
-                <div className="hc-receta-form-field" style={{ gridColumn: "span 3" }}>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#555" }}>Dosis</label>
+              <div className="hc-receta-form-grid">
+                <div className="hc-receta-form-field hc-receta-form-field--dosis">
+                  <label>Dosis</label>
                   <input
                     type="text"
                     className="hc-receta-input"
@@ -524,8 +519,8 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                   />
                 </div>
 
-                <div className="hc-receta-form-field" style={{ gridColumn: "span 3" }}>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#555" }}>Frecuencia</label>
+                <div className="hc-receta-form-field hc-receta-form-field--frecuencia">
+                  <label>Frecuencia</label>
                   <input
                     type="text"
                     className="hc-receta-input"
@@ -536,8 +531,8 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                   />
                 </div>
 
-                <div className="hc-receta-form-field" style={{ gridColumn: "span 3" }}>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#555" }}>Duración (días)</label>
+                <div className="hc-receta-form-field hc-receta-form-field--duracion">
+                  <label>Duración (días)</label>
                   <input
                     type="number"
                     className="hc-receta-input"
@@ -549,8 +544,8 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                   />
                 </div>
 
-                <div className="hc-receta-form-field" style={{ gridColumn: "span 3" }}>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#555" }}>Vía</label>
+                <div className="hc-receta-form-field hc-receta-form-field--via">
+                  <label>Vía</label>
                   <select
                     className="hc-receta-select"
                     value={prescripcionVia}
@@ -564,8 +559,8 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                   </select>
                 </div>
 
-                <div className="hc-receta-form-field" style={{ gridColumn: "span 12" }}>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#555" }}>Indicaciones adicionales...</label>
+                <div className="hc-receta-form-field hc-receta-form-field--indicacion">
+                  <label>Indicaciones adicionales...</label>
                   <textarea
                     className="hc-receta-textarea"
                     value={prescripcionIndicacion}
@@ -604,7 +599,7 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
       </div> : null}
 
       {showPrescripcionModule ? <div className="modal-backdrop" role="presentation" onClick={() => setShowPrescripcionModule(false)}>
-        <section className="confirm-modal hc-medicamento-modal glass-panel" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}>
+        <section className="confirm-modal hc-medicamento-modal" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}>
           <header className="hc-receta-header">
             <div>
               <h3>Prescripciones — {selectedTurno?.paciente ?? ""}</h3>
@@ -614,58 +609,40 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
             </div>
             <button type="button" className="modal-close" onClick={() => setShowPrescripcionModule(false)}>&times;</button>
           </header>
-          <div className="hc-receta-content" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <button type="button" className="btn-primary" onClick={abrirBuscarMedicamento} style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "0.35rem", borderRadius: "8px", height: "42px", padding: "0.5rem 1.5rem" }}>
+          <div className="hc-receta-content">
+            <button type="button" className="btn-primary" onClick={abrirBuscarMedicamento}>
               + Nueva prescripción
             </button>
 
-            {prescripcionModuleLoading ? <p style={{ textAlign: "center", padding: "1rem", color: "#666" }}>Cargando prescripciones...</p> : null}
+            {prescripcionModuleLoading ? <p className="hc-medicamentos-loading">Cargando prescripciones...</p> : null}
             {prescripcionModuleError ? <p className="hc-error">{prescripcionModuleError}</p> : null}
 
             {!prescripcionModuleLoading && prescripcionModuleRecetas.length === 0 ? <p className="hc-empty">No hay prescripciones registradas.</p> : null}
 
             {!prescripcionModuleLoading && prescripcionModuleRecetas.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                <p className="hc-solicitudes-help" style={{ fontSize: "0.8rem", color: "#777", fontWeight: 600 }}>{prescripcionModuleRecetas.length} prescripción(es)</p>
+                <p className="hc-solicitudes-help">{prescripcionModuleRecetas.length} prescripción(es)</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
                   {prescripcionModuleRecetas.map(receta => (
-                    <div key={receta.recetaId} className="hc-receta-item-card" style={{
-                      background: receta.estado === ESTADO_ACTIVA ? "rgba(244, 248, 253, 0.75)" : "rgba(245, 245, 245, 0.6)",
-                      borderLeft: receta.estado === ESTADO_ACTIVA ? "4px solid #006397" : "4px solid #777",
-                      opacity: receta.estado === ESTADO_ACTIVA ? 1 : 0.7,
-                      padding: "0.85rem 1.25rem",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      borderRadius: "10px",
-                      border: "1px solid rgba(255,255,255,0.4)"
-                    }}>
-                      <div className="hc-receta-item-info" style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
-                        <div className="hc-receta-item-icon" style={{
-                          width: "40px",
-                          height: "40px",
-                          borderRadius: "50%",
-                          background: receta.estado === ESTADO_ACTIVA ? "rgba(0, 99, 151, 0.1)" : "rgba(0,0,0,0.05)",
-                          color: receta.estado === ESTADO_ACTIVA ? "#006397" : "#555",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center"
-                        }}>
+                    <div key={receta.recetaId} className={`hc-receta-item-card ${receta.estado === ESTADO_ACTIVA ? "is-activa" : "is-inactiva"}`}>
+                      <div className="hc-receta-item-info">
+                        <div className="hc-receta-item-icon">
                           📋
                         </div>
                         <div className="hc-receta-item-text">
-                          <h4 style={{ fontSize: "0.92rem", fontWeight: 700, color: "#162839", margin: 0 }}>
+                          <h4>
                             {new Date(receta.creadoEn).toLocaleDateString("es-AR")} — {receta.cantidadItems} ítem(s)
                           </h4>
-                          <p style={{ margin: "0.15rem 0 0", fontSize: "0.8rem", color: "#666" }}>
-                            Estado: <span className={`hc-chip hc-chip-${receta.estado.toLowerCase()}`} style={{ fontSize: "0.72rem", padding: "0.1rem 0.35rem" }}>{receta.estado}</span>
+                          <p>
+                            Estado: <span className={`hc-chip hc-chip-${receta.estado.toLowerCase()}`}>{receta.estado}</span>
                           </p>
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: "0.45rem" }}>
-                        <button type="button" className="btn-outline" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
+                      <div className="hc-receta-actions">
+                        <button type="button" className="btn-outline hc-receta-action-btn"
                           title="Imprimir receta" onClick={() => imprimirReceta(receta)} disabled={receta.estado !== ESTADO_ACTIVA}>🖨</button>
-                        <button type="button" className="btn-outline" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "32px", height: "32px", borderRadius: "50%", padding: 0, color: "#d32f2f" }}
+                        <button type="button" className="btn-outline hc-receta-action-btn"
+                          style={{ color: "#d32f2f" }}
                           title="Anular receta" onClick={() => { if (confirm("¿Anular esta prescripción?")) void handleAnularReceta(receta.recetaId); }}
                           disabled={receta.estado !== ESTADO_ACTIVA || prescripcionModuleAnulando === receta.recetaId}>
                           {prescripcionModuleAnulando === receta.recetaId ? "..." : "✕"}
