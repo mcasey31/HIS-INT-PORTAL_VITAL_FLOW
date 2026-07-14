@@ -17,7 +17,14 @@ export function HomePage() {
   const { username, roles } = useAuth();
   const [now, setNow] = useState(() => new Date());
   const hasRole = (name: string) => roles.some((role) => role.toLowerCase() === name.toLowerCase());
-  const isMedicalRole = hasRole("Medico");
+  const hasPrivilegedNonMedicalRole =
+    hasRole("Administrador")
+    || hasRole("Administrador Seguridad")
+    || hasRole("Administrativo")
+    || hasRole("Auditor")
+    || hasRole("Cajero")
+    || hasRole("Enrolamiento Persona");
+  const isMedicalRole = hasRole("Medico") && !hasPrivilegedNonMedicalRole;
   const canAccessPersonas =
     !isMedicalRole && (
     hasRole("Administrador")
