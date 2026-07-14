@@ -1,5 +1,6 @@
 import { FormEvent } from "react";
 import '../css/personas.css';
+import { usePageShell } from "../navigation/PageShellContext";
 import { useUnsavedChanges } from "../navigation/UnsavedChangesContext";
 import { usePersonasController } from "./usePersonasController";
 import type { ContactoTipo, ContactoUso } from "./personasTypes";
@@ -7,6 +8,11 @@ import type { ContactoTipo, ContactoUso } from "./personasTypes";
 type PersonasPageProps = {};
 
 export function PersonasPage({}: PersonasPageProps) {
+  usePageShell({
+    title: "Identificacion de personas",
+    breadcrumbItems: [{ label: "Personas", path: "/personas" }, { label: "Identificacion de personas" }],
+  });
+
   const { markUnsavedChanges, clearUnsavedChanges } = useUnsavedChanges();
   const {
     tiposDocumento,

@@ -1,11 +1,17 @@
 import { FormEvent } from "react";
 import '../css/turnos.css';
 import { useNavigate } from "react-router-dom";
+import { usePageShell } from "../navigation/PageShellContext";
 import { useUnsavedChanges } from "../navigation/UnsavedChangesContext";
 import { useTurnosController } from "./useTurnosController";
 import { TurnosIdentificacion, TurnosProximosPaciente, TurnosBusqueda, TurnosResultados, TurnosModales } from "./components/TurnosComponents";
 
 export function TurnosPage() {
+  usePageShell({
+    title: "Asignar turno",
+    breadcrumbItems: [{ label: "Turnos", path: "/turnos" }, { label: "Asignar turno" }],
+  });
+
   const navigate = useNavigate();
   const state = useTurnosController();
   const { markUnsavedChanges, clearUnsavedChanges } = useUnsavedChanges();

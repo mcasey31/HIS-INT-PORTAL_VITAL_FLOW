@@ -687,7 +687,7 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
                 EfectorNombre = reader.GetString(9),
                 TipoAgenda = reader.GetString(10),
                 VisibleContactCenter = reader.GetBoolean(11),
-                Activa = string.Equals(reader.GetString(12), "ACTIVA", StringComparison.OrdinalIgnoreCase),
+                Activa = IsAgendaActiva(reader.GetString(12)),
                 FechaDesde = reader.GetFieldValue<DateOnly>(13),
                 FechaHasta = reader.IsDBNull(14) ? null : reader.GetFieldValue<DateOnly>(14),
                 Observacion = reader.IsDBNull(15) ? null : reader.GetString(15)
@@ -960,7 +960,7 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
                 EfectorNombre = reader.GetString(9),
                 TipoAgenda = reader.GetString(10),
                 VisibleContactCenter = reader.GetBoolean(11),
-                Activa = string.Equals(reader.GetString(12), "ACTIVA", StringComparison.OrdinalIgnoreCase),
+                Activa = IsAgendaActiva(reader.GetString(12)),
                 FechaDesde = reader.GetFieldValue<DateOnly>(13),
                 FechaHasta = reader.IsDBNull(14) ? null : reader.GetFieldValue<DateOnly>(14),
                 Observacion = reader.IsDBNull(15) ? null : reader.GetString(15)
@@ -999,7 +999,7 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
                     LugarAtencionNombre = reader.IsDBNull(13) ? string.Empty : reader.GetString(13),
                     Frecuencia = reader.IsDBNull(14) ? "SEMANAL" : reader.GetString(14),
                     Sobreturnos = reader.IsDBNull(16) ? 0 : reader.GetInt32(16),
-                    Activo = reader.IsDBNull(18) || string.Equals(reader.GetString(18), "ACTIVO", StringComparison.OrdinalIgnoreCase)
+                    Activo = reader.IsDBNull(18) || IsBloqueActivo(reader.GetString(18))
                 });
                 if (!reader.IsDBNull(6))
                 {
@@ -1264,7 +1264,7 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
         cmd.Parameters.AddWithValue("efector_id", agenda.EfectorId);
         cmd.Parameters.AddWithValue("tipo_agenda", agenda.TipoAgenda);
         cmd.Parameters.AddWithValue("visible_contact_center", agenda.VisibleContactCenter);
-        cmd.Parameters.AddWithValue("estado", agenda.Activa ? "ACTIVA" : "INACTIVA");
+        cmd.Parameters.AddWithValue("estado", agenda.Activa ? "VIGENTE" : "INACTIVA");
         cmd.Parameters.AddWithValue("fecha_desde", agenda.FechaDesde);
         cmd.Parameters.AddWithValue("fecha_hasta", (object?)agenda.FechaHasta ?? DBNull.Value);
         cmd.Parameters.AddWithValue("observacion", (object?)agenda.Observacion ?? DBNull.Value);
@@ -1312,7 +1312,7 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
         cmd.Parameters.AddWithValue("efector_id", agenda.EfectorId);
         cmd.Parameters.AddWithValue("tipo_agenda", agenda.TipoAgenda);
         cmd.Parameters.AddWithValue("visible_contact_center", agenda.VisibleContactCenter);
-        cmd.Parameters.AddWithValue("estado", agenda.Activa ? "ACTIVA" : "INACTIVA");
+        cmd.Parameters.AddWithValue("estado", agenda.Activa ? "VIGENTE" : "INACTIVA");
         cmd.Parameters.AddWithValue("fecha_desde", agenda.FechaDesde);
         cmd.Parameters.AddWithValue("fecha_hasta", (object?)agenda.FechaHasta ?? DBNull.Value);
         cmd.Parameters.AddWithValue("observacion", (object?)agenda.Observacion ?? DBNull.Value);
@@ -1358,7 +1358,7 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
         cmd.Parameters.AddWithValue("frecuencia", bloque.Frecuencia);
         cmd.Parameters.AddWithValue("orden_mensual_semanas", JsonSerializer.Serialize(bloque.OrdenMensualSemanas));
         cmd.Parameters.AddWithValue("sobreturnos", bloque.Sobreturnos);
-        cmd.Parameters.AddWithValue("estado", bloque.Activo ? "ACTIVO" : "INACTIVO");
+        cmd.Parameters.AddWithValue("estado", bloque.Activo ? "VIGENTE" : "INACTIVO");
         cmd.Parameters.AddWithValue("source_system", "vitalflow-his");
         cmd.Parameters.AddWithValue("source_id", bloque.Id.ToString());
         cmd.Parameters.AddWithValue("fhir_profile", "http://hl7.org/fhir/StructureDefinition/Slot");
@@ -1460,6 +1460,20 @@ public sealed class PostgresAgendaRepository(string connectionString) : IAgendaR
         {
             return false;
         }
+    }
+
+    private static bool IsAgendaActiva(string estado)
+    {
+        return string.Equals(estado, "VIGENTE", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(estado, "ACTIVA", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(estado, "ACTIVO", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsBloqueActivo(string estado)
+    {
+        return string.Equals(estado, "VIGENTE", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(estado, "ACTIVO", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(estado, "ACTIVA", StringComparison.OrdinalIgnoreCase);
     }
 }
 

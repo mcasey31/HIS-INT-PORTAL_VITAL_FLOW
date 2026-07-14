@@ -37,8 +37,8 @@ jobs:
       - name: 📦 Build & Push HIS Backend
         uses: docker/build-push-action@v5
         with:
-          context: ./VitalFlowHis/back/src/VitalFlow.His.Api
-          file: ./VitalFlowHis/back/src/VitalFlow.His.Api/Dockerfile
+          context: ./back/src/VitalFlow.His.Api
+          file: ./back/src/VitalFlow.His.Api/Dockerfile
           push: true
           tags: |
             ${{ env.HIS_BACKEND_IMAGE }}:main
@@ -49,8 +49,8 @@ jobs:
       - name: 📦 Build & Push HIS Frontend
         uses: docker/build-push-action@v5
         with:
-          context: ./VitalFlowHis/front
-          file: ./VitalFlowHis/front/Dockerfile
+          context: ./front
+          file: ./front/Dockerfile
           push: true
           tags: |
             ${{ env.HIS_FRONTEND_IMAGE }}:main

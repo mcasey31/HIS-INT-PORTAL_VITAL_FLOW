@@ -491,8 +491,8 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
     public Guid UpsertCupoAndGetId(Guid bloqueId, DateTimeOffset horaInicio, DateTimeOffset horaFin)
     {
         const string sql = """
-            insert into sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
-            values (@bloqueId, @horaInicio, @horaFin, 'libre', 1, false, 'SYSTEM', 'SYSTEM', now())
+            insert into sch_agenda.cupo (id, bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
+            values (@id, @bloqueId, @horaInicio, @horaFin, 'libre', 1, false, 'SYSTEM', 'SYSTEM', now())
             on conflict (bloque_id, hora_inicio)
             do update set hora_fin = excluded.hora_fin, updated_at = now()
             returning id
@@ -501,6 +501,7 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         using var conn = new NpgsqlConnection(connectionString);
         conn.Open();
         using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", Guid.NewGuid());
         cmd.Parameters.AddWithValue("bloqueId", bloqueId);
         cmd.Parameters.AddWithValue("horaInicio", horaInicio);
         cmd.Parameters.AddWithValue("horaFin", horaFin);
@@ -510,8 +511,8 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
     public Guid? TryReservarCupo(Guid bloqueId, DateTimeOffset horaInicio, DateTimeOffset horaFin)
     {
         const string sql = """
-            insert into sch_agenda.cupo (bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
-            values (@bloqueId, @horaInicio, @horaFin, 'reservado', 1, false, 'SYSTEM', 'SYSTEM', now())
+            insert into sch_agenda.cupo (id, bloque_id, hora_inicio, hora_fin, estado, capacidad, overbooking_permitido, created_by, updated_by, updated_at)
+            values (@id, @bloqueId, @horaInicio, @horaFin, 'reservado', 1, false, 'SYSTEM', 'SYSTEM', now())
             on conflict (bloque_id, hora_inicio)
             do update set estado = 'reservado', hora_fin = excluded.hora_fin, updated_at = now()
             where sch_agenda.cupo.estado = 'libre'
@@ -521,6 +522,7 @@ public sealed class PostgresTurnosRepository(string connectionString) : ITurnosR
         using var conn = new NpgsqlConnection(connectionString);
         conn.Open();
         using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", Guid.NewGuid());
         cmd.Parameters.AddWithValue("bloqueId", bloqueId);
         cmd.Parameters.AddWithValue("horaInicio", horaInicio);
         cmd.Parameters.AddWithValue("horaFin", horaFin);

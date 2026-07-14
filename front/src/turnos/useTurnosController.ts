@@ -134,7 +134,8 @@ export function useTurnosController() {
   const selectedSlotSobreturno = useMemo(() => slotSobreturnoId ? slots.find(i => i.id === slotSobreturnoId) ?? null : null, [slots, slotSobreturnoId]);
   const contactoEditado = contactoEmail.trim() !== contactoEmailOriginal.trim() || contactoTelefono.trim() !== contactoTelefonoOriginal.trim();
   const emailValido = contactoEmail.trim().length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactoEmail.trim());
-  const telefonoValido = contactoTelefono.trim().length === 0 || /^\d{6,15}$/.test(contactoTelefono.trim());
+  const telefonoNormalizado = contactoTelefono.replace(/\D/g, "").trim();
+  const telefonoValido = telefonoNormalizado.length === 0 || /^\d{6,15}$/.test(telefonoNormalizado);
   const puedeConfirmarAsignacion = Boolean(selectedSlot && paciente) && emailValido && telefonoValido;
   const financiadorSeleccionado = useMemo(() => financiadoresVigentes.find(i => i.id === financiadorPlanId) ?? null, [financiadoresVigentes, financiadorPlanId]);
   const copagoEstimado = useMemo(() => {
@@ -244,7 +245,7 @@ export function useTurnosController() {
     if (!paciente) return;
     setSelectedSlotId(slot.id);
     const emailDefault = (paciente.email ?? "").trim();
-    const telefonoDefault = (paciente.telefono ?? "").trim();
+    const telefonoDefault = (paciente.telefono ?? "").replace(/\D/g, "").trim();
     setContactoEmailOriginal(emailDefault); setContactoTelefonoOriginal(telefonoDefault);
     setContactoEmail(emailDefault); setContactoTelefono(telefonoDefault);
     setGuardarContactoEnPerfil(false); setConfirmAsignacionModalOpen(true);
@@ -280,7 +281,7 @@ export function useTurnosController() {
     setAsignandoTurno(true); setError(null); setWarningAsignacion(null);
     const request: AsignarTurnoRequest = {
       pacienteId: paciente.id, slotId: selectedSlot.id, financiadorPlanId,
-      email: contactoEmail.trim() || undefined, telefono: contactoTelefono.trim() || undefined,
+      email: contactoEmail.trim() || undefined, telefono: telefonoNormalizado || undefined,
       guardarContactoEnPerfil: guardarContactoEnPerfil && contactoEditado,
       centro: selectedSlot.centro, servicio: selectedSlot.servicio, practica: selectedSlot.practica,
       profesional: selectedSlot.profesional, fecha: selectedSlot.fecha, hora: selectedSlot.hora,
