@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../css/estructura.css";
+import { usePageShell } from "../navigation/PageShellContext";
 import {
   buscarPersonaEstructura,
   getNodosEstructuraInterna,
@@ -29,6 +30,11 @@ const ORDEN_NODOS = [
 ] as const;
 
 export function EstructuraInternaPage({}: EstructuraInternaPageProps) {
+  usePageShell({
+    title: "Estructura Interna",
+    breadcrumbItems: [{ label: "ABMs", path: "/estructura-interna" }, { label: "Estructura Interna" }],
+  });
+
   const navigate = useNavigate();
   const [nodoActivo, setNodoActivo] = useState("centro");
   const [expandedPersonal, setExpandedPersonal] = useState(true);

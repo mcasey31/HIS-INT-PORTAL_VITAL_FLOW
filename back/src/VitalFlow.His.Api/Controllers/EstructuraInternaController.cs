@@ -9,7 +9,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/estructura-interna")]
-[Authorize(Roles = "Administrador Seguridad")]
+[Authorize(Roles = "Administrador,Administrador Seguridad")]
 public sealed class EstructuraInternaController(
     IEstructuraInternaService estructuraInternaService,
     IPersonaService personaService) : ControllerBase

@@ -58,7 +58,7 @@ export function XdWorkspace({
             <span />
             <span />
           </button>
-          <p className="breadcrumb">{breadcrumb}</p>
+          <div className="breadcrumb">{breadcrumb}</div>
         </div>
         <div className="topbar-right">
           <span>{featureLabel}</span>
