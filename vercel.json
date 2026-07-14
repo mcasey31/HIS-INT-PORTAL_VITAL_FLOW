@@ -1,13 +1,7 @@
 {
   "$schema": "https://vercel.com/schemas/vercel.json",
-  "framework": "vite",
-  "installCommand": "cd front && npm install",
-  "buildCommand": "cd front && npm run build",
-  "outputDirectory": "front/dist",
-  "rewrites": [
-    {
-      "source": "/((?!api/|assets/|favicon.ico).*)",
-      "destination": "/index.html"
-    }
-  ]
+  "buildCommand": "cd VitalFlowPortal && npm run build",
+  "devCommand": "cd VitalFlowPortal && npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs"
 }
