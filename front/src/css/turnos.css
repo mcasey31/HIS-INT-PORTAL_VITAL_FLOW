@@ -33,9 +33,10 @@
 
 .turnos-identificacion-inline {
   display: grid;
-  grid-template-columns: 220px 1fr 220px 320px;
+  grid-template-columns: 180px minmax(260px, 360px) 220px 320px;
   gap: 0.6rem;
   align-items: end;
+  justify-content: start;
 }
 
 .turnos-identificacion-inline > label {
@@ -45,8 +46,13 @@
 
 .turnos-identificacion-inline > label input,
 .turnos-identificacion-inline > label select {
+  width: 100%;
   min-height: 44px;
   padding: 0.55rem 0.72rem;
+}
+
+.turnos-identificacion-inline > button {
+  align-self: end;
 }
 
 .turnos-action-btn {
