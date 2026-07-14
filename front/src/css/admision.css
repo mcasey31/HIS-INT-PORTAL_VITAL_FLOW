@@ -19,10 +19,20 @@
   border: 1px solid rgba(191, 208, 207, 0.72);
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 252, 251, 0.92) 100%);
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+  grid-template-columns: 190px minmax(240px, 420px) auto;
   gap: 0.6rem;
   align-items: end;
   margin-bottom: 0.8rem;
+}
+
+.admision-identificacion > label {
+  min-width: 0;
+}
+
+.admision-identificacion > label input,
+.admision-identificacion > label select {
+  min-height: 42px;
+  padding: 0.58rem 0.72rem;
 }
 
 .admision-identificacion > label,
@@ -38,6 +48,11 @@
   align-self: end;
   padding-top: 1.55rem;
   padding-bottom: 1px;
+}
+
+.admision-identificacion-actions button {
+  min-height: 42px;
+  white-space: nowrap;
 }
 
 .admision-paciente-seleccionado {
@@ -297,6 +312,16 @@
   align-items: center;
 }
 
+.admision-fecha-nav .btn-outline {
+  min-width: 42px;
+  width: 42px;
+  padding: 0;
+}
+
+.admision-fecha-nav input {
+  min-width: 0;
+}
+
 .admision-lista.is-readonly-date {
   opacity: 0.65;
 }
@@ -388,9 +413,21 @@
 
 .admision-filtros-main {
   display: grid;
-  grid-template-columns: repeat(6, minmax(150px, 1fr)) auto;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
   gap: 0.6rem;
   align-items: end;
+}
+
+.admision-filtros-main > label {
+  min-width: 0;
+}
+
+.admision-filtros-main > label:nth-child(5) {
+  grid-column: span 2;
+}
+
+.admision-filtros-main > label:nth-child(6) {
+  max-width: 170px;
 }
 
 .admision-filtros-avanzados {
@@ -406,9 +443,10 @@
   align-items: flex-end;
   gap: 0.5rem;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-self: end;
-  padding-top: 1.55rem;
+  padding-top: 0.15rem;
+  grid-column: 1 / -1;
 }
 
 .admision-actions button {
@@ -678,6 +716,14 @@
 
   .admision-filtros-main {
     grid-template-columns: 1fr;
+  }
+
+  .admision-filtros-main > label:nth-child(5) {
+    grid-column: auto;
+  }
+
+  .admision-filtros-main > label:nth-child(6) {
+    max-width: none;
   }
 
   .admision-identificacion-actions,

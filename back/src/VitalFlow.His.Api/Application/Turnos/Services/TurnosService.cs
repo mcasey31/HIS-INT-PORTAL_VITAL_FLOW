@@ -498,7 +498,9 @@ public sealed class TurnosService(
 
     public async Task<AsignarTurnoResponse> AsignarTurno(AsignarTurnoRequest request)
     {
-        var slotContext = SlotContextById.TryGetValue(request.SlotId, out var ctx) ? ctx : null;
+        var slotContext = SlotContextById.TryGetValue(request.SlotId, out var ctx)
+            ? ctx
+            : TryRebuildSlotContextForAsignacion(request);
         if (slotContext is null)
         {
             throw new ArgumentException("El slot indicado no es valido o expiro. Vuelva a consultar disponibilidad.");
@@ -813,6 +815,68 @@ public sealed class TurnosService(
     }
 
     private static string BuildStKey(Guid agendaId, Guid bloqueId, DateOnly fecha) => $"{agendaId:N}:{bloqueId:N}:{fecha:yyyyMMdd}";
+
+    private SlotContext? TryRebuildSlotContextForAsignacion(AsignarTurnoRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SlotId))
+        {
+            return null;
+        }
+
+        var parts = request.SlotId.Split(':', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 5 || !string.Equals(parts[0], "slot", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (!Guid.TryParseExact(parts[1], "N", out var agendaId)
+            || !Guid.TryParseExact(parts[2], "N", out var bloqueId)
+            || !DateOnly.TryParseExact(parts[3], "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha)
+            || !TimeOnly.TryParseExact(parts[4], "HHmm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var horaTurno))
+        {
+            return null;
+        }
+
+        var agenda = agendaRepository.GetById(agendaId)
+            ?? agendaRepository.GetAll().FirstOrDefault(item => item.Id == agendaId);
+        var bloque = agenda?.Bloques.FirstOrDefault(item => item.Id == bloqueId);
+        if (agenda is null)
+        {
+            return null;
+        }
+
+        var duracionTurno = bloque?.DuracionTurnoMinutos > 0 ? bloque.DuracionTurnoMinutos : 30;
+        var rangoHoraInicio = bloque?.HoraInicio.ToString("HH:mm", CultureInfo.InvariantCulture)
+            ?? horaTurno.ToString("HH:mm", CultureInfo.InvariantCulture);
+        var rangoHoraFin = bloque?.HoraFin.ToString("HH:mm", CultureInfo.InvariantCulture)
+            ?? horaTurno.AddMinutes(duracionTurno).ToString("HH:mm", CultureInfo.InvariantCulture);
+
+        var practica = !string.IsNullOrWhiteSpace(request.Practica)
+            ? request.Practica.Trim()
+            : bloque.Practicas.FirstOrDefault()?.Nombre?.Trim() ?? "Practica";
+
+        var slotContext = new SlotContext(
+            request.SlotId,
+            !string.IsNullOrWhiteSpace(request.Centro) ? request.Centro.Trim() : agenda.CentroNombre,
+            !string.IsNullOrWhiteSpace(request.Servicio) ? request.Servicio.Trim() : agenda.ServicioNombre,
+            practica,
+            !string.IsNullOrWhiteSpace(request.Profesional) ? request.Profesional.Trim() : agenda.EfectorNombre,
+            fecha,
+            horaTurno.ToString("HH:mm", CultureInfo.InvariantCulture),
+            rangoHoraInicio,
+            rangoHoraFin,
+            false,
+            BuildStKey(agenda.Id, bloqueId, fecha),
+            agenda.CentroId,
+            agenda.ServicioId,
+            agenda.EfectorId,
+            bloqueId,
+            duracionTurno
+        );
+
+        SlotContextById[request.SlotId] = slotContext;
+        return slotContext;
+    }
 
     private sealed record PracticaBuilder(string Id, string Nombre, string ServicioId)
     {
