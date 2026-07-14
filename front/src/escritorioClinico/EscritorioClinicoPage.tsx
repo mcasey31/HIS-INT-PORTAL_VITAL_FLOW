@@ -3,6 +3,7 @@ import { AsignarProblemaModal, BuscarPacienteModal, EscritorioClinicoHeader, Esc
 import { EscritorioClinicoModales } from "./components/EscritorioClinicoModales";
 import { useEscritorioClinicoController } from "./useEscritorioClinicoController";
 import { useEffect } from "react";
+import { usePageShell } from "../navigation/PageShellContext";
 import { useUnsavedChanges } from "../navigation/UnsavedChangesContext";
 import { useNavigate } from "react-router-dom";
 import type { EscritorioClinicoPageProps } from "./escritorioClinicoTypes";
@@ -19,6 +20,14 @@ export function EscritorioClinicoPage({ onCancelSeleccionServicio }: EscritorioC
     }
   });
   const { markUnsavedChanges, clearUnsavedChanges } = useUnsavedChanges();
+
+  usePageShell({
+    title: state.selectedTurno ? "Panoramica clinica" : "Agenda asistencial",
+    breadcrumbItems: [
+      { label: "Historia clinica", path: "/escritorio-clinico" },
+      { label: state.selectedTurno ? "Panoramica" : "Agenda asistencial" }
+    ],
+  });
 
   useEffect(() => {
     const hasDraftEvolucion = state.showAgregarEvolucionModal && (
