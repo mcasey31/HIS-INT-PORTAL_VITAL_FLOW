@@ -51,7 +51,7 @@ const RECETARIO_URL = import.meta.env.VITE_RECETARIO_URL?.trim() ?? "";
 const RECETARIO_PROFILE = import.meta.env.VITE_RECETARIO_PROFILE?.trim() || "RDI_Ar_0_2_5";
 function estadoEsLlamable(estado: string): boolean {
   const normalized = estado.trim().toUpperCase();
-  return normalized === ESTADO_EN_SALA_ESPERA || normalized === ESTADO_EN_OBSERVACION;
+  return normalized === ESTADO_EN_SALA_ESPERA || normalized === ESTADO_EN_OBSERVACION || normalized === "PROGRAMADO";
 }
 function estadoLabel(estado: string): string {
   return estado.split("_").join(" ");
@@ -1519,6 +1519,13 @@ export function useEscritorioClinico({ onCancelSeleccionServicio }: UseEscritori
     setWorking(true);
     setError(null);
     try {
+      if (turno.estado.trim().toUpperCase() === "PROGRAMADO") {
+        await actualizarEstadoTurno(turno.id, {
+          estado: ESTADO_EN_SALA_ESPERA,
+          motivo: "RECONCILIAR_ARRIBO_PARA_LLAMADO"
+        });
+        updateTurnoState(turno.id, ESTADO_EN_SALA_ESPERA);
+      }
       const response = await actualizarEstadoTurno(turno.id, {
         estado: ESTADO_EN_ATENCION,
         motivo: "LLAMADO_DESDE_PANORAMICA"
