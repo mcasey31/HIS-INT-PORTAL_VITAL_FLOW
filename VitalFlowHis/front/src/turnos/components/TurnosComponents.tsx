@@ -28,6 +28,10 @@ export function TurnosIdentificacion({ state, navigate }: { state: useTurnosStat
     tiposDocumento, setTipoDocumento, tipoDocumento, setNumeroDocumento, numeroDocumento, loadingIdentificacion, onConsultarPaciente,
     resultadoIdentificacion, paciente, financiadorPlanId, setFinanciadorPlanId, financiadoresVigentes, onAbrirModalFinanciador
   } = state;
+  const numeroDocumentoCompleto = numeroDocumento.trim().length > 0;
+  const pacienteEncontrado = resultadoIdentificacion === "single" && Boolean(paciente);
+  const derivarIdentificacionActiva = resultadoIdentificacion === "none" || resultadoIdentificacion === "multiple";
+
   return (
     <section className="turnos-step-card" aria-label="Paso 1 identificacion paciente">
       <h3>Paso 1 obligatorio: Identificacion de paciente</h3>
@@ -36,7 +40,7 @@ export function TurnosIdentificacion({ state, navigate }: { state: useTurnosStat
       </p>
 
       <form onSubmit={onConsultarPaciente}>
-        <div className="turnos-grid-2">
+        <div className="turnos-identificacion-inline">
           <label>
             Tipo de documento
             <select value={tipoDocumento} onChange={event => setTipoDocumento(event.target.value)}>
@@ -47,12 +51,19 @@ export function TurnosIdentificacion({ state, navigate }: { state: useTurnosStat
             Numero de documento
             <input value={numeroDocumento} onChange={event => setNumeroDocumento(event.target.value.toUpperCase())} placeholder="Ingrese numero" />
           </label>
-        </div>
-        <div className="personas-actions">
-          <button type="submit" disabled={loadingIdentificacion || numeroDocumento.trim().length === 0}>
+          <button
+            type="submit"
+            className={`turnos-action-btn ${numeroDocumentoCompleto ? "is-strong" : ""}`}
+            disabled={loadingIdentificacion || !numeroDocumentoCompleto}
+          >
             {loadingIdentificacion ? "Consultando..." : "Consultar paciente"}
           </button>
-          <button type="button" className="btn-outline" onClick={() => navigate('/personas')}>
+          <button
+            type="button"
+            className={`turnos-action-btn turnos-action-btn-outline ${derivarIdentificacionActiva ? "is-strong" : ""}`}
+            onClick={() => navigate('/personas')}
+            disabled={pacienteEncontrado}
+          >
             Ir a Identificacion de personas
           </button>
         </div>
@@ -166,7 +177,12 @@ export function TurnosBusqueda({ state }: { state: useTurnosState }) {
       </div>
 
       <div className="personas-actions">
-        <button type="button" onClick={() => void onBuscarDisponibilidad()} disabled={!puedeBuscarDisponibilidad || loadingDisponibilidad}>
+        <button
+          type="button"
+          className={`turnos-action-btn ${puedeBuscarDisponibilidad ? "is-strong" : ""}`}
+          onClick={() => void onBuscarDisponibilidad()}
+          disabled={!puedeBuscarDisponibilidad || loadingDisponibilidad}
+        >
           {loadingDisponibilidad ? "Buscando..." : "Buscar disponibilidad"}
         </button>
       </div>
@@ -290,7 +306,7 @@ export function TurnosProximosPaciente({ state }: { state: useTurnosState }) {
 
 export function TurnosResultados({ state }: { state: useTurnosState }) {
   const {
-    slots, selectedSlotId, onAbrirConfirmacionAsignacion, onAbrirModalSobreturno,
+    slots, selectedSlotId, onAbrirConfirmacionAsignacion,
     verHistorialTurnos, setVerHistorialTurnos, loadingTurnosPaciente, turnosPaciente, totalTurnosPaciente, formatFechaHora, estadoTurnoLabel,
     cargarTurnosPaciente, paciente, setTurnoACancelarId, cancelandoTurnoId
   } = state;
@@ -325,6 +341,7 @@ export function TurnosResultados({ state }: { state: useTurnosState }) {
   const slotsFiltrados = fechaSeleccionada
     ? slots.filter(slot => slot.fecha === fechaSeleccionada)
     : slots;
+  const slotsTurno = slotsFiltrados.filter(slot => slot.tipoSlot !== "ST");
 
   const formatIsoDate = (date: Date) => {
     const y = date.getFullYear();
@@ -404,52 +421,15 @@ export function TurnosResultados({ state }: { state: useTurnosState }) {
               <p className="turnos-almanaque-foot">Horarios disponibles</p>
             </aside>
 
-            <div>
-              {!fechaSeleccionada ? <p>Seleccione un dia en el almanaque.</p> : slotsFiltrados.length === 0 ? <p>No hay horarios para el dia seleccionado.</p> : <div className="personas-grid-wrap">
-                  <table className="personas-grid turnos-grid">
-                    <thead>
-                      <tr>
-                        <th>Accion</th>
-                        <th>Sobreturno</th>
-                        <th>Tipo slot</th>
-                        <th>Fecha</th>
-                        <th>Hora</th>
-                        <th>Centro</th>
-                        <th>Servicio</th>
-                        <th>Practica</th>
-                        <th>Profesional</th>
-                        <th>Estado</th>
-                        <th>ST disponibles</th>
-                        <th>Leyenda</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {slotsFiltrados.map(slot => <tr key={slot.id} className={selectedSlotId === slot.id ? "is-selected" : ""}>
-                          <td>
-                            <button type="button" className="row-select-btn" onClick={() => onAbrirConfirmacionAsignacion(slot)} disabled={slot.estado !== "DISPONIBLE" || slot.tipoSlot === "ST"}>
-                              Seleccionar
-                            </button>
-                          </td>
-                          <td>
-                            <button type="button" className="row-select-btn turnos-st-btn" onClick={() => onAbrirModalSobreturno(slot)} disabled={slot.tipoSlot !== "ST" || (slot.sobreTurnosDisponibles ?? 0) <= 0 || slot.estado === "ASIGNADO"}>
-                              Sobreturno
-                            </button>
-                          </td>
-                          <td>{slot.tipoSlot}</td>
-                          <td>{slot.fecha}</td>
-                          <td>{slot.hora}</td>
-                          <td>{slot.centro}</td>
-                          <td>{slot.servicio}</td>
-                          <td>{slot.practica}</td>
-                          <td>{slot.profesional}</td>
-                          <td>
-                            <span className={`turnos-estado turnos-estado-${slot.estado.toLowerCase()}`}>{slot.estado}</span>
-                          </td>
-                          <td>{slot.tipoSlot === "ST" ? slot.sobreTurnosDisponibles ?? 0 : "-"}</td>
-                          <td>{slot.mensaje ?? "-"}</td>
-                        </tr>)}
-                    </tbody>
-                  </table>
+            <div className="turnos-slots-panel">
+              {!fechaSeleccionada ? <p>Seleccione un dia en el almanaque.</p> : slotsTurno.length === 0 ? <p>No hay horarios para el dia seleccionado.</p> : <div className="turnos-slots-grid">
+                  {slotsTurno.map(slot => <article key={slot.id} className={`turnos-slot-pill ${selectedSlotId === slot.id ? "is-selected" : ""}`}>
+                      <span className="turnos-slot-time">{slot.hora}</span>
+                      <span className={`turnos-estado turnos-estado-${slot.estado.toLowerCase()}`}>{slot.estado}</span>
+                      <button type="button" className="turnos-slot-select-btn" onClick={() => onAbrirConfirmacionAsignacion(slot)} disabled={slot.estado !== "DISPONIBLE" && slot.estado !== "CON_CUPO"}>
+                        Seleccionar
+                      </button>
+                    </article>)}
                 </div>}
             </div>
           </div>}
