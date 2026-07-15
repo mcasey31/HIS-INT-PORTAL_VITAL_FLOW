@@ -49,7 +49,7 @@ export default function PortalLayout({
       )}
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-background w-full">
+      <main className="flex-1 flex flex-col overflow-hidden bg-background">
         {/* Header */}
         {!isOnboarding && (
           <header className="h-20 lg:h-24 flex items-center justify-between px-4 lg:px-12 bg-white/40 backdrop-blur-3xl z-30 border-b border-slate-100">
