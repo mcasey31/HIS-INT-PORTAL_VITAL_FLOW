@@ -8,7 +8,8 @@ public sealed record CrearPrescripcionRequest(
     string? DosisTexto,
     string? FrecuenciaTexto,
     int? DuracionDias,
-    string? Indicacion
+    string? Indicacion,
+    string? ViaAdministracion
 );
 
 public sealed record CrearPrescripcionResponse(

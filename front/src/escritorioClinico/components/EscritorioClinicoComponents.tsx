@@ -317,7 +317,7 @@ export function EscritorioClinicoPanoramica({ state }: { state: useEscritorioCli
                       <p className="hc-row-title">{new Date(receta.creadoEn).toLocaleDateString("es-AR")}</p>
                       {detalle ? detalle.items.map(item => (
                         <p key={item.itemId} className="hc-row-meta" style={{ marginLeft: "0.5rem" }}>
-                          {item.medicamentoDisplay}{item.dosisTexto ? ` — ${item.dosisTexto}` : ""}{item.frecuenciaTexto ? ` c/ ${item.frecuenciaTexto}` : ""}{item.duracionDias ? ` × ${item.duracionDias}d` : ""}
+                          {item.medicamentoDisplay}{item.viaAdministracion ? ` [${item.viaAdministracion}]` : ""}{item.dosisTexto ? ` — ${item.dosisTexto}` : ""}{item.frecuenciaTexto ? ` c/ ${item.frecuenciaTexto}` : ""}{item.duracionDias ? ` × ${item.duracionDias}d` : ""}
                         </p>
                       )) : <p className="hc-row-meta">{receta.cantidadItems} ítem(s)</p>}
                     </div>

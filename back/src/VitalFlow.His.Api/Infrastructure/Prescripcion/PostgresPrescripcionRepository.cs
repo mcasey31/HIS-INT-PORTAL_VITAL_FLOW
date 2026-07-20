@@ -41,11 +41,11 @@ public sealed class PostgresPrescripcionRepository(string connectionString)
         var sqlItem = """
             insert into sch_hca.receta_digital_item
                 (id, receta_id, medicamento_codigo, medicamento_sistema, medicamento_display,
-                 dosis_texto, frecuencia_texto, duracion_dias, indicacion, estado,
+                 dosis_texto, frecuencia_texto, duracion_dias, indicacion, via_administracion, estado,
                  activo, created_at, updated_at)
             values
                 (@id, @receta_id, @medicamento_codigo, @medicamento_sistema, @medicamento_display,
-                 @dosis_texto, @frecuencia_texto, @duracion_dias, @indicacion, 'ACTIVA',
+                 @dosis_texto, @frecuencia_texto, @duracion_dias, @indicacion, @via_administracion, 'ACTIVA',
                  true, now(), now());
             """;
 
@@ -60,6 +60,7 @@ public sealed class PostgresPrescripcionRepository(string connectionString)
             cmd.Parameters.AddWithValue("frecuencia_texto", (object?)request.FrecuenciaTexto ?? DBNull.Value);
             cmd.Parameters.AddWithValue("duracion_dias", (object?)request.DuracionDias ?? DBNull.Value);
             cmd.Parameters.AddWithValue("indicacion", (object?)request.Indicacion ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("via_administracion", (object?)request.ViaAdministracion ?? DBNull.Value);
             cmd.ExecuteNonQuery();
         }
 

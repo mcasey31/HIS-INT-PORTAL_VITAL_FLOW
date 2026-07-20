@@ -447,6 +447,7 @@ export interface RecetaDigitalItemResponse {
   frecuenciaTexto?: string;
   duracionDias?: number;
   indicacion?: string;
+  viaAdministracion?: string;
   estado: string;
 }
 
@@ -471,6 +472,7 @@ export interface CrearPrescripcionRequest {
   frecuenciaTexto?: string;
   duracionDias?: number;
   indicacion?: string;
+  viaAdministracion?: string;
 }
 
 export interface CrearPrescripcionResponse {

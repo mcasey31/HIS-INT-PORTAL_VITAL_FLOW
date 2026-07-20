@@ -1,6 +1,6 @@
 import { useEscritorioClinicoController } from "../useEscritorioClinicoController";
 type useEscritorioClinicoState = ReturnType<typeof useEscritorioClinicoController>;
-import { sanitizeRichTextHtml, VALOR_GUION, ESTADO_ACTIVA } from "../escritorioClinicoTypes";
+import { sanitizeRichTextHtml, VALOR_GUION, ESTADO_ACTIVA, type RecetaDigitalItemResponse } from "../escritorioClinicoTypes";
 import { SeleccionarEmailModal } from "./SeleccionarEmailModal";
 
 export function EscritorioClinicoModales({ state }: { state: useEscritorioClinicoState }) {
@@ -42,7 +42,7 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
     prescripcionVia, setPrescripcionVia,
     prescripcionGuardando, prescripcionError, prescripcionExitosa, guardarPrescripcion,
     showPrescripcionModule, setShowPrescripcionModule,
-    prescripcionModuleRecetas, prescripcionModuleLoading, prescripcionModuleError,
+    prescripcionModuleRecetas, recetasDetalle, prescripcionModuleLoading, prescripcionModuleError,
     prescripcionModuleAnulando, handleAnularReceta, imprimirReceta, abrirBuscarMedicamento,
     showEmailModal, setShowEmailModal, emailError, setEmailError, emailSuccess, setEmailSuccess, emailModalPacienteId, emailModalRecetaIds, handleEnviarEmail
   } = state;
@@ -436,7 +436,7 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
 
             {medicamentoLoading ? <p style={{ textAlign: "center", padding: "1rem", color: "#666" }}>Buscando...</p> : null}
             {medicamentoError ? <p className="hc-error">{medicamentoError}</p> : null}
-            {!medicamentoLoading && medicamentoSearchQuery && medicamentoResultados.length === 0 ? <p className="hc-empty">No se encontraron medicamentos.</p> : null}
+            {!medicamentoLoading && medicamentoResultados.length === 0 ? <p className="hc-empty">No se encontraron medicamentos. Intente con otro término de búsqueda.</p> : null}
             
             {!medicamentoLoading && medicamentoResultados.length > 0 ? (
               <div className="hc-medicamentos-resultados-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
@@ -447,9 +447,9 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                       <tr style={{ background: "rgba(0, 99, 151, 0.08)" }}>
                         <th style={{ padding: "0.6rem", textAlign: "left", fontSize: "0.82rem", fontWeight: 700, color: "#162839" }}>Producto</th>
                         <th style={{ padding: "0.6rem", textAlign: "left", fontSize: "0.82rem", fontWeight: 700, color: "#162839" }}>Presentación</th>
+                        <th style={{ padding: "0.6rem", textAlign: "left", fontSize: "0.82rem", fontWeight: 700, color: "#162839" }}>Forma</th>
                         <th style={{ padding: "0.6rem", textAlign: "left", fontSize: "0.82rem", fontWeight: 700, color: "#162839" }}>Laboratorio</th>
                         <th style={{ padding: "0.6rem", textAlign: "left", fontSize: "0.82rem", fontWeight: 700, color: "#162839" }}>Principio activo</th>
-                        <th style={{ padding: "0.6rem", textAlign: "left", fontSize: "0.82rem", fontWeight: 700, color: "#162839" }}>Familia</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -457,9 +457,9 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                         <tr key={m.id} className="hc-medicamento-row" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }} onClick={() => seleccionarMedicamento(m)}>
                           <td style={{ padding: "0.6rem", fontSize: "0.85rem", color: "#333", fontWeight: 600 }}>{m.producto} {m.esGenerico ? <span className="hc-badge hc-badge-generico">Gen</span> : null}</td>
                           <td style={{ padding: "0.6rem", fontSize: "0.85rem", color: "#555" }}>{m.presentacion}</td>
+                          <td style={{ padding: "0.6rem", fontSize: "0.85rem", color: "#555" }}>{m.forma || "—"}</td>
                           <td style={{ padding: "0.6rem", fontSize: "0.85rem", color: "#555" }}>{m.laboratorio}</td>
                           <td style={{ padding: "0.6rem", fontSize: "0.85rem", color: "#555" }}>{m.principioActivo}</td>
-                          <td style={{ padding: "0.6rem", fontSize: "0.85rem", color: "#555" }}>{m.familia}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -507,31 +507,31 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                   {medicamentoSeleccionado.presentacion} — {medicamentoSeleccionado.laboratorio}
                 </p>
                 <p style={{ fontSize: "0.8rem", color: "#555", margin: "0.25rem 0 0" }}>
-                  {medicamentoSeleccionado.principioActivo} | {medicamentoSeleccionado.familia}
+                  {medicamentoSeleccionado.principioActivo} | {medicamentoSeleccionado.forma || medicamentoSeleccionado.familia}
                 </p>
               </div>
 
               <div className="hc-receta-form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "1rem" }}>
                 <div className="hc-receta-form-field" style={{ gridColumn: "span 3" }}>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#555" }}>Dosis</label>
+                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#555" }}>Dosis *</label>
                   <input
                     type="text"
                     className="hc-receta-input"
                     value={prescripcionDosis}
                     onChange={e => setPrescripcionDosis(e.target.value)}
-                    placeholder="Ej: 500 mg"
+                    placeholder="Ej: 500 mg, 10 mL"
                     disabled={prescripcionGuardando}
                   />
                 </div>
 
                 <div className="hc-receta-form-field" style={{ gridColumn: "span 3" }}>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#555" }}>Frecuencia</label>
+                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#555" }}>Frecuencia *</label>
                   <input
                     type="text"
                     className="hc-receta-input"
                     value={prescripcionFrecuencia}
                     onChange={e => setPrescripcionFrecuencia(e.target.value)}
-                    placeholder="Ej: Cada 8 horas"
+                    placeholder="Ej: Cada 8 horas, 2 veces al día"
                     disabled={prescripcionGuardando}
                   />
                 </div>
@@ -543,14 +543,14 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                     className="hc-receta-input"
                     value={prescripcionDuracion}
                     onChange={e => setPrescripcionDuracion(e.target.value)}
-                    placeholder="Ej: 7"
+                    placeholder="Ej: 7, 30"
                     min="1"
                     disabled={prescripcionGuardando}
                   />
                 </div>
 
                 <div className="hc-receta-form-field" style={{ gridColumn: "span 3" }}>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#555" }}>Vía</label>
+                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#555" }}>Vía de administración</label>
                   <select
                     className="hc-receta-select"
                     value={prescripcionVia}
@@ -628,7 +628,9 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 <p className="hc-solicitudes-help" style={{ fontSize: "0.8rem", color: "#777", fontWeight: 600 }}>{prescripcionModuleRecetas.length} prescripción(es)</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-                  {prescripcionModuleRecetas.map(receta => (
+                  {prescripcionModuleRecetas.map(receta => {
+                    const detalle = recetasDetalle[receta.recetaId];
+                    return (
                     <div key={receta.recetaId} className="hc-receta-item-card" style={{
                       background: receta.estado === ESTADO_ACTIVA ? "rgba(244, 248, 253, 0.75)" : "rgba(245, 245, 245, 0.6)",
                       borderLeft: receta.estado === ESTADO_ACTIVA ? "4px solid #006397" : "4px solid #777",
@@ -636,11 +638,11 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                       padding: "0.85rem 1.25rem",
                       display: "flex",
                       justifyContent: "space-between",
-                      alignItems: "center",
+                      alignItems: "flex-start",
                       borderRadius: "10px",
                       border: "1px solid rgba(255,255,255,0.4)"
                     }}>
-                      <div className="hc-receta-item-info" style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+                      <div className="hc-receta-item-info" style={{ display: "flex", alignItems: "flex-start", gap: "0.85rem" }}>
                         <div className="hc-receta-item-icon" style={{
                           width: "40px",
                           height: "40px",
@@ -649,7 +651,8 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                           color: receta.estado === ESTADO_ACTIVA ? "#006397" : "#555",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center"
+                          justifyContent: "center",
+                          flexShrink: 0
                         }}>
                           📋
                         </div>
@@ -660,6 +663,20 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                           <p style={{ margin: "0.15rem 0 0", fontSize: "0.8rem", color: "#666" }}>
                             Estado: <span className={`hc-chip hc-chip-${receta.estado.toLowerCase()}`} style={{ fontSize: "0.72rem", padding: "0.1rem 0.35rem" }}>{receta.estado}</span>
                           </p>
+                          {detalle ? (
+                            <div style={{ marginTop: "0.4rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                              {detalle.items.map((item: RecetaDigitalItemResponse) => (
+                                <p key={item.itemId} style={{ margin: 0, fontSize: "0.78rem", color: "#445566", lineHeight: 1.35 }}>
+                                  <span style={{ fontWeight: 600 }}>{item.medicamentoDisplay}</span>
+                                  {item.viaAdministracion ? <span style={{ color: "#006397", fontWeight: 600 }}> [{item.viaAdministracion}]</span> : null}
+                                  {item.dosisTexto ? <span> — {item.dosisTexto}</span> : null}
+                                  {item.frecuenciaTexto ? <span> c/ {item.frecuenciaTexto}</span> : null}
+                                  {item.duracionDias ? <span> × {item.duracionDias}d</span> : null}
+                                  {item.indicacion ? <span style={{ color: "#888" }}> — {item.indicacion}</span> : null}
+                                </p>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: "0.45rem" }}>
@@ -672,7 +689,8 @@ export function EscritorioClinicoModales({ state }: { state: useEscritorioClinic
                         </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
