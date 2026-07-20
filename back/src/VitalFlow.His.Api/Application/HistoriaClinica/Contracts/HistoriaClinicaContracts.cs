@@ -138,6 +138,7 @@ public sealed record RecetaDigitalItemCreate(
     string? FrecuenciaTexto,
     int? DuracionDias,
     string? Indicacion,
+    string? ViaAdministracion,
     string Estado
 );
 
