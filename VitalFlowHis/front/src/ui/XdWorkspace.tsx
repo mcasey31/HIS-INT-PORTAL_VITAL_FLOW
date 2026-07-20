@@ -85,19 +85,21 @@ export function XdWorkspace({
       </header>
 
       <section className="workspace workspace-flat">
-        <div className="canvas-area canvas-wide">
-          <section className="toolbar" aria-label="Selector de vista">
-            {onTitleClick ? (
-              <button type="button" className="toolbar-title-btn" onClick={onTitleClick}>
-                {title}
-              </button>
-            ) : (
-              <h1>{title}</h1>
-            )}
-            {statusLabel ? <div className="status-pill">{statusLabel}</div> : null}
-          </section>
+        <div className="canvas-area">
+          <div className="canvas-wide">
+            <section className="toolbar" aria-label="Selector de vista">
+              {onTitleClick ? (
+                <button type="button" className="toolbar-title-btn" onClick={onTitleClick}>
+                  {title}
+                </button>
+              ) : (
+                <h1>{title}</h1>
+              )}
+              {statusLabel ? <div className="status-pill">{statusLabel}</div> : null}
+            </section>
 
-          <section className="agenda-surface">{children}</section>
+            <section className="agenda-surface">{children}</section>
+          </div>
         </div>
       </section>
     </main>

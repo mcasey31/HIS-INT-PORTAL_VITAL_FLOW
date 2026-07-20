@@ -23,7 +23,7 @@ export default function StaffLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans">
+    <div className="h-screen bg-slate-50 flex font-sans overflow-hidden">
       {/* Sidebar Médico */}
       <aside className="w-20 lg:w-64 bg-slate-900 flex flex-col fixed h-full z-40 transition-all duration-300">
         <div className="p-6 border-b border-white/5">

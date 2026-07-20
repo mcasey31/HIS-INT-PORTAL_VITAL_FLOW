@@ -1136,7 +1136,12 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
     setPrescripcionFrecuencia("");
     setPrescripcionDuracion("");
     setPrescripcionIndicacion("");
-    setPrescripcionVia("Oral");
+    const formaLower = (medicamento.forma || "").toLowerCase();
+    let viaDefault = "Oral";
+    if (formaLower.includes("inyectable") || formaLower.includes("inyec")) viaDefault = "Intravenosa";
+    else if (formaLower.includes("crema") || formaLower.includes("pomada") || formaLower.includes("tópico") || formaLower.includes("topico") || formaLower.includes("gel")) viaDefault = "Tópica";
+    else if (formaLower.includes("ampolla") || formaLower.includes("solución inyectable")) viaDefault = "Intramuscular";
+    setPrescripcionVia(viaDefault);
     setPrescripcionError(null);
     setPrescripcionExitosa(false);
     setShowPrescripcionFormModal(true);
@@ -1155,10 +1160,6 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       if (!pid) { setPrescripcionError("No se pudo identificar el paciente."); setPrescripcionGuardando(false); return; }
       if (!encuentroPacienteId) setEncuentroPacienteId(pid);
 
-      const fullIndicacion = prescripcionVia 
-        ? `${prescripcionVia}. ${prescripcionIndicacion || ""}`.trim()
-        : prescripcionIndicacion;
-
       await crearPrescripcion({
         pacienteId: pid,
         turnoId: selectedTurno.id,
@@ -1167,7 +1168,8 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
         dosisTexto: prescripcionDosis || undefined,
         frecuenciaTexto: prescripcionFrecuencia || undefined,
         duracionDias: prescripcionDuracion ? parseInt(prescripcionDuracion, 10) : undefined,
-        indicacion: fullIndicacion || undefined,
+        indicacion: prescripcionIndicacion || undefined,
+        viaAdministracion: prescripcionVia || undefined,
       });
       // Close form modal and reopen prescriptions list
       setShowPrescripcionFormModal(false);
@@ -1245,6 +1247,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
       const items = detalle.items.map(item => `
         <tr>
           <td class="med-item">${item.medicamentoDisplay}</td>
+          <td>${item.viaAdministracion ?? VALOR_GUION}</td>
           <td>${item.dosisTexto ?? VALOR_GUION}</td>
           <td>${item.frecuenciaTexto ?? VALOR_GUION}</td>
           <td>${item.duracionDias ? item.duracionDias + " días" : VALOR_GUION}</td>
@@ -1284,7 +1287,7 @@ export function useEscritorioClinicoController({ onCancelSeleccionServicio }: Us
           <p><strong>Fecha:</strong> ${new Date().toLocaleDateString("es-AR")}</p>
         </div>
         <table><thead><tr>
-          <th style="width:35%">Medicamento</th><th style="width:15%">Dosis</th><th style="width:18%">Frecuencia</th><th style="width:12%">Duración</th><th style="width:20%">Indicación</th>
+          <th style="width:30%">Medicamento</th><th style="width:12%">Vía</th><th style="width:13%">Dosis</th><th style="width:15%">Frecuencia</th><th style="width:10%">Duración</th><th style="width:20%">Indicación</th>
         </tr></thead><tbody>${items}</tbody></table>
         <div class="firma">
           <hr>

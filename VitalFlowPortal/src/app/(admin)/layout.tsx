@@ -16,7 +16,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="h-screen bg-slate-50 flex overflow-hidden">
       {/* Sidebar Corporativo */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col fixed h-full z-20">
         <div className="p-6 border-b border-slate-100">
