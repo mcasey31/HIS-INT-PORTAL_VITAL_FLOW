@@ -148,7 +148,7 @@ export function useAgendaController({ openHu7027Token = 0 }: AgendaPageProps = {
   }
 
   async function loadAgendas() {
-    setLoading(true); setError(null);
+    setLoading(true);
     try {
       const data = await getAgendas(searchQuery, mapEstadoFiltroToApiValue());
       setAgendas(data);
@@ -161,16 +161,23 @@ export function useAgendaController({ openHu7027Token = 0 }: AgendaPageProps = {
 
   useEffect(() => {
     async function loadSelectors() {
-      try {
-        const [c, te, ta, d, f, l, p] = await Promise.all([getCentros(), getTiposEfector(), getTiposAgenda(), getDiasSemana(), getFrecuenciasBloque(), getLugaresAtencion(), getPracticas()]);
-        setCentros(c); setTiposEfector(te); setTiposAgenda(ta); setDiasSemana(d); setFrecuenciasBloque(f); setLugaresAtencion(l); setPracticasCatalogo(p);
-        if (c.length > 0) { setCentroId(prev => prev || c[0].id); setGrupoCentroId(prev => prev || c[0].id); }
-        if (te.length > 0) setTipoEfector(prev => prev || te[0]);
-        if (ta.length > 0) setTipoAgenda(prev => prev || ta[0]);
-        if (f.length > 0) setBloqueFrecuencia(prev => prev || f[0]);
-        if (l.length > 0) setBloqueLugarAtencionId(prev => prev || l[0].id);
-        if (p.length > 0) setPracticaNombre(prev => prev || p[0].nombre);
-      } catch (err) { setError(err instanceof Error ? err.message : "Error al cargar selectores de agenda"); }
+      const [cR, teR, taR, dR, fR, lR, pR] = await Promise.allSettled([getCentros(), getTiposEfector(), getTiposAgenda(), getDiasSemana(), getFrecuenciasBloque(), getLugaresAtencion(), getPracticas()]);
+      const c = cR.status === "fulfilled" ? cR.value : [];
+      const te = teR.status === "fulfilled" ? teR.value : [];
+      const ta = taR.status === "fulfilled" ? taR.value : [];
+      const d = dR.status === "fulfilled" ? dR.value : [];
+      const f = fR.status === "fulfilled" ? fR.value : [];
+      const l = lR.status === "fulfilled" ? lR.value : [];
+      const p = pR.status === "fulfilled" ? pR.value : [];
+      setCentros(c); setTiposEfector(te); setTiposAgenda(ta); setDiasSemana(d); setFrecuenciasBloque(f); setLugaresAtencion(l); setPracticasCatalogo(p);
+      if (c.length > 0) { setCentroId(prev => prev || c[0].id); setGrupoCentroId(prev => prev || c[0].id); }
+      if (te.length > 0) setTipoEfector(prev => prev || te[0]);
+      if (ta.length > 0) setTipoAgenda(prev => prev || ta[0]);
+      if (f.length > 0) setBloqueFrecuencia(prev => prev || f[0]);
+      if (l.length > 0) setBloqueLugarAtencionId(prev => prev || l[0].id);
+      if (p.length > 0) setPracticaNombre(prev => prev || p[0].nombre);
+      const errors = [cR, teR, taR, dR, fR, lR, pR].filter(r => r.status === "rejected").map(r => (r as PromiseRejectedResult).reason);
+      if (errors.length > 0) setError("Error al cargar algunos selectores de agenda");
     }
     void loadSelectors();
   }, []);
