@@ -276,7 +276,7 @@ export const healthRouter = createTRPCRouter({
   acceptCall: publicProcedure
     .input(z.object({ callId: z.string(), doctorName: z.string() }))
     .mutation(async ({ input }) => {
-      const roomName = `quantum-call-${input.callId.slice(-6)}`;
+      const roomName = `call-${input.callId.slice(-6)}`;
       return db.telemedicineCall.update({
         where: { id: input.callId },
         data: {
