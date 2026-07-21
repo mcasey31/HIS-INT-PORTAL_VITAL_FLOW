@@ -26,7 +26,7 @@ export const staffRouter = createTRPCRouter({
       institutionId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const institutionId = input.institutionId ?? (ctx.session.user as any).institutionId;
+      const institutionId = input.institutionId ?? (ctx.session?.user as any)?.institutionId;
 
       const user = await ctx.db.user.create({
         data: {
