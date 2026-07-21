@@ -381,6 +381,17 @@ public sealed class PostgresPersonaRepository(string connectionString) : IPerson
         using var conn = new NpgsqlConnection(connectionString);
         conn.Open();
 
+        if (!string.IsNullOrWhiteSpace(request.LocalidadId))
+        {
+            const string checkSql = "SELECT 1 FROM sch_ubicacion.localidad WHERE id = @localidadId AND activo = true;";
+            using var checkCmd = new NpgsqlCommand(checkSql, conn);
+            checkCmd.Parameters.AddWithValue("localidadId", request.LocalidadId);
+            if (checkCmd.ExecuteScalar() is null)
+            {
+                throw new ArgumentException($"La localidad con id '{request.LocalidadId}' no existe o no esta activa.");
+            }
+        }
+
         using var tx = conn.BeginTransaction();
 
         var existingId = GetActiveDomicilioId(conn, personaId);

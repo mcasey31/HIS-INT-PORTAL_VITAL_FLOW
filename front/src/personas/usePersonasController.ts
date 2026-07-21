@@ -141,8 +141,10 @@ export function usePersonasController() {
   useEffect(() => {
     if (!provinciaActual) {
       setLocalidades([]);
+      setDireccionLocalidadId(null);
       return;
     }
+    setDireccionLocalidadId(null);
     let cancelled = false;
     getLocalidades(provinciaActual.id).then(locs => {
       if (cancelled) return;

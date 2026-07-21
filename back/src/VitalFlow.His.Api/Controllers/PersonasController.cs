@@ -168,6 +168,14 @@ public sealed class PersonasController(
         {
             return NotFound(new { message = ex.Message });
         }
+        catch (PostgresException ex)
+        {
+            return BadRequest(new { message = $"Error de base de datos al guardar domicilio: {ex.MessageText}" });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("{personaId:guid}/contactos")]
