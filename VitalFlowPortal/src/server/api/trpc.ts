@@ -131,3 +131,16 @@ export const protectedProcedure = t.procedure
       },
     });
   });
+
+/**
+ * Admin (authenticated + ADMIN role) procedure
+ *
+ * Restricts access to users with the ADMIN role. Must be used after protectedProcedure
+ * to guarantee ctx.session.user exists.
+ */
+export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if ((ctx.session.user as any).role !== "ADMIN") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Se requiere rol de administrador" });
+  }
+  return next({ ctx });
+});

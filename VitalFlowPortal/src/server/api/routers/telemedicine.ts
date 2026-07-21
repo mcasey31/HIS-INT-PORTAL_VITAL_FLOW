@@ -2,7 +2,6 @@ import { z } from "zod";
 import {
   createTRPCRouter,
   protectedProcedure,
-  publicProcedure,
 } from "~/server/api/trpc";
 
 export const telemedicineRouter = createTRPCRouter({
@@ -109,7 +108,7 @@ export const telemedicineRouter = createTRPCRouter({
   }),
 
   // Médico: Ver fila de espera en tiempo real
-  getWaitingQueue: publicProcedure.query(async ({ ctx }) => {
+  getWaitingQueue: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.telemedicineCall.findMany({
       where: { status: "WAITING" },
       include: {
@@ -124,7 +123,7 @@ export const telemedicineRouter = createTRPCRouter({
   }),
 
   // Médico: Reconexión de llamada activa
-  getDoctorActiveCall: publicProcedure
+  getDoctorActiveCall: protectedProcedure
     .input(z.object({ doctorName: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.telemedicineCall.findFirst({
@@ -138,10 +137,10 @@ export const telemedicineRouter = createTRPCRouter({
     }),
 
   // Médico: Aceptar paciente
-  acceptCall: publicProcedure
+  acceptCall: protectedProcedure
     .input(z.object({ callId: z.string(), doctorName: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const roomName = `quantum-call-${input.callId.slice(-6)}`;
+      const roomName = `call-${input.callId.slice(-6)}`;
       
       return ctx.db.telemedicineCall.update({
         where: { id: input.callId },
@@ -158,7 +157,7 @@ export const telemedicineRouter = createTRPCRouter({
     }),
 
   // Finalizar atención
-  endCall: publicProcedure
+  endCall: protectedProcedure
     .input(z.object({ callId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.telemedicineCall.update({

@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, adminProcedure, protectedProcedure } from "~/server/api/trpc";
 import { db } from "~/server/db";
 
 export const staffRouter = createTRPCRouter({
   // Listar todo el staff médico
-  list: publicProcedure.query(async () => {
+  list: protectedProcedure.query(async () => {
     return await db.user.findMany({
       where: { role: "DOCTOR" },
       include: { professional: true },
@@ -12,8 +12,8 @@ export const staffRouter = createTRPCRouter({
     });
   }),
 
-  // Alta de nuevo profesional (Manual desde Admin)
-  create: publicProcedure
+  // Alta de nuevo profesional (Solo ADMIN)
+  create: adminProcedure
     .input(z.object({
       firstName: z.string().min(2),
       lastName: z.string().min(2),
@@ -23,25 +23,21 @@ export const staffRouter = createTRPCRouter({
       address: z.string().optional(),
       username: z.string().min(3),
       password: z.string().min(4),
+      institutionId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // 1. Buscamos la institución Quantum para vincular al profesional
-      const institution = await ctx.db.institution.findUnique({
-        where: { slug: "quantum" }
-      });
+      const institutionId = input.institutionId ?? (ctx.session.user as any).institutionId;
 
-      // 2. Crear el usuario con rol DOCTOR
       const user = await ctx.db.user.create({
         data: {
           name: `${input.firstName} ${input.lastName}`,
           username: input.username,
           password: input.password,
           role: "DOCTOR",
-          institutionId: institution?.id, // Lo vinculamos a Quantum
+          institutionId,
         }
       });
 
-      // 3. Crear el perfil profesional
       return await ctx.db.professional.create({
         data: {
           userId: user.id,
@@ -53,8 +49,8 @@ export const staffRouter = createTRPCRouter({
       });
     }),
 
-  // Eliminar profesional
-  delete: publicProcedure
+  // Eliminar profesional (Solo ADMIN)
+  delete: adminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       return await db.user.delete({

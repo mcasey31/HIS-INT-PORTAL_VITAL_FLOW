@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { db } from "~/server/db";
 import { getSelectores, buscarDisponibilidad, getPatientAppointmentsFromHis, reservarTurno, cancelarTurno } from "~/server/services/his/vitalflow-adapter";
 
@@ -72,7 +72,7 @@ export const healthRouter = createTRPCRouter({
   // ── Integración HIS real ────────────────────────────────────────────────
 
   // Obtener centros, servicios, prácticas y profesionales disponibles
-  getSelectores: publicProcedure.query(async () => {
+  getSelectores: protectedProcedure.query(async () => {
     return await getSelectores();
   }),
 
@@ -250,7 +250,7 @@ export const healthRouter = createTRPCRouter({
   }),
 
   // Médico: Ver pacientes en espera
-  getWaitingQueue: publicProcedure.query(async () => {
+  getWaitingQueue: protectedProcedure.query(async () => {
     return db.telemedicineCall.findMany({
       where: { status: "WAITING" },
       include: { patient: { include: { user: true } } },
@@ -259,7 +259,7 @@ export const healthRouter = createTRPCRouter({
   }),
 
   // Médico: Ver si tengo una llamada activa para reconectar
-  getDoctorActiveCall: publicProcedure
+  getDoctorActiveCall: protectedProcedure
     .input(z.object({ doctorName: z.string() }))
     .query(async ({ input }) => {
       return db.telemedicineCall.findFirst({
@@ -273,10 +273,10 @@ export const healthRouter = createTRPCRouter({
     }),
 
   // Médico: Aceptar un paciente
-  acceptCall: publicProcedure
+  acceptCall: protectedProcedure
     .input(z.object({ callId: z.string(), doctorName: z.string() }))
     .mutation(async ({ input }) => {
-      const roomName = `quantum-call-${input.callId.slice(-6)}`;
+      const roomName = `call-${input.callId.slice(-6)}`;
       return db.telemedicineCall.update({
         where: { id: input.callId },
         data: {
@@ -290,7 +290,7 @@ export const healthRouter = createTRPCRouter({
     }),
 
   // Finalizar llamada
-  endCall: publicProcedure
+  endCall: protectedProcedure
     .input(z.object({ callId: z.string() }))
     .mutation(async ({ input }) => {
       return db.telemedicineCall.update({
@@ -303,21 +303,38 @@ export const healthRouter = createTRPCRouter({
     }),
 
   // Guardar encuesta de satisfacción
-  submitSurvey: publicProcedure
+  submitSurvey: protectedProcedure
     .input(z.object({
       callId: z.string(),
-      patientId: z.string(),
       attentionRating: z.string(),
       connectionRating: z.string(),
       videoRating: z.string(),
       audioRating: z.string(),
       comment: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const sessionUserId = ctx.session.user.id;
+      const sessionEmail = ctx.session.user.email ?? null;
+
+      const user = await db.user.findFirst({
+        where: {
+          OR: [
+            { id: sessionUserId },
+            ...(sessionEmail ? [{ email: sessionEmail }] : []),
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (!user) throw new Error("No se encontró el usuario autenticado.");
+
+      const patient = await db.patient.findUnique({ where: { userId: user.id } });
+      if (!patient) throw new Error("No se encontró el perfil de paciente.");
+
       return db.telemedicineSurvey.create({
         data: {
           callId: input.callId,
-          patientId: input.patientId,
+          patientId: patient.id,
           attentionRating: input.attentionRating,
           connectionRating: input.connectionRating,
           videoRating: input.videoRating,
