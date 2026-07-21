@@ -243,6 +243,7 @@ export function usePersonasController() {
   const aplicarDomicilio = (domicilio: { localidadId?: string | null; pais: string; provincia: string; localidad: string; calle: string; numero: string; barrio: string; codigoPostal: string; piso: string; departamento: string; comentario: string }) => {
     setDireccionPais(domicilio.pais || DIRECCION_PAIS_DEFAULT);
     setDireccionProvincia(domicilio.provincia);
+    setDireccionLocalidad(domicilio.localidad || "");
     pendingLocalidadRef.current = domicilio.localidad || null;
     setDireccionLocalidadId(domicilio.localidadId ?? null);
     setDireccionCalle(domicilio.calle);
@@ -491,8 +492,8 @@ export function usePersonasController() {
       const updated = await actualizarPersonaSetMinimo(selectedCandidatoId, requestSetMinimo());
       try {
         await upsertDomicilio(selectedCandidatoId, buildDomicilioRequest());
-      } catch {
-        // domicilio no bloqueante
+      } catch (e) {
+        setError(`Domicilio no guardado: ${e instanceof Error ? e.message : "error desconocido"}`);
       }
       await persistContactos(selectedCandidatoId);
       setCandidatos(prev => prev.map(item => item.id === selectedCandidatoId ? updated : item));
@@ -523,8 +524,8 @@ export function usePersonasController() {
       const creada = await empadronarPersonaConSetMinimo(requestSetMinimo());
       try {
         await upsertDomicilio(creada.id, buildDomicilioRequest());
-      } catch {
-        // domicilio no bloqueante
+      } catch (e) {
+        setError(`Domicilio no guardado: ${e instanceof Error ? e.message : "error desconocido"}`);
       }
       await persistContactos(creada.id);
       setCandidatos(prev => [creada, ...prev.filter(item => item.id !== creada.id)]);
