@@ -137,6 +137,8 @@ export function PersonasPage({}: PersonasPageProps) {
     onGuardarEdicionSetMinimo,
     onEmpadronar,
     ejecutarEmpadronamiento,
+    normalizarProvincia,
+    normalizarLocalidad,
     onAgregarContacto,
     onEliminarContacto,
     onActualizarContacto,
@@ -536,6 +538,7 @@ export function PersonasPage({}: PersonasPageProps) {
                 list="direccion-provincias"
                 value={direccionProvincia}
                 onChange={(event) => setDireccionProvincia(event.target.value)}
+                onBlur={() => normalizarProvincia(direccionProvincia)}
                 placeholder="Seleccione provincia"
               />
               <datalist id="direccion-provincias">
@@ -550,6 +553,7 @@ export function PersonasPage({}: PersonasPageProps) {
                 list="direccion-localidades"
                 value={direccionLocalidad}
                 onChange={(event) => setDireccionLocalidad(event.target.value)}
+                onBlur={() => normalizarLocalidad(direccionLocalidad)}
                 placeholder="Seleccione localidad"
               />
               <datalist id="direccion-localidades">

@@ -48,6 +48,8 @@ export function usePersonasController() {
   const [direccionCalle, setDireccionCalle] = useState("");
   const [direccionNumero, setDireccionNumero] = useState("");
   const [direccionLocalidad, setDireccionLocalidad] = useState("");
+  const [direccionLocalidadId, setDireccionLocalidadId] = useState<string | null>(null);
+  const pendingLocalidadRef = useRef<string | null>(null);
   const [direccionBarrio, setDireccionBarrio] = useState("");
   const [direccionCodigoPostal, setDireccionCodigoPostal] = useState("");
   const [direccionPiso, setDireccionPiso] = useState("");
@@ -116,10 +118,25 @@ export function usePersonasController() {
     [localidades]
   );
 
-  const provinciaActual = useMemo(() =>
-    provincias.find(p => p.nombre === direccionProvincia),
-    [provincias, direccionProvincia]
-  );
+  const normalizarProvincia = (valor: string) => {
+    const q = valor.trim().toLowerCase();
+    const match = provincias.find(p => p.nombre.trim().toLowerCase() === q);
+    if (match) setDireccionProvincia(match.nombre);
+  };
+
+  const normalizarLocalidad = (valor: string) => {
+    const q = valor.trim().toLowerCase();
+    const match = localidades.find(l => l.nombre.trim().toLowerCase() === q);
+    if (match) {
+      setDireccionLocalidad(match.nombre);
+      setDireccionLocalidadId(match.id);
+    }
+  };
+
+  const provinciaActual = useMemo(() => {
+    const q = direccionProvincia.trim().toLowerCase();
+    return provincias.find(p => p.nombre.trim().toLowerCase() === q);
+  }, [provincias, direccionProvincia]);
 
   useEffect(() => {
     if (!provinciaActual) {
@@ -128,7 +145,20 @@ export function usePersonasController() {
     }
     let cancelled = false;
     getLocalidades(provinciaActual.id).then(locs => {
-      if (!cancelled) setLocalidades(locs);
+      if (cancelled) return;
+      setLocalidades(locs);
+      const pending = pendingLocalidadRef.current;
+      if (pending) {
+        pendingLocalidadRef.current = null;
+        const match = locs.find(l => l.nombre === pending);
+        if (match) {
+          setDireccionLocalidad(match.nombre);
+          setDireccionLocalidadId(match.id);
+        } else {
+          setDireccionLocalidad("");
+          setDireccionLocalidadId(null);
+        }
+      }
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [provinciaActual]);
@@ -136,6 +166,7 @@ export function usePersonasController() {
   useEffect(() => {
     if (direccionLocalidad && !direccionLocalidadesFiltradas.includes(direccionLocalidad)) {
       setDireccionLocalidad("");
+      setDireccionLocalidadId(null);
     }
   }, [direccionLocalidad, direccionLocalidadesFiltradas]);
 
@@ -193,9 +224,9 @@ export function usePersonasController() {
   });
 
   const buildDomicilioRequest = () => {
-    const prov = provincias.find(p => p.nombre === direccionProvincia);
+    const matchedLocalidad = localidades.find(l => l.nombre === direccionLocalidad);
     return {
-      localidadId: prov?.id ?? null,
+      localidadId: matchedLocalidad?.id ?? direccionLocalidadId ?? null,
       pais: direccionPais,
       provincia: direccionProvincia,
       localidad: direccionLocalidad,
@@ -209,10 +240,11 @@ export function usePersonasController() {
     };
   };
 
-  const aplicarDomicilio = (domicilio: { pais: string; provincia: string; localidad: string; calle: string; numero: string; barrio: string; codigoPostal: string; piso: string; departamento: string; comentario: string }) => {
+  const aplicarDomicilio = (domicilio: { localidadId?: string | null; pais: string; provincia: string; localidad: string; calle: string; numero: string; barrio: string; codigoPostal: string; piso: string; departamento: string; comentario: string }) => {
     setDireccionPais(domicilio.pais || DIRECCION_PAIS_DEFAULT);
     setDireccionProvincia(domicilio.provincia);
-    setDireccionLocalidad(domicilio.localidad);
+    pendingLocalidadRef.current = domicilio.localidad || null;
+    setDireccionLocalidadId(domicilio.localidadId ?? null);
     setDireccionCalle(domicilio.calle);
     setDireccionNumero(domicilio.numero);
     setDireccionBarrio(domicilio.barrio);
@@ -377,8 +409,8 @@ export function usePersonasController() {
     setModoEdicionEmpadronamiento(false);
     lastRebusquedaSignatureRef.current = "";
     setContactos(CONTACTOS_INICIALES); nextContactoIdRef.current = 3; setAdvertenciaContactoModalOpen(false);
-    setDireccionPais(DIRECCION_PAIS_DEFAULT); setDireccionProvincia("");
-    setDireccionCalle(""); setDireccionNumero(""); setDireccionLocalidad(""); setDireccionBarrio("");
+    setDireccionPais(DIRECCION_PAIS_DEFAULT); setDireccionProvincia(provincias.find(p => p.id === "CABA")?.nombre ?? (provincias[0]?.nombre ?? ""));
+    setDireccionCalle(""); setDireccionNumero(""); setDireccionLocalidad(""); setDireccionLocalidadId(null); setDireccionBarrio("");
     setDireccionCodigoPostal(""); setDireccionPiso(""); setDireccionDepartamento(""); setDireccionComentario("");
     setPersonaContactos([]); setEmpadronarContactoModalOpen(false); setContactoEditandoId(null);
     setContactoNombre(""); setContactoApellido(""); setContactoTipoDocumento("DNI"); setContactoNumeroDocumento("");
@@ -716,7 +748,7 @@ export function usePersonasController() {
     contactos, advertenciaContactoModalOpen, setAdvertenciaContactoModalOpen,
     direccionPais, setDireccionPais, direccionProvincia, setDireccionProvincia,
     direccionCalle, setDireccionCalle, direccionNumero, setDireccionNumero,
-    direccionLocalidad, setDireccionLocalidad, direccionBarrio, setDireccionBarrio,
+    direccionLocalidad, setDireccionLocalidad, direccionLocalidadId, direccionBarrio, setDireccionBarrio,
     direccionCodigoPostal, setDireccionCodigoPostal, direccionPiso, setDireccionPiso,
     direccionDepartamento, setDireccionDepartamento, direccionComentario, setDireccionComentario,
     personaContactos, empadronarContactoModalOpen, contactoEditandoId,
@@ -735,6 +767,7 @@ export function usePersonasController() {
     parseApellidosNombres, estadoEmpadronamiento, maybeRunRebusquedaCandidatos,
     onConsultar, onLimpiar, onSeleccionarCandidato, onIniciarEdicionSeleccionado,
     onCancelarEdicionEmpadronamiento, onGuardarEdicionSetMinimo, onEmpadronar, ejecutarEmpadronamiento,
+    normalizarProvincia, normalizarLocalidad,
     onAgregarContacto, onEliminarContacto, onActualizarContacto, normalizarValorContacto,
     onAbrirEmpadronarContacto, onCerrarEmpadronarContacto,
     onAgregarDatoContactoPersona, onEliminarDatoContactoPersona, onActualizarDatoContactoPersona,
