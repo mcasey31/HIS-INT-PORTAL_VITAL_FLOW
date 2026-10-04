@@ -121,7 +121,10 @@ public sealed record RecetaDigitalDetalleResponse(
 
 public sealed record AnularRecetaDigitalRequest(
     string Motivo,
-    string UsuarioId
+    // Obsoleto: el usuario que anula se toma del claim userId del JWT. Se
+    // mantiene en el contrato para no romper clientes que ya lo envian, pero
+    // si viene null el endpoint funciona igual.
+    string? UsuarioId = null
 );
 
 public sealed record AnularRecetaDigitalResponse(
@@ -180,4 +183,50 @@ public sealed record GuardarSolicitudesEstudiosRequest(
 
 public sealed record GuardarSolicitudesEstudiosResponse(
     int Cantidad
+);
+
+// ── Receta digital: estados de entrega y consulta paginada ─────────────────
+//
+// La app movil de recepcion necesita distinguir si la receta ya se entrego al
+// paciente, se imprimir o sigue pendiente. Los estados y sus transiciones
+// viven en HistoriaClinicaService y estan restringidos en la base por el
+// constraint receta_digital_estado_chk (migracion 044).
+//
+//   PUBLICADA_REPOSITORIO -> PENDIENTE_DE_ENTREGA | IMPRESA | ANULADA
+//   PENDIENTE_DE_ENTREGA  -> ENTREGADA | IMPRESA | ANULADA
+//   IMPRESA               -> ENTREGADA | ANULADA
+//   ENTREGADA             -> (final)
+//   ANULADA               -> (final)
+
+public sealed record ActualizarEstadoRecetaDigitalRequest(
+    string Estado,
+    string? Motivo
+);
+
+public sealed record ActualizarEstadoRecetaDigitalResponse(
+    string RecetaId,
+    string EstadoAnterior,
+    string Estado,
+    string ActualizadoEn
+);
+
+/// <summary>
+/// Listado paginado de recetas. Todos los filtros son opcionales y se combinan.
+/// Por defecto excluye ANULADA salvo que se pida IncluirAnuladas.
+/// </summary>
+public sealed record RecetasDigitalesFiltro(
+    Guid? PacienteId,
+    Guid? TurnoId,
+    Guid? EncuentroId,
+    string? Estado,
+    bool IncluirAnuladas = false,
+    int Page = 1,
+    int PageSize = 20
+);
+
+public sealed record RecetaDigitalPageResponse(
+    IReadOnlyList<RecetaDigitalResumenResponse> Items,
+    int Total,
+    int Page,
+    int PageSize
 );

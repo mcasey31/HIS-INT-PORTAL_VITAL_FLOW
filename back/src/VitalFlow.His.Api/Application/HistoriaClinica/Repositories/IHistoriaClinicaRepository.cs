@@ -12,6 +12,13 @@ public interface IHistoriaClinicaRepository
     RegistrarRecetaDigitalResponse CreateRecetaDigital(RecetaDigitalCreateCommand command);
     RecetaDigitalDetalleResponse? GetRecetaDigitalById(Guid recetaId);
     IReadOnlyList<RecetaDigitalResumenResponse> GetRecetasDigitalesByPaciente(Guid pacienteId);
+    RecetaDigitalPageResponse GetRecetasDigitales(RecetasDigitalesFiltro filtro);
+    ActualizarEstadoRecetaDigitalResponse? ActualizarEstadoRecetaDigital(
+        Guid recetaId,
+        string estadoNuevo,
+        string estadoEsperado,
+        Guid usuarioId,
+        string? motivo);
     AnularRecetaDigitalResponse? AnularRecetaDigital(Guid recetaId, string motivo, Guid usuarioId);
     IReadOnlyList<SolicitudEstudioResponse> GetSolicitudesEstudios(string turnoId);
     GuardarSolicitudesEstudiosResponse SaveSolicitudesEstudios(string turnoId, string pacienteId, IReadOnlyList<SolicitudEstudioItemRequest> items);

@@ -11,6 +11,8 @@ public interface IHistoriaClinicaService
     RegistrarRecetaDigitalResponse RegistrarRecetaDigital(RegistrarRecetaDigitalRequest request);
     RecetaDigitalDetalleResponse ObtenerRecetaDigital(Guid recetaId);
     IReadOnlyList<RecetaDigitalResumenResponse> ObtenerRecetasDigitalesPaciente(Guid pacienteId);
+    RecetaDigitalPageResponse ObtenerRecetasDigitales(RecetasDigitalesFiltro filtro);
+    ActualizarEstadoRecetaDigitalResponse ActualizarEstadoRecetaDigital(Guid recetaId, ActualizarEstadoRecetaDigitalRequest request);
     AnularRecetaDigitalResponse AnularRecetaDigital(Guid recetaId, AnularRecetaDigitalRequest request);
     IReadOnlyList<SolicitudEstudioResponse> ObtenerSolicitudesEstudios(string turnoId);
     GuardarSolicitudesEstudiosResponse GuardarSolicitudesEstudios(string turnoId, GuardarSolicitudesEstudiosRequest request);
