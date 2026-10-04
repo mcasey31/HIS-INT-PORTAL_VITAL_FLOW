@@ -15,7 +15,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      - ./scripts/seed-data.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
     networks:
       - vitalflow_network
     healthcheck:
