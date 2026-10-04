@@ -140,3 +140,38 @@ public sealed record GuardarPacienteFinanciadorTurnoRequest(
     string? NumeroAfiliado,
     string? ReemplazarFinanciadorPlanId
 );
+
+// ── Recepcion: detalle y anulacion de un turno ─────────────────────────────
+
+/// <summary>
+/// Detalle de un turno. Incluye los identificadores de agenda para que la app
+/// pueda saltar directo a la pantalla del turno sin un segundo round-trip.
+/// </summary>
+public sealed record TurnoDetalleResponse(
+    string Id,
+    string PacienteId,
+    string Profesional,
+    string Servicio,
+    string Centro,
+    DateTimeOffset FechaHora,
+    string Estado,
+    string? Motivo,
+    string CentroId,
+    string ServicioId,
+    string EfectorId,
+    string? CupoId
+);
+
+/// <summary>
+/// Anula un turno. El motivo es obligatorio porque queda en turno_paciente.motivo
+/// y es el registro que explica por que un paciente con turno confirmado ya no
+/// viene.
+/// </summary>
+public sealed record AnularTurnoRequest(string Motivo);
+
+public sealed record AnularTurnoResponse(
+    string TurnoId,
+    string EstadoAnterior,
+    string Estado,
+    string? Motivo
+);
