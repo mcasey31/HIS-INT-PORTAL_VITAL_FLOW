@@ -54,17 +54,6 @@ public sealed record TurnoAdmisionResponse(
     string EstadoTurno
 );
 
-/// <summary>
-/// Tablero de sala de espera paginado. Mismo criterio que
-/// POST /api/v1/admision/landing/buscar, que devuelve el listado completo.
-/// </summary>
-public sealed record AdmisionTableroResponse(
-    IReadOnlyList<TurnoAdmisionResponse> Items,
-    int Total,
-    int Page,
-    int PageSize
-);
-
 public sealed record ConfirmarArriboTurnoResponse(
     string TurnoId,
     string Estado,

@@ -21,19 +21,6 @@ public sealed class TurnosService(
     private const string EstadoCanceladoAgenda = "CANCELADO_POR_AGENDA";
     private const string EstadoCanceladoBloqueo = "CANCELADO_POR_BLOQUEO";
     private const string EstadoCanceladoPaciente = "CANCELADO_POR_PACIENTE";
-    private const string EstadoAnulado = "ANULADO";
-
-    /// <summary>
-    /// Estados desde los que recepcion puede anular un turno. AGENDADO y
-    /// PROGRAMADO son los dos con los que queda un turno confirmado. CONSUMIDO y
-    /// AUSENTE ya ocurrieron y anularlos falsearia el historial.
-    /// </summary>
-    private static readonly HashSet<string> EstadosAnulables =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            EstadoAgendado,
-            "PROGRAMADO"
-        };
 
     private static readonly IReadOnlyList<TipoDocumentoTurnoResponse> TiposDocumento =
     [
@@ -448,74 +435,6 @@ public sealed class TurnosService(
             .ToList();
 
         return new TurnosPacientePageResponse(items, total, page, pageSize);
-    }
-
-    public TurnoDetalleResponse GetTurnoById(string turnoId)
-    {
-        if (string.IsNullOrWhiteSpace(turnoId))
-        {
-            throw new ArgumentException("turnoId es obligatorio.");
-        }
-
-        var row = turnosRepository.GetTurnoById(turnoId);
-        if (row is null)
-        {
-            throw new KeyNotFoundException($"No se encontro el turno {turnoId}.");
-        }
-
-        return new TurnoDetalleResponse(
-            Id: row.Id,
-            PacienteId: row.PacienteId,
-            Profesional: row.Profesional,
-            Servicio: row.Servicio,
-            Centro: row.Centro,
-            FechaHora: row.FechaHora,
-            Estado: row.Estado,
-            Motivo: row.Motivo,
-            CentroId: row.CentroId.ToString(),
-            ServicioId: row.ServicioId.ToString(),
-            EfectorId: row.EfectorId.ToString(),
-            CupoId: row.CupoId == Guid.Empty ? null : row.CupoId.ToString());
-    }
-
-    public AnularTurnoResponse AnularTurno(string turnoId, AnularTurnoRequest request)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        if (string.IsNullOrWhiteSpace(turnoId))
-        {
-            throw new ArgumentException("turnoId es obligatorio.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Motivo))
-        {
-            throw new ArgumentException("motivo es obligatorio.");
-        }
-
-        var row = turnosRepository.GetTurnoById(turnoId);
-        if (row is null)
-        {
-            throw new KeyNotFoundException($"No se encontro el turno {turnoId}.");
-        }
-
-        // Solo se anulan turnos que todavia no produciendo atencion. Un turno
-        // CONSUMIDO o AUSENTE ya ocurrio: anularlo seria falsear el historial.
-        if (!EstadosAnulables.Contains(row.Estado))
-        {
-            throw new InvalidOperationException(
-                $"No se puede anular un turno en estado {row.Estado}. " +
-                $"Solo se anulan: {string.Join(", ", EstadosAnulables)}.");
-        }
-
-        var estadoAnterior = turnosRepository.AnularTurnoYCupo(turnoId, EstadoAnulado, request.Motivo.Trim());
-        if (estadoAnterior is null)
-        {
-            // El turno existia al leer pero se borro entre medio.
-            throw new InvalidOperationException(
-                "El turno fue modificado por otro usuario mientras se realizaba la anulacion. Recargue e intente nuevamente.");
-        }
-
-        return new AnularTurnoResponse(turnoId, estadoAnterior, EstadoAnulado, request.Motivo.Trim());
     }
 
     public FinanciadorPlanTurnoResponse GuardarFinanciadorPaciente(string pacienteId, GuardarPacienteFinanciadorTurnoRequest request)

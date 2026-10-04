@@ -7,57 +7,9 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/turnos")]
-// Recepcion entra en el circuito de turnos: necesita ver los turnos del
-// paciente, anularlos y asignar sobreturnos desde el mostrador.
-[Authorize(Roles = "Administrador,Administrativo,Cajero,Auditor,Recepcion")]
+[Authorize(Roles = "Administrador,Administrativo,Cajero,Auditor")]
 public sealed class TurnosController(ITurnosService turnosService) : ControllerBase
 {
-    /// <summary>
-    /// Detalle de un turno. Devuelve 404 si el id no existe.
-    /// </summary>
-    [HttpGet("{turnoId}")]
-    public ActionResult<TurnoDetalleResponse> GetTurno(string turnoId)
-    {
-        try
-        {
-            return Ok(turnosService.GetTurnoById(turnoId));
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Anula un turno y libera su horario. Solo se admite desde AGENDADO o
-    /// PROGRAMADO. Devuelve 409 si el turno ya ocurrio o fue modificado en
-    /// paralelo.
-    /// </summary>
-    [HttpPost("{turnoId}/anular")]
-    public ActionResult<AnularTurnoResponse> AnularTurno(string turnoId, [FromBody] AnularTurnoRequest request)
-    {
-        try
-        {
-            return Ok(turnosService.AnularTurno(turnoId, request));
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-    }
-
     [HttpGet("identificacion/tipos-documento")]
     public ActionResult<IReadOnlyList<TipoDocumentoTurnoResponse>> GetTiposDocumento()
     {

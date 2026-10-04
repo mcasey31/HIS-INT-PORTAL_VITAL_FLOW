@@ -172,31 +172,6 @@ public sealed class AdmisionService(
 
     public IReadOnlyList<TurnoAdmisionResponse> BuscarTurnos(BuscarTurnosAdmisionRequest request)
     {
-        var todos = ConstruirTablero(request);
-        return todos;
-    }
-
-    public AdmisionTableroResponse BuscarTurnosPaginados(BuscarTurnosAdmisionRequest request, int page, int pageSize)
-    {
-        var todos = ConstruirTablero(request);
-
-        var total = todos.Count;
-        var items = todos
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
-        return new AdmisionTableroResponse(items, total, page, pageSize);
-    }
-
-    /// <summary>
-    /// Construye el tablero completo del dia. BuscarTurnos ya lo armaba entero
-    /// en memoria (agendas + bloques + turnos programados), asi que la
-    /// paginacion se aplica sobre esa lista en vez de reescribir la consulta.
-    /// Mismo criterio que GetTurnosPaciente en TurnosService.
-    /// </summary>
-    private List<TurnoAdmisionResponse> ConstruirTablero(BuscarTurnosAdmisionRequest request)
-    {
         var scope = BuildScope();
         var fecha = request.Fecha ?? DateOnly.FromDateTime(GetBusinessNow().DateTime);
         var now = DateTimeOffset.UtcNow;
@@ -416,7 +391,7 @@ public sealed class AdmisionService(
             .OrderBy(item => Math.Abs((item.Sort - now).TotalMinutes))
             .ThenBy(item => item.Sort)
             .Select(item => item.Row)
-            .ToList();
+            .ToArray();
     }
 
     private static string BuildTurnoProgramadoKey(DateTimeOffset fechaHora, string servicio, string profesional)

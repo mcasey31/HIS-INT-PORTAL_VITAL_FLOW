@@ -8,41 +8,19 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/personas")]
-// Los roles se aplican por accion. En ASP.NET Core el [Authorize] del
-// controller y el de la accion se combinan con AND, asi que dejar roles en el
-// controller impediria acciones mas restrictivas. Motivo: recepcion necesita
-// consultar pacientes en el mostrador (busqueda, financiador, domicilio) pero
-// no debe modificar datos maestros de persona.
-[Authorize]
+[Authorize(Roles = "Administrador,Enrolamiento Persona,Medico,Auditor,Administrativo,Cajero")]
 public sealed class PersonasController(
     IPersonaService personaService,
     IConfiguration configuration
 ) : ControllerBase
 {
-    /// <summary>Lectura. Incluye Recepcion para el circuito de mostrador.</summary>
-    private const string RolesLectura =
-        "Administrador,Enrolamiento Persona,Medico,Auditor,Administrativo,Cajero,Recepcion";
-
-    /// <summary>
-    /// Alta y modificacion de datos maestros de persona. Mismos roles que
-    ///Histaba el controller antes de separar por accion, mas Medico.
-    /// </summary>
-    private const string RolesDatosMaestros =
-        "Administrador,Enrolamiento Persona,Medico,Auditor,Administrativo,Cajero";
-
-    /// <summary>Empadronamiento: alta de personas desde set minimo.</summary>
-    private const string RolesEmpadronamiento =
-        "Administrador,Enrolamiento Persona,Medico";
-
     [HttpGet("tipos-documento")]
-    [Authorize(Roles = RolesLectura)]
     public IActionResult GetTiposDocumento()
     {
         return Ok(personaService.GetTiposDocumento());
     }
 
     [HttpGet("busqueda")]
-    [Authorize(Roles = RolesLectura)]
     public IActionResult BuscarPorTipoYNumeroDocumento([FromQuery] string tipoDocumento, [FromQuery] string numeroDocumento)
     {
         if (string.IsNullOrWhiteSpace(tipoDocumento) || string.IsNullOrWhiteSpace(numeroDocumento))
@@ -55,7 +33,6 @@ public sealed class PersonasController(
     }
 
     [HttpGet("busqueda-set-minimo")]
-    [Authorize(Roles = RolesLectura)]
     public IActionResult BuscarPorSetMinimo(
         [FromQuery] string tipoDocumento,
         [FromQuery] string numeroDocumento,
@@ -79,7 +56,7 @@ public sealed class PersonasController(
     }
 
     [HttpPost("empadronar-set-minimo")]
-[Authorize(Roles = RolesEmpadronamiento)]
+[Authorize(Roles = "Administrador,Enrolamiento Persona,Medico")]
     public IActionResult EmpadronarConSetMinimo([FromBody] BuscarPersonaSetMinimoBody body)
     {
         try
@@ -105,7 +82,6 @@ public sealed class PersonasController(
     }
 
     [HttpPut("{personaId:guid}/set-minimo")]
-    [Authorize(Roles = RolesDatosMaestros)]
     public IActionResult ActualizarSetMinimo(Guid personaId, [FromBody] BuscarPersonaSetMinimoBody body)
     {
         try
@@ -131,7 +107,6 @@ public sealed class PersonasController(
     }
 
     [HttpGet("{personaId:guid}/financiador-activo")]
-    [Authorize(Roles = RolesLectura)]
     public IActionResult GetFinanciadorActivo(Guid personaId)
     {
         const string sql = """
@@ -169,7 +144,6 @@ public sealed class PersonasController(
     }
 
     [HttpGet("{personaId:guid}/domicilio")]
-    [Authorize(Roles = RolesLectura)]
     public IActionResult GetDomicilio(Guid personaId)
     {
         var domicilio = personaService.GetDomicilio(personaId);
@@ -183,7 +157,6 @@ public sealed class PersonasController(
     }
 
     [HttpPut("{personaId:guid}/domicilio")]
-    [Authorize(Roles = RolesDatosMaestros)]
     public IActionResult UpsertDomicilio(Guid personaId, [FromBody] DomicilioRequest request)
     {
         try
@@ -206,14 +179,12 @@ public sealed class PersonasController(
     }
 
     [HttpGet("{personaId:guid}/contactos")]
-    [Authorize(Roles = RolesLectura)]
     public IActionResult GetContactos(Guid personaId)
     {
         return Ok(personaService.GetContactos(personaId));
     }
 
     [HttpGet("{personaId:guid}/correos")]
-    [Authorize(Roles = RolesLectura)]
     public IActionResult GetCorreos(Guid personaId)
     {
         const string sql = """
@@ -245,7 +216,6 @@ public sealed class PersonasController(
     }
 
     [HttpPost("{personaId:guid}/contactos")]
-    [Authorize(Roles = RolesDatosMaestros)]
     public IActionResult CreateContacto(Guid personaId, [FromBody] PersonaContactoRequest request)
     {
         try
@@ -260,7 +230,6 @@ public sealed class PersonasController(
     }
 
     [HttpPut("{personaId:guid}/contactos/{contactoId:guid}")]
-    [Authorize(Roles = RolesDatosMaestros)]
     public IActionResult UpdateContacto(Guid personaId, Guid contactoId, [FromBody] PersonaContactoRequest request)
     {
         try
@@ -275,7 +244,6 @@ public sealed class PersonasController(
     }
 
     [HttpDelete("{personaId:guid}/contactos")]
-    [Authorize(Roles = RolesDatosMaestros)]
     public IActionResult DeleteContactos(Guid personaId, [FromQuery] string ids)
     {
         if (string.IsNullOrWhiteSpace(ids))

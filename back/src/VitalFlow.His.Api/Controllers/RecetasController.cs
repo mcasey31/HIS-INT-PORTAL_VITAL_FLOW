@@ -9,13 +9,7 @@ namespace VitalFlow.His.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/recetas")]
-// Solo se exige autenticacion a nivel de controller; los roles se aplican por
-// accion. En ASP.NET Core los [Authorize] de controller y accion se combinan
-// con AND, asi que un controller con Roles no admitiria acciones mas
-// restrictivas. Motivo: la app de recepcion necesita LEER recetas y ANULARLAS,
-// pero crear una receta es un acto medico y queda restringido a Medico y
-// Administrador (antes alcanzaba con Administrativo o Cajero).
-[Authorize]
+[Authorize(Roles = "Medico,Auditor,Administrador,Administrativo,Cajero,Enrolamiento Persona")]
 public sealed class RecetasController(
     IHistoriaClinicaService historiaClinicaService,
     IEmailService emailService,
@@ -23,15 +17,7 @@ public sealed class RecetasController(
     ILogger<RecetasController> logger
 ) : ControllerBase
 {
-    /// <summary>Roles autorizados a leer recetas y registrar su entrega.</summary>
-    private const string RolesLectura =
-        "Medico,Administrador,Administrativo,Cajero,Recepcion,Enrolamiento Persona,Auditor";
-
-    /// <summary>Roles autorizados a emitir una receta. Acto medico.</summary>
-    private const string RolesEmision = "Medico,Administrador";
-
     [HttpPost]
-    [Authorize(Roles = RolesEmision)]
     public ActionResult<RegistrarRecetaDigitalResponse> RegistrarReceta([FromBody] RegistrarRecetaDigitalRequest request)
     {
         try
@@ -45,7 +31,6 @@ public sealed class RecetasController(
     }
 
     [HttpGet("{recetaId:guid}")]
-    [Authorize(Roles = RolesLectura)]
     public ActionResult<RecetaDigitalDetalleResponse> ObtenerReceta(Guid recetaId)
     {
         try
@@ -58,26 +43,8 @@ public sealed class RecetasController(
         }
     }
 
-    /// <summary>
-    /// Estados validos del circuito de entrega. La app los usa para pintar los
-    /// botones de la pantalla de receta sin hardcodearlos.
-    /// </summary>
-    [HttpGet("estados")]
-    [Authorize(Roles = RolesLectura)]
-    public ActionResult<IReadOnlyList<string>> ObtenerEstados()
-    {
-        return Ok(HistoriaClinicaService.EstadosReceta);
-    }
-
-    /// <summary>
-    /// Listado por paciente. Se mantiene la respuesta como array plano porque
-    /// el front web (front/src/escritorioClinico/escritorioClinicoApi.ts) ya lo
-    /// consume con esa forma. Para la app movil usar GET /api/v1/recetas/buscar,
-    /// que devuelve objeto paginado y acepta filtros.
-    /// </summary>
     [HttpGet]
-    [Authorize(Roles = RolesLectura)]
-    public ActionResult<IReadOnlyList<RecetaDigitalResumenResponse>> ListarRecetasPaciente([FromQuery] string? pacienteId)
+    public ActionResult<IReadOnlyList<RecetaDigitalResumenResponse>> ListarRecetasPaciente([FromQuery] string pacienteId)
     {
         if (!Guid.TryParse(pacienteId, out var pacienteIdGuid) || pacienteIdGuid == Guid.Empty)
         {
@@ -87,91 +54,7 @@ public sealed class RecetasController(
         return Ok(historiaClinicaService.ObtenerRecetasDigitalesPaciente(pacienteIdGuid));
     }
 
-    /// <summary>
-    /// Listado paginado con filtros. Todos son opcionales y se combinan:
-    /// pacienteId, turnoId, encuentroId, estado, incluirAnuladas, page, pageSize.
-    /// Sin estado excluye las recetas anuladas.
-    /// </summary>
-    [HttpGet("buscar")]
-    [Authorize(Roles = RolesLectura)]
-    public ActionResult<RecetaDigitalPageResponse> BuscarRecetas(
-        [FromQuery] string? pacienteId,
-        [FromQuery] string? turnoId,
-        [FromQuery] string? encuentroId,
-        [FromQuery] string? estado,
-        [FromQuery] bool incluirAnuladas = false,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
-    {
-        if (!string.IsNullOrWhiteSpace(pacienteId) && !Guid.TryParse(pacienteId, out _))
-        {
-            return BadRequest(new { message = "pacienteId debe ser GUID valido." });
-        }
-
-        if (!string.IsNullOrWhiteSpace(turnoId) && !Guid.TryParse(turnoId, out _))
-        {
-            return BadRequest(new { message = "turnoId debe ser GUID valido." });
-        }
-
-        if (!string.IsNullOrWhiteSpace(encuentroId) && !Guid.TryParse(encuentroId, out _))
-        {
-            return BadRequest(new { message = "encuentroId debe ser GUID valido." });
-        }
-
-        if (page <= 0 || pageSize <= 0)
-        {
-            return BadRequest(new { message = "page y pageSize deben ser mayores a cero." });
-        }
-
-        var filtro = new RecetasDigitalesFiltro(
-            PacienteId: string.IsNullOrWhiteSpace(pacienteId) ? null : Guid.Parse(pacienteId),
-            TurnoId: string.IsNullOrWhiteSpace(turnoId) ? null : Guid.Parse(turnoId),
-            EncuentroId: string.IsNullOrWhiteSpace(encuentroId) ? null : Guid.Parse(encuentroId),
-            Estado: estado,
-            IncluirAnuladas: incluirAnuladas,
-            Page: page,
-            PageSize: pageSize);
-
-        try
-        {
-            return Ok(historiaClinicaService.ObtenerRecetasDigitales(filtro));
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Transiciona el estado de una receta. Valida la maquina de estados:
-    /// PUBLICADA_REPOSITORIO -&gt; PENDIENTE_DE_ENTREGA | IMPRESA | ANULADA,
-    /// PENDIENTE_DE_ENTREGA -&gt; ENTREGADA | IMPRESA | ANULADA,
-    /// IMPRESA -&gt; ENTREGADA | ANULADA.
-    /// ENTREGADA y ANULADA son finales.
-    /// </summary>
-    [HttpPost("{recetaId:guid}/estado")]
-    [Authorize(Roles = RolesLectura)]
-    public ActionResult<ActualizarEstadoRecetaDigitalResponse> ActualizarEstado(
-        Guid recetaId,
-        [FromBody] ActualizarEstadoRecetaDigitalRequest request)
-    {
-        try
-        {
-            return Ok(historiaClinicaService.ActualizarEstadoRecetaDigital(recetaId, request));
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            // Conflicto de concurrencia: otra terminal movio la receta antes.
-            return Conflict(new { message = ex.Message });
-        }
-    }
-
     [HttpPost("{recetaId:guid}/anular")]
-    [Authorize(Roles = RolesLectura)]
     public ActionResult<AnularRecetaDigitalResponse> AnularReceta(Guid recetaId, [FromBody] AnularRecetaDigitalRequest request)
     {
         try
@@ -181,10 +64,6 @@ public sealed class RecetasController(
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
         }
     }
 

@@ -21,9 +21,6 @@ public interface ITurnosRepository
     /// Devuelve todos los turnos del paciente ordenados por fecha_hora.
     IReadOnlyList<TurnoPacienteRow> GetTurnosPorPaciente(string pacienteId);
 
-    /// Devuelve un turno puntual por su id, o null si no existe.
-    TurnoPacienteRow? GetTurnoById(string turnoId);
-
     /// Devuelve turnos AGENDADOS de una fecha para validar ocupacion de slots en disponibilidad.
     IReadOnlyList<TurnoPacienteRow> GetTurnosAgendadosPorFecha(DateOnly fecha);
 
@@ -39,10 +36,6 @@ public interface ITurnosRepository
     /// Actualiza estado/motivo de un turno existente por ID.
     /// Devuelve cantidad de filas afectadas.
     int UpdateEstadoTurno(string turnoId, string estado, string? motivo);
-
-    /// Anula el turno y libera su cupo reservado en una sola transaccion.
-    /// Devuelve el estado anterior del turno, o null si el turno no existe.
-    string? AnularTurnoYCupo(string turnoId, string estadoNuevo, string? motivo);
 
     /// Inserta cupo si no existe para (bloqueId, horaInicio) y devuelve su ID, sin validar estado.
     Guid UpsertCupoAndGetId(Guid bloqueId, DateTimeOffset horaInicio, DateTimeOffset horaFin);
