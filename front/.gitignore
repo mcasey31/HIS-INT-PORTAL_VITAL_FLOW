@@ -1,2 +1,9 @@
 .vercel
 .env*
+
+# Artefactos de tsc -b. vite.config.js shadowea a vite.config.ts y Vite lo
+# resuelve con prioridad, asi que un .js stale rompe `vite dev`.
+# La fuente de verdad es vite.config.ts.
+vite.config.js
+vite.config.d.ts
+*.tsbuildinfo
