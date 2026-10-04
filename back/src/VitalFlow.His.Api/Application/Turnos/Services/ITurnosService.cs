@@ -9,6 +9,8 @@ public interface ITurnosService
     SelectoresDisponibilidadTurnoResponse GetSelectoresDisponibilidad();
     IReadOnlyList<DisponibilidadSlotTurnoResponse> BuscarDisponibilidad(BuscarDisponibilidadTurnoRequest request);
     TurnosPacientePageResponse GetTurnosPaciente(string pacienteId, bool historial, int page, int pageSize);
+    TurnoDetalleResponse GetTurnoById(string turnoId);
+    AnularTurnoResponse AnularTurno(string turnoId, AnularTurnoRequest request);
     FinanciadorPlanTurnoResponse GuardarFinanciadorPaciente(string pacienteId, GuardarPacienteFinanciadorTurnoRequest request);
     void FinalizarVigenciaFinanciadorPaciente(string pacienteId, string financiadorPlanPacienteId);
     Task<AsignarTurnoResponse> AsignarTurno(AsignarTurnoRequest request);
