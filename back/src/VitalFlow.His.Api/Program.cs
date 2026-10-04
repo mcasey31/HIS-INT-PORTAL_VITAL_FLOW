@@ -251,7 +251,17 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// La redireccion HTTPS a https solo tiene sentido cuando hay un endpoint
+// HTTPS configurado. En desarrollo la app movil de recepcion entra por
+// http://<ip-de-la-maquina>:3011 desde la red local, y sin este guard el
+// middleware responde 307 hacia una URL HTTPS sin certificado, lo que el
+// cliente Android no puede seguir. Se puede forzar con HttpsRedirect:Enabled.
+var httpsRedirectEnabled = builder.Configuration.GetValue("HttpsRedirect:Enabled", !app.Environment.IsDevelopment());
+if (httpsRedirectEnabled)
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseRateLimiter();
 
