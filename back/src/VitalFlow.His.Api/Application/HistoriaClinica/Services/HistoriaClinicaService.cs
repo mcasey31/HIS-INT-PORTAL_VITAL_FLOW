@@ -3,12 +3,79 @@ using VitalFlow.His.Api.Application.HistoriaClinica.Repositories;
 
 namespace VitalFlow.His.Api.Application.HistoriaClinica.Services;
 
-public sealed class HistoriaClinicaService(IHistoriaClinicaRepository repository) : IHistoriaClinicaService
+public sealed class HistoriaClinicaService(
+    IHistoriaClinicaRepository repository,
+    IHttpContextAccessor httpContextAccessor) : IHistoriaClinicaService
 {
     private const string EstadoPublicadaRepositorio = "PUBLICADA_REPOSITORIO";
+    private const string EstadoPendienteEntrega = "PENDIENTE_DE_ENTREGA";
+    private const string EstadoImpresa = "IMPRESA";
+    private const string EstadoEntregada = "ENTREGADA";
     private const string EstadoActivaItem = "ACTIVA";
     private const string EstadoAnulada = "ANULADA";
     private const string RdiarProfileDefault = "RDI_Ar_0_2_5";
+
+    /// <summary>
+    /// Estados validos de sch_hca.receta_digital.estado. Deben coincidir con el
+    /// constraint receta_digital_estado_chk de la migracion 044.
+    /// </summary>
+    public static readonly IReadOnlyList<string> EstadosReceta =
+    [
+        EstadoPublicadaRepositorio,
+        EstadoPendienteEntrega,
+        EstadoImpresa,
+        EstadoEntregada,
+        EstadoAnulada
+    ];
+
+    /// <summary>
+    /// Transiciones permitidas del circuito de entrega de recetas:
+    ///
+    ///   PUBLICADA_REPOSITORIO -&gt; PENDIENTE_DE_ENTREGA | IMPRESA | ANULADA
+    ///   PENDIENTE_DE_ENTREGA  -&gt; ENTREGADA | IMPRESA | ANULADA
+    ///   IMPRESA               -&gt; ENTREGADA | ANULADA
+    ///   ENTREGADA             -&gt; (estado final)
+    ///   ANULADA               -&gt; (estado final)
+    /// </summary>
+    private static readonly Dictionary<string, HashSet<string>> TransicionesReceta =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            [EstadoPublicadaRepositorio] = new(StringComparer.OrdinalIgnoreCase)
+            {
+                EstadoPendienteEntrega,
+                EstadoImpresa,
+                EstadoAnulada
+            },
+            [EstadoPendienteEntrega] = new(StringComparer.OrdinalIgnoreCase)
+            {
+                EstadoEntregada,
+                EstadoImpresa,
+                EstadoAnulada
+            },
+            [EstadoImpresa] = new(StringComparer.OrdinalIgnoreCase)
+            {
+                EstadoEntregada,
+                EstadoAnulada
+            }
+            // ENTREGADA y ANULADA son finales: no tienen transiciones de salida.
+        };
+
+    /// <summary>
+    /// Usuario autenticado segun el claim userId del JWT. Tomarlo del token y
+    /// no del body evita que un cliente se atribuya la accion de otro, y evita
+    /// que el endpoint falle cuando el cliente no manda el campo.
+    /// </summary>
+    private Guid UsuarioActual()
+    {
+        var claim = httpContextAccessor.HttpContext?.User.FindFirst("userId")?.Value;
+        if (!Guid.TryParse(claim, out var usuarioId) || usuarioId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "No se pudo determinar el usuario autenticado (claim userId ausente).");
+        }
+
+        return usuarioId;
+    }
 
     public IReadOnlyList<ProblemaCronicoResponse> ObtenerProblemasCronicos(Guid pacienteId)
     {
@@ -233,6 +300,98 @@ public sealed class HistoriaClinicaService(IHistoriaClinicaRepository repository
         return repository.GetRecetasDigitalesByPaciente(pacienteId);
     }
 
+    public RecetaDigitalPageResponse ObtenerRecetasDigitales(RecetasDigitalesFiltro filtro)
+    {
+        ArgumentNullException.ThrowIfNull(filtro);
+
+        if (!string.IsNullOrWhiteSpace(filtro.Estado)
+            && !EstadosReceta.Contains(filtro.Estado.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"estado invalido. Valores permitidos: {string.Join(", ", EstadosReceta)}.");
+        }
+
+        var page = filtro.Page <= 0 ? 1 : filtro.Page;
+        var pageSize = filtro.PageSize <= 0 ? 20 : filtro.PageSize;
+
+        // Mismo tope que el listado de turnos del paciente, para que la app
+        // mobile no pida paginas gigantes.
+        if (pageSize > 100)
+        {
+            throw new ArgumentException("pageSize no puede ser mayor a 100.");
+        }
+
+        return repository.GetRecetasDigitales(filtro with { Page = page, PageSize = pageSize });
+    }
+
+    public ActualizarEstadoRecetaDigitalResponse ActualizarEstadoRecetaDigital(
+        Guid recetaId,
+        ActualizarEstadoRecetaDigitalRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (recetaId == Guid.Empty)
+        {
+            throw new ArgumentException("recetaId es obligatorio.");
+        }
+
+        var estadoNuevo = request.Estado?.Trim();
+        if (string.IsNullOrWhiteSpace(estadoNuevo))
+        {
+            throw new ArgumentException("estado es obligatorio.");
+        }
+
+        if (!EstadosReceta.Contains(estadoNuevo, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"estado invalido. Valores permitidos: {string.Join(", ", EstadosReceta)}.");
+        }
+
+        var usuarioId = UsuarioActual();
+
+        var actual = repository.GetRecetaDigitalById(recetaId);
+        if (actual is null)
+        {
+            throw new ArgumentException("No se encontro la receta solicitada.");
+        }
+
+        var estadoActual = actual.Estado;
+        if (string.Equals(estadoActual, estadoNuevo, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException($"La receta ya se encuentra en estado {estadoNuevo}.");
+        }
+
+        if (!TransicionesReceta.TryGetValue(estadoActual, out var permitidas))
+        {
+            throw new ArgumentException(
+                $"El estado {estadoActual} es final y no admite transiciones.");
+        }
+
+        if (!permitidas.Contains(estadoNuevo))
+        {
+            throw new ArgumentException(
+                $"Transicion no permitida de {estadoActual} a {estadoNuevo}. " +
+                $"Permitido: {string.Join(", ", permitidas.OrderBy(x => x))}.");
+        }
+
+        var resultado = repository.ActualizarEstadoRecetaDigital(
+            recetaId,
+            estadoNuevo.ToUpperInvariant(),
+            estadoActual,
+            usuarioId,
+            request.Motivo?.Trim());
+
+        if (resultado is null)
+        {
+            // El update exigia que el estado siguiera siendo el leido: si no
+            // matcheo, otra terminal movio la receta en paralelo.
+            throw new InvalidOperationException(
+                "La receta fue modificada por otro usuario mientras se realizaba el cambio. Recargue e intente nuevamente.");
+        }
+
+        return resultado;
+    }
+
     public AnularRecetaDigitalResponse AnularRecetaDigital(Guid recetaId, AnularRecetaDigitalRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -247,18 +406,19 @@ public sealed class HistoriaClinicaService(IHistoriaClinicaRepository repository
             throw new ArgumentException("motivo es obligatorio.");
         }
 
-        if (!Guid.TryParse(request.UsuarioId, out var usuarioId) || usuarioId == Guid.Empty)
-        {
-            throw new ArgumentException("usuarioId es obligatorio y debe ser GUID valido.");
-        }
+        // No se valida request.UsuarioId: el usuario se resuelve desde el claim
+        // userId del JWT, asi que un cliente puede omitir el campo.
+        // Anular es un caso particular de cambio de estado. Se rutea por la
+        // maquina de estados para que /anular y /estado apliquen exactamente las
+        // mismas reglas y los dos caminos dejen auditoria en receta_digital_evento.
+        var actualizado = ActualizarEstadoRecetaDigital(
+            recetaId,
+            new ActualizarEstadoRecetaDigitalRequest(EstadoAnulada, request.Motivo));
 
-        var result = repository.AnularRecetaDigital(recetaId, request.Motivo.Trim(), usuarioId);
-        if (result is null)
-        {
-            throw new ArgumentException("No se encontro la receta solicitada.");
-        }
-
-        return result with { Estado = EstadoAnulada };
+        return new AnularRecetaDigitalResponse(
+            RecetaId: actualizado.RecetaId,
+            Estado: actualizado.Estado,
+            ActualizadoEn: actualizado.ActualizadoEn);
     }
 
     public IReadOnlyList<SolicitudEstudioResponse> ObtenerSolicitudesEstudios(string turnoId)
